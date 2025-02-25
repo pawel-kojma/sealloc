@@ -56,21 +56,27 @@ void *internal_alloc(size_t size) {
     if (root->free_mem < size) continue;
     while (idx != 1 && state != UP_RIGHT) {
       if (idx >= max_idx / 2) {
-        visit(get_tree_item(root->memory, idx));
+        visit(get_tree_item(root->memory, idx), cur_size);
         state = (idx & 1) ? UP_RIGHT : UP_LEFT;
+        ptr = (idx & 1) ? ptr - cur_size : ptr;
+        cur_size = cur_size * 2;
         idx = idx / 2;
         continue;
       }
       switch (state) {
         case DOWN:
-          visit(get_tree_item(root->memory, idx));
+          visit(get_tree_item(root->memory, idx), cur_size);
+          cur_size = cur_size / 2;
           idx = idx * 2;
           break;
         case UP_LEFT:
+          cur_size = cur_size / 2;
+          ptr = ptr + cur_size;
           idx = idx * 2 + 1;
           state = DOWN;
           break;
         case UP_RIGHT:
+          cur_size = cur_size * 2;
           idx = idx / 2;
           state = (idx & 1) ? UP_RIGHT : UP_LEFT;
           break;
