@@ -2,11 +2,11 @@
 #include <sealloc/logging.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
-struct internal_allocator_data *internal_alloc_mappings_root;
-static unsigned int internal_alloc_secret;
+static struct internal_allocator_data *internal_alloc_mappings_root;
 
 typedef enum internal_allocator_node_type {
   NODE_INVALID = 0,
@@ -16,23 +16,33 @@ typedef enum internal_allocator_node_type {
 } ia_node_t;
 
 void internal_allocator_init(void) {
-  struct internal_allocator_data *internal_alloc_mappings_root =
-      mmap(NULL, sizeof(struct internal_allocator_data), PROT_READ | PROT_WRITE,
-           MAP_PRIVATE, -1, 0);
+  internal_alloc_mappings_root =
+      (struct internal_allocator_data *)mmap(NULL, sizeof(struct internal_allocator_data), PROT_READ | PROT_WRITE,
+           MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (internal_alloc_mappings_root == MAP_FAILED) {
     sealloc_log("internal_allocator.internal_allocator_init: mmap failed");
   }
   internal_alloc_mappings_root->bk = NULL;
   internal_alloc_mappings_root->fd = NULL;
-  internal_alloc_mappings_root->buddy_tree[0] = 3;
+  internal_alloc_mappings_root->buddy_tree[0] = (uint8_t)NODE_FREE;
   internal_alloc_mappings_root->free_mem =
       sizeof(internal_alloc_mappings_root->memory);
 }
 
-static inline ia_node_t get_tree_item(uint8_t *mem, size_t idx) {
+static ia_node_t get_tree_item(uint8_t *mem, size_t idx) {
   size_t word = (idx - 1) / 4;
   size_t off = (idx - 1) % 4;
-  return (ia_node_t)(mem[word] >> (2 * off)) & 0b11;
+  return (ia_node_t)(mem[word] >> (2 * off)) & 3;
+}
+
+static void set_tree_item(uint8_t *mem, size_t idx, ia_node_t node_state) {
+  size_t word = (idx - 1) / 4;
+  size_t off = (idx - 1) % 4;
+  uint8_t erase_bits = 3;  // 0b11
+  // First, clear the bits we want to set in mem[word]
+  // Second, set two node_state bits in their place
+  mem[word] = (mem[word] & ~(erase_bits << (off * 2))) |
+              ((uint8_t)node_state << (off * 2));
 }
 
 typedef enum traverse_state {
@@ -42,7 +52,7 @@ typedef enum traverse_state {
 } tstate_t;
 
 void *internal_alloc(size_t size) {
-  size_t idx, back_idx, cur_size, max_idx;
+  size_t idx, cur_size, max_idx;
   uintptr_t ptr;
   ia_node_t node;
   tstate_t state;
@@ -54,20 +64,88 @@ void *internal_alloc(size_t size) {
     ptr = (uintptr_t)&root->memory;
     max_idx = INTERNAL_ALLOC_NO_NODES;
     if (root->free_mem < size) continue;
+
+    // Search stops when we come back to the root from the right child
     while (idx != 1 && state != UP_RIGHT) {
+      // If we are in a leaf node, visit and go up.
       if (idx >= max_idx / 2) {
-        visit(get_tree_item(root->memory, idx), cur_size);
-        state = (idx & 1) ? UP_RIGHT : UP_LEFT;
-        ptr = (idx & 1) ? ptr - cur_size : ptr;
-        cur_size = cur_size * 2;
-        idx = idx / 2;
+        node = get_tree_item(root->memory, idx);
+        switch (node) {
+          case NODE_FREE:
+            // There is no further splitting, allocate here.
+            set_tree_item(root->memory, idx, NODE_USED);
+            return (void *)ptr;
+            break;
+          case NODE_USED:
+            // Node is used, nothing we can do, go up.
+            state = (idx & 1) ? UP_RIGHT : UP_LEFT;
+            ptr = (idx & 1) ? ptr - cur_size : ptr;
+            idx = idx / 2;
+            cur_size = cur_size * 2;
+            break;
+          case NODE_SPLIT:
+            // Invalid state, leaf node cannot be split.
+            sealloc_log(
+                "internal_allocator.internal_alloc: leaf node state is "
+                "NODE_SPLIT");
+            exit(1);
+          case NODE_INVALID:
+            // Invalid state, should never happen.
+            sealloc_log(
+                "internal_allocator.internal_alloc: leaf node state is "
+                "NODE_INVALID");
+            exit(1);
+        }
         continue;
       }
       switch (state) {
         case DOWN:
-          visit(get_tree_item(root->memory, idx), cur_size);
-          cur_size = cur_size / 2;
-          idx = idx * 2;
+          node = get_tree_item(root->memory, idx);
+          switch (node) {
+            case NODE_SPLIT:
+              // If size cannot fit into this chunk, then backtrack.
+              if (size >= cur_size) {
+                state = (idx & 1) ? UP_RIGHT : UP_LEFT;
+                ptr = (idx & 1) ? ptr - cur_size : ptr;
+                idx = idx / 2;
+                cur_size = cur_size * 2;
+              }
+              // If size still fits, but node is split, then go to left child.
+              else {
+                idx = idx * 2;
+                cur_size = cur_size / 2;
+              }
+              break;
+            case NODE_FREE:
+              // If size fits current node and the node is free,
+              // then allocate it.
+              if (cur_size / 2 < size && size <= cur_size) {
+                set_tree_item(root->memory, idx, NODE_USED);
+                return (void *)ptr;
+              }
+              // We know node above us must have been split.
+              // In this case: size < cur_size / 2
+              // Split the node and go to the left child.
+              else {
+                set_tree_item(root->memory, idx, NODE_SPLIT);
+                set_tree_item(root->memory, idx * 2, NODE_FREE);
+                set_tree_item(root->memory, idx * 2 + 1, NODE_FREE);
+                cur_size = cur_size / 2;
+                idx = idx * 2;
+              }
+              break;
+            case NODE_USED:
+              // Node is used, nothing we can do, go up.
+              state = (idx & 1) ? UP_RIGHT : UP_LEFT;
+              ptr = (idx & 1) ? ptr - cur_size : ptr;
+              idx = idx / 2;
+              cur_size = cur_size * 2;
+              break;
+            case NODE_INVALID:
+              // Invalid state, should never happen.
+              sealloc_log("internal_allocator.internal_alloc: NODE_INVALID");
+              exit(1);
+          }
           break;
         case UP_LEFT:
           cur_size = cur_size / 2;

@@ -2,7 +2,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifdef LOG_INFO
 static const char *log_info_prefix = "[INFO]";
+#endif
 
 void sealloc_log(const char *fmt) {
 #ifdef LOG_INFO
