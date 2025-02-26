@@ -165,3 +165,44 @@ void *internal_alloc(size_t size) {
   }
   return NULL;
 }
+
+void internal_free(void *ptr) {
+  size_t idx = 1, cur_size = INTERNAL_ALLOC_CHUNK_SIZE_BYTES, neigh_idx;
+  ptrdiff_t ptr_cur, ptr_dest = (ptrdiff_t)ptr;
+  struct internal_allocator_data *root = NULL;
+  for (root = internal_alloc_mappings_root; root != NULL; root = root->fd) {
+    if ((ptrdiff_t)&root->memory <= ptr_dest &&
+        ptr_dest <= (ptrdiff_t)root->memory + sizeof(root->memory))
+      break;
+  }
+  if (!root) {
+    sealloc_log("internal_allocator.internal_free: root == NULL");
+  }
+  ptr_cur = (ptrdiff_t)&root->memory;
+  ia_node_t state = get_tree_item(root->buddy_tree, idx);
+  // First, we have to find the right node
+  // TODO: check if we are at the leaf node
+  while (!(ptr_cur == ptr_dest && state == NODE_USED)) {
+    cur_size /= 2;
+    // Go to right child
+    if (ptr_dest >= ptr_cur + cur_size) {
+      idx = idx * 2 + 1;
+      ptr_cur += cur_size;
+    }
+    // Go to left child
+    else {
+      idx = idx * 2;
+    }
+    state = get_tree_item(root->buddy_tree, idx);
+  }
+  set_tree_item(root->buddy_tree, idx, NODE_FREE);
+  // Second phase, go up and coalesce free nodes
+  while (idx != 1) {
+    neigh_idx = (idx & 1) ? idx - 1 : idx + 1;
+    state = get_tree_item(root->buddy_tree, neigh_idx);
+    if (state == NODE_FREE) {
+      set_tree_item(root->buddy_tree, idx / 2, NODE_FREE);
+    }
+    idx /= 2;
+  }
+}
