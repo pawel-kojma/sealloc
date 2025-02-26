@@ -2,6 +2,6 @@
 #include <stdio.h>
 
 int main(void){
-    printf("IA test");
+    internal_allocator_init();
     return 0;
 }

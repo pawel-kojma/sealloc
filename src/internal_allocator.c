@@ -16,11 +16,12 @@ typedef enum internal_allocator_node_type {
 } ia_node_t;
 
 void internal_allocator_init(void) {
-  internal_alloc_mappings_root =
-      (struct internal_allocator_data *)mmap(NULL, sizeof(struct internal_allocator_data), PROT_READ | PROT_WRITE,
-           MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  internal_alloc_mappings_root = (struct internal_allocator_data *)mmap(
+      NULL, sizeof(struct internal_allocator_data), PROT_READ | PROT_WRITE,
+      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (internal_alloc_mappings_root == MAP_FAILED) {
     sealloc_log("internal_allocator.internal_allocator_init: mmap failed");
+    exit(1);
   }
   internal_alloc_mappings_root->bk = NULL;
   internal_alloc_mappings_root->fd = NULL;
