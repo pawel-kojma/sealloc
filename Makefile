@@ -1,18 +1,34 @@
-CC=clang
-CFLAGS=-std=c17
-INCLUDES=-I./include
-SRC=./src
+CC := clang
+CFLAGS := -O2 -std=gnu17 -fpic -Wall -Werror -pedantic
+CFLAGS_DEBUG := -O0 -g -ggdb -std=gnu17 -fpic -Wall -Werror -pedantic
+INCLUDE_DIRS := ./include
+SRC_DIR := ./src
+TEST_DIR := ./test
+BUILD_DIR := ./build
+BUILD_DIR_TEST := ./build/test
 
-all: internal_allocator.o logging.o
+SRCS := $(shell find $(SRC_DIR) -name '*.c')
+OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
+INCLUDE_FLAGS := $(addprefix -I,$(INCLUDE_DIRS))
 
-internal_allocator.o: $(SRC)/internal_allocator.c
-	$(CC) $(CFLAGS) -c -o internal_allocator.o $(INCLUDES) $(SRC)/internal_allocator.c
+$(BUILD_DIR)/%.c.o: %.c
+	mkdir -p $(dir $@)
+ifneq (,$(findstring debug, $(MAKEFLAGS)))
+	$(CC) $(CFLAGS_DEBUG) $(INCLUDE_FLAGS) -c $< -o $@
+else
+	$(CC) $(CFLAGS) $(INCLUDE_FLAGS) -c $< -o $@
+endif
 
-logging.o: $(SRC)/logging.c
-	$(CC) $(CFLAGS) -c -o logging.o $(INCLUDES) $(SRC)/logging.c
+IA_TEST := test_ia
+IA_SRCS := logging.c internal_allocator.c
+IA_SRCS := $(addprefix $(SRC_DIR)/,$(IA_SRCS))
+IA_OBJS := $(IA_SRCS:%=$(BUILD_DIR)/%.o)
+$(BUILD_DIR_TEST)/$(IA_TEST): $(IA_OBJS)
+	$(CC) $(CFLAGS_DEBUG) $(INCLUDE_FLAGS) -c $(TEST_DIR)/$(IA_TEST).c -o $(BUILD_DIR)/$(IA_TEST).c.o 
+	$(CC) -o $@ $^ $(BUILD_DIR)/$(IA_TEST).c.o
 
+.PHONY: clean test_ia
+test_ia: $(BUILD_DIR_TEST)/$(IA_TEST)
 clean:
-	rm -rf *.o *.a *.elf
-
-.PHONY: clean
+	rm -rf $(BUILD_DIR)
 
