@@ -2,6 +2,7 @@
 #include <sealloc/logging.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -67,14 +68,14 @@ void *internal_alloc(size_t size) {
     if (root->free_mem < size) continue;
 
     // Search stops when we come back to the root from the right child
-    while (idx != 1 && state != UP_RIGHT) {
+    while (!(idx == 1 && state == UP_RIGHT)) {
       // If we are in a leaf node, visit and go up.
-      if (idx >= max_idx / 2) {
-        node = get_tree_item(root->memory, idx);
+      if (idx >= (max_idx + 1) / 2) {
+        node = get_tree_item(root->buddy_tree, idx);
         switch (node) {
           case NODE_FREE:
             // There is no further splitting, allocate here.
-            set_tree_item(root->memory, idx, NODE_USED);
+            set_tree_item(root->buddy_tree, idx, NODE_USED);
             return (void *)ptr;
             break;
           case NODE_USED:
@@ -101,7 +102,7 @@ void *internal_alloc(size_t size) {
       }
       switch (state) {
         case DOWN:
-          node = get_tree_item(root->memory, idx);
+          node = get_tree_item(root->buddy_tree, idx);
           switch (node) {
             case NODE_SPLIT:
               // If size cannot fit into this chunk, then backtrack.
@@ -121,16 +122,16 @@ void *internal_alloc(size_t size) {
               // If size fits current node and the node is free,
               // then allocate it.
               if (cur_size / 2 < size && size <= cur_size) {
-                set_tree_item(root->memory, idx, NODE_USED);
+                set_tree_item(root->buddy_tree, idx, NODE_USED);
                 return (void *)ptr;
               }
               // We know node above us must have been split.
               // In this case: size < cur_size / 2
               // Split the node and go to the left child.
               else {
-                set_tree_item(root->memory, idx, NODE_SPLIT);
-                set_tree_item(root->memory, idx * 2, NODE_FREE);
-                set_tree_item(root->memory, idx * 2 + 1, NODE_FREE);
+                set_tree_item(root->buddy_tree, idx, NODE_SPLIT);
+                set_tree_item(root->buddy_tree, idx * 2, NODE_FREE);
+                set_tree_item(root->buddy_tree, idx * 2 + 1, NODE_FREE);
                 cur_size = cur_size / 2;
                 idx = idx * 2;
               }

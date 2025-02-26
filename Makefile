@@ -13,7 +13,7 @@ INCLUDE_FLAGS := $(addprefix -I,$(INCLUDE_DIRS))
 
 $(BUILD_DIR)/%.c.o: %.c
 	mkdir -p $(dir $@)
-ifneq (,$(findstring debug, $(MAKEFLAGS)))
+ifdef DEBUG
 	$(CC) $(CFLAGS_DEBUG) $(INCLUDE_FLAGS) -c $< -o $@
 else
 	$(CC) $(CFLAGS) $(INCLUDE_FLAGS) -c $< -o $@
