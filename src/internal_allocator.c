@@ -204,23 +204,40 @@ void *internal_alloc(size_t size) {
   return internal_alloc_with_root(internal_alloc_mappings_root, size);
 }
 
+// Free the chunk pointed by ptr
 void internal_free(void *ptr) {
-  size_t idx = 1, cur_size = INTERNAL_ALLOC_CHUNK_SIZE_BYTES, neigh_idx;
+  size_t idx = 1, cur_size = INTERNAL_ALLOC_CHUNK_SIZE_BYTES, neigh_idx,
+         max_idx = INTERNAL_ALLOC_NO_NODES;
   ptrdiff_t ptr_cur, ptr_dest = (ptrdiff_t)ptr;
+  ia_node_t state;
   struct internal_allocator_data *root = NULL;
+
+  // Find mapping that contains the ptr
   for (root = internal_alloc_mappings_root; root != NULL; root = root->fd) {
     if ((ptrdiff_t)&root->memory <= ptr_dest &&
         ptr_dest <= (ptrdiff_t)root->memory + sizeof(root->memory))
       break;
   }
+
+  // No mapping found, panic
   if (!root) {
     sealloc_log("internal_allocator.internal_free: root == NULL");
+    exit(1);
   }
+
   ptr_cur = (ptrdiff_t)&root->memory;
-  ia_node_t state = get_tree_item(root->buddy_tree, idx);
+  state = get_tree_item(root->buddy_tree, idx);
+
   // First, we have to find the right node
-  // TODO: check if we are at the leaf node
   while (!(ptr_cur == ptr_dest && state == NODE_USED)) {
+    /*
+     * We are in a leaf node
+     * and still haven't found the chunk.
+     */
+    if (idx >= (max_idx + 1) / 2) {
+      sealloc_log("internal_allocator.internal_free: No chunk found.");
+      exit(1);
+    }
     cur_size /= 2;
     // Go to right child
     if (ptr_dest >= ptr_cur + cur_size) {
@@ -233,7 +250,13 @@ void internal_free(void *ptr) {
     }
     state = get_tree_item(root->buddy_tree, idx);
   }
+
+  // Mark the node free
   set_tree_item(root->buddy_tree, idx, NODE_FREE);
+
+  // Update free_mem field
+  root->free_mem += cur_size;
+
   // Second phase, go up and coalesce free nodes
   while (idx != 1) {
     neigh_idx = (idx & 1) ? idx - 1 : idx + 1;
