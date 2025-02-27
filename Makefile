@@ -19,6 +19,8 @@ else
 	$(CC) $(CFLAGS) $(INCLUDE_FLAGS) -c $< -o $@
 endif
 
+# Test targets
+
 IA_TEST := test_ia
 IA_SRCS := logging.c internal_allocator.c
 IA_SRCS := $(addprefix $(SRC_DIR)/,$(IA_SRCS))
@@ -28,8 +30,13 @@ $(BUILD_DIR_TEST)/$(IA_TEST): $(IA_OBJS)
 	$(CC) $(CFLAGS_DEBUG) $(INCLUDE_FLAGS) -c $(TEST_DIR)/$(IA_TEST).c -o $(BUILD_DIR)/$(IA_TEST).c.o 
 	$(CC) -o $@ $^ $(BUILD_DIR)/$(IA_TEST).c.o
 
-.PHONY: clean test_ia
+.PHONY: help clean test_ia
 test_ia: $(BUILD_DIR_TEST)/$(IA_TEST)
 clean:
 	rm -rf $(BUILD_DIR)
+
+help:
+	@echo "Available targets:"
+	@echo "test_ia - Build test for internal allocator."
+	@echo "clean   - Clean build files."
 
