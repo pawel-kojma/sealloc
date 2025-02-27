@@ -96,6 +96,7 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
         case NODE_FREE:
           // There is no further splitting, allocate here.
           set_tree_item(root->buddy_tree, idx, NODE_USED);
+          root->free_mem -= cur_size;
           return (void *)ptr;
           break;
         case NODE_USED:
@@ -143,6 +144,7 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
             // then allocate it.
             if (cur_size / 2 < size && size <= cur_size) {
               set_tree_item(root->buddy_tree, idx, NODE_USED);
+              root->free_mem -= cur_size;
               return (void *)ptr;
             }
             // We know node above us must have been split.

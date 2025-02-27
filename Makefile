@@ -21,17 +21,19 @@ endif
 
 # Test targets
 
-IA_TEST := test_ia
+IA_TEST := test_ia_1 test_ia_2
 IA_SRCS := logging.c internal_allocator.c
 IA_SRCS := $(addprefix $(SRC_DIR)/,$(IA_SRCS))
 IA_OBJS := $(IA_SRCS:%=$(BUILD_DIR)/%.o)
-$(BUILD_DIR_TEST)/$(IA_TEST): $(IA_OBJS)
-	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS_DEBUG) $(INCLUDE_FLAGS) -c $(TEST_DIR)/$(IA_TEST).c -o $(BUILD_DIR)/$(IA_TEST).c.o 
-	$(CC) -o $@ $^ $(BUILD_DIR)/$(IA_TEST).c.o
 
 .PHONY: help clean test_ia
-test_ia: $(BUILD_DIR_TEST)/$(IA_TEST)
+test_ia: $(IA_OBJS)
+	mkdir -p $(BUILD_DIR_TEST)
+	for test in $(IA_TEST); do \
+		$(CC) $(CFLAGS_DEBUG) $(INCLUDE_FLAGS) -c $(TEST_DIR)/$${test}.c -o $(BUILD_DIR)/$${test}.o ; \
+		$(CC) -o $(BUILD_DIR_TEST)/$${test} $^ $(BUILD_DIR)/$${test}.o ; \
+	done
+
 clean:
 	rm -rf $(BUILD_DIR)
 

@@ -2,7 +2,10 @@
 #include <stdio.h>
 
 int main(void){
-    internal_allocator_init();
+    int r = internal_allocator_init();
+    if (r < 0){
+        printf("Initialization failed\n");
+    }
     void *a = internal_alloc(16);
     void *b = internal_alloc(16);
     internal_free(a);
