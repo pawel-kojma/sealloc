@@ -32,7 +32,7 @@ struct internal_allocator_data {
 };
 
 /* Initialize allocator */
-void internal_allocator_init(void);
+int internal_allocator_init(void);
 
 /* allocate chunk for metadata */
 void *internal_alloc(size_t);
