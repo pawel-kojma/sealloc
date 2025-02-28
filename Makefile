@@ -1,6 +1,6 @@
 CC := clang
 CFLAGS := -O2 -std=gnu17 -fpic -Wall -Werror -pedantic
-CFLAGS_DEBUG := -O0 -g -ggdb -std=gnu17 -fpic -Wall -Werror -pedantic
+CFLAGS_DEBUG := -O0 -g -ggdb -DLOGGING -std=gnu17 -fpic -Wall -Werror -pedantic
 INCLUDE_DIRS := ./include
 SRC_DIR := ./src
 TEST_DIR := ./test
@@ -13,7 +13,7 @@ INCLUDE_FLAGS := $(addprefix -I,$(INCLUDE_DIRS))
 
 $(BUILD_DIR)/%.c.o: %.c
 	mkdir -p $(dir $@)
-ifdef DEBUG
+ifdef LOGGING
 	$(CC) $(CFLAGS_DEBUG) $(INCLUDE_FLAGS) -c $< -o $@
 else
 	$(CC) $(CFLAGS) $(INCLUDE_FLAGS) -c $< -o $@

@@ -29,8 +29,7 @@ static int morecore(void) {
       NULL, sizeof(struct internal_allocator_data), PROT_READ | PROT_WRITE,
       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (internal_alloc_mappings_root == MAP_FAILED) {
-    sealloc_log("internal_allocator.morecore: mmap failed");
-    return -1;
+    se_error_with_errno("mmap failed");
   }
   internal_alloc_mappings_root->bk = map;
   map->fd = internal_alloc_mappings_root;
@@ -47,8 +46,7 @@ int internal_allocator_init(void) {
       NULL, sizeof(struct internal_allocator_data), PROT_READ | PROT_WRITE,
       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (internal_alloc_mappings_root == MAP_FAILED) {
-    sealloc_log("internal_allocator.internal_allocator_init: mmap failed");
-    return -1;
+    se_error_with_errno("mmap failed");
   }
   internal_alloc_mappings_root->bk = NULL;
   internal_alloc_mappings_root->fd = NULL;
@@ -108,16 +106,10 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
           break;
         case NODE_SPLIT:
           // Invalid state, leaf node cannot be split.
-          sealloc_log(
-              "internal_allocator.internal_alloc: leaf node state is "
-              "NODE_SPLIT");
-          exit(1);
+          se_error("leaf node state is NODE_SPLIT");
         case NODE_INVALID:
           // Invalid state, should never happen.
-          sealloc_log(
-              "internal_allocator.internal_alloc: leaf node state is "
-              "NODE_INVALID");
-          exit(1);
+          se_error("leaf node state is NODE_INVALID");
       }
       continue;
     }
@@ -167,8 +159,7 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
             break;
           case NODE_INVALID:
             // Invalid state, should never happen.
-            sealloc_log("internal_allocator.internal_alloc: NODE_INVALID");
-            exit(1);
+            se_error("NODE_INVALID");
         }
         break;
       case UP_LEFT:
@@ -223,8 +214,7 @@ void internal_free(void *ptr) {
 
   // No mapping found, panic
   if (!root) {
-    sealloc_log("internal_allocator.internal_free: root == NULL");
-    exit(1);
+    se_error("root == NULL");
   }
 
   ptr_cur = (ptrdiff_t)&root->memory;
@@ -237,8 +227,7 @@ void internal_free(void *ptr) {
      * and still haven't found the chunk.
      */
     if (idx >= (max_idx + 1) / 2) {
-      sealloc_log("internal_allocator.internal_free: No chunk found.");
-      exit(1);
+      se_error("No chunk found.");
     }
     cur_size /= 2;
     // Go to right child
