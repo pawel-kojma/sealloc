@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define CHUNKS 10
+#define CHUNKS 10000
 
 const size_t SIZES[] = {5, 10, 16, 24, 32, 50, 4535, 544223};
 
@@ -26,7 +26,10 @@ int main(void) {
   }
   printf("Starting cleanup...\n");
   for (int i = 0; i < CHUNKS; i++) {
-    if (rand() % 2 == 0) internal_free(chunks[i]);
+    if (rand() % 2 == 0) {
+      printf("Freeing chunk[%d]\n", i);
+      internal_free(chunks[i]);
+    }
   }
   printf("Done\n");
   return 0;

@@ -96,12 +96,16 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
       node = get_tree_item(root->buddy_tree, idx);
       switch (node) {
         case NODE_FREE:
+          se_debug("Node(idx=%zu, state=NODE_FREE", idx);
+          se_debug("ptr=%p", (void *)ptr);
           // There is no further splitting, allocate here.
           set_tree_item(root->buddy_tree, idx, NODE_USED);
           root->free_mem -= cur_size;
           return (void *)ptr;
           break;
         case NODE_USED:
+          se_debug("Node(idx=%zu, state=NODE_USED", idx);
+          se_debug("ptr=%p", (void *)ptr);
           // Node is used, nothing we can do, go up.
           state = (idx & 1) ? UP_RIGHT : UP_LEFT;
           ptr = (idx & 1) ? ptr - cur_size : ptr;
@@ -129,7 +133,6 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
               ptr = (idx & 1) ? ptr - cur_size : ptr;
               idx = idx / 2;
               cur_size = cur_size * 2;
-
             }
             // If size still fits, but node is split, then go to left child.
             else {
@@ -146,7 +149,7 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
               return (void *)ptr;
             }
             // We know node above us must have been split.
-            // In this case: size < cur_size / 2
+            // In this case: size <= cur_size / 2
             // Split the node and go to the left child.
             else {
               set_tree_item(root->buddy_tree, idx, NODE_SPLIT);
@@ -171,13 +174,14 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
       case UP_LEFT:
         cur_size = cur_size / 2;
         ptr = ptr + cur_size;
-        idx = idx * 2 + 1;
         state = DOWN;
+        idx = idx * 2 + 1;
         break;
       case UP_RIGHT:
-        cur_size = cur_size * 2;
-        idx = idx / 2;
         state = (idx & 1) ? UP_RIGHT : UP_LEFT;
+        ptr = (idx & 1) ? ptr - cur_size : ptr;
+        idx = idx / 2;
+        cur_size = cur_size * 2;
         break;
     }
   }
