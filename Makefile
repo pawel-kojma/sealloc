@@ -21,7 +21,7 @@ endif
 
 # Test targets
 
-IA_TEST := test_ia_1 test_ia_2
+IA_TEST := test_ia_1 test_ia_2 test_ia_3
 IA_SRCS := internal_allocator.c
 IA_SRCS := $(addprefix $(SRC_DIR)/,$(IA_SRCS))
 IA_OBJS := $(IA_SRCS:%=$(BUILD_DIR)/%.o)
