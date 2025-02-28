@@ -96,16 +96,14 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
       node = get_tree_item(root->buddy_tree, idx);
       switch (node) {
         case NODE_FREE:
-          se_debug("Node(idx=%zu, state=NODE_FREE", idx);
-          se_debug("ptr=%p", (void *)ptr);
+          se_debug("LeafNode(idx=%zu, state=NODE_FREE)", idx);
           // There is no further splitting, allocate here.
           set_tree_item(root->buddy_tree, idx, NODE_USED);
           root->free_mem -= cur_size;
           return (void *)ptr;
           break;
         case NODE_USED:
-          se_debug("Node(idx=%zu, state=NODE_USED", idx);
-          se_debug("ptr=%p", (void *)ptr);
+          se_debug("LeafNode(idx=%zu, state=NODE_USED)", idx);
           // Node is used, nothing we can do, go up.
           state = (idx & 1) ? UP_RIGHT : UP_LEFT;
           ptr = (idx & 1) ? ptr - cur_size : ptr;
