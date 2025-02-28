@@ -28,6 +28,7 @@ static int morecore(void) {
   struct internal_allocator_data *map = (struct internal_allocator_data *)mmap(
       NULL, sizeof(struct internal_allocator_data), PROT_READ | PROT_WRITE,
       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  se_debug("map=%p", map);
   if (internal_alloc_mappings_root == MAP_FAILED) {
     se_error_with_errno("mmap failed");
   }
@@ -227,7 +228,7 @@ void internal_free(void *ptr) {
      * and still haven't found the chunk.
      */
     if (idx >= (max_idx + 1) / 2) {
-      se_error("No chunk found.");
+      se_error("No chunk found");
     }
     cur_size /= 2;
     // Go to right child
