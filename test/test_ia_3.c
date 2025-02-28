@@ -22,6 +22,7 @@ int main(void) {
     printf("size=%zu\n", size);
     chunks[i] = internal_alloc(size);
     printf("chunk[%d]=%p\n", i, chunks[i]);
+    putchar('\n');
   }
   printf("Starting cleanup...\n");
   for (int i = 0; i < CHUNKS; i++) {

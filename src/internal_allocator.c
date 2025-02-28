@@ -88,6 +88,9 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
 
   // Search stops when we come back to the root from the right child
   while (!(idx == 1 && state == UP_RIGHT)) {
+    if (idx == 1 && state == DOWN) {
+      se_debug("First iteration");
+    }
     // If we are in a leaf node, visit and go up.
     if (idx >= (max_idx + 1) / 2) {
       node = get_tree_item(root->buddy_tree, idx);
@@ -119,12 +122,14 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
         node = get_tree_item(root->buddy_tree, idx);
         switch (node) {
           case NODE_SPLIT:
-            // If size cannot fit into this chunk, then backtrack.
-            if (size >= cur_size) {
+            // If this is the deepest node that can satisfy request
+            // but is split, then backtrack
+            if (cur_size / 2 < size && size <= cur_size) {
               state = (idx & 1) ? UP_RIGHT : UP_LEFT;
               ptr = (idx & 1) ? ptr - cur_size : ptr;
               idx = idx / 2;
               cur_size = cur_size * 2;
+
             }
             // If size still fits, but node is split, then go to left child.
             else {
@@ -185,16 +190,23 @@ void *internal_alloc(size_t size) {
   // Loop over memory mappings and try to satisfy the request
   for (struct internal_allocator_data *root = internal_alloc_mappings_root;
        root != NULL; root = root->fd) {
+    se_debug("Trying to allocate with root = %p", root);
     alloc = internal_alloc_with_root(root, size);
     if (alloc != NULL) return alloc;
   }
+
   // No mapping can satisfy the request, try to get more memory
+  se_debug("Trying to allocate more memory with memcore()");
   int res = morecore();
 
   // Cannot get more memory
-  if (res < 0) return NULL;
+  if (res < 0) {
+    se_debug("No more memory");
+    return NULL;
+  }
 
   // Allocate with fresh memory mapping
+  se_debug("Allocating from fresh mapping");
   return internal_alloc_with_root(internal_alloc_mappings_root, size);
 }
 
