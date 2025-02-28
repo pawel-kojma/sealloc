@@ -6,7 +6,7 @@
 #define LOGGING_H_
 
 #ifdef LOGGING
-#define pr_fmt "%s:%d(%s)", __FILE__, __LINE__, __func__
+#define pr_fmt "%s:%d (%s) ", __FILE__, __LINE__, __func__
 #define se_debug(...)          \
   {                            \
     printf("[DEBUG] " pr_fmt); \
@@ -33,9 +33,11 @@
   }
 #define se_error(...) \
   {                   \
+    exit(1);          \
   }
 #define se_error_with_errno(...) \
   {                              \
+    exit(errno);                 \
   }
 #endif
 

@@ -1,6 +1,6 @@
 CC := clang
 CFLAGS := -O2 -std=gnu17 -fpic -Wall -Werror -pedantic
-CFLAGS_DEBUG := -O0 -g -ggdb -DLOGGING -std=gnu17 -fpic -Wall -Werror -pedantic
+CFLAGS_DEBUG := -O0 -g -ggdb -DLOGGING -std=gnu17 -fpic -Wall -Werror -pedantic -Wno-format-pedantic
 INCLUDE_DIRS := ./include
 SRC_DIR := ./src
 TEST_DIR := ./test
@@ -22,7 +22,7 @@ endif
 # Test targets
 
 IA_TEST := test_ia_1 test_ia_2
-IA_SRCS := logging.c internal_allocator.c
+IA_SRCS := internal_allocator.c
 IA_SRCS := $(addprefix $(SRC_DIR)/,$(IA_SRCS))
 IA_OBJS := $(IA_SRCS:%=$(BUILD_DIR)/%.o)
 
