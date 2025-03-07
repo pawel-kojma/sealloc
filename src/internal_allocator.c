@@ -73,8 +73,21 @@ static void set_tree_item(uint8_t *mem, size_t idx, ia_node_t node_state) {
               ((uint8_t)node_state << (off * 2));
 }
 
+// Mark nodes as split up the tree when coalescing free nodes ends 
+static void mark_nodes_split(uint8_t *mem, size_t idx) {
+  ia_node_t state;
+  while (idx != 1) {
+    state = get_tree_item(mem, idx);
+    if (state == NODE_FULL) {
+      set_tree_item(mem, idx, NODE_SPLIT);
+    } else
+      break;
+    idx /= 2;
+  }
+}
+
 // Coalesce nodes up the tree during allocation to indicate that this branch is
-// free
+// free, change full node to split ones
 static void coalesce_free_nodes(uint8_t *mem, size_t idx) {
   size_t neigh_idx;
   ia_node_t state;
@@ -83,8 +96,10 @@ static void coalesce_free_nodes(uint8_t *mem, size_t idx) {
     state = get_tree_item(mem, neigh_idx);
     if (state == NODE_FREE) {
       set_tree_item(mem, idx / 2, NODE_FREE);
-    } else
+    } else {
+      mark_nodes_split(mem, idx);
       break;
+    }
     idx /= 2;
   }
 }
