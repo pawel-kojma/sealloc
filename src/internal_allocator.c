@@ -7,6 +7,13 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#define RIGHT_CHILD(idx) (idx * 2 + 1)
+#define LEFT_CHILD(idx) (idx * 2)
+#define PARENT(idx) (idx / 2)
+#define IS_ROOT(idx) (idx != 1)
+#define IS_LEAF(idx) (idx >= ((INTERNAL_ALLOC_NO_NODES + 1) / 2))
+#define IS_RIGHT_CHILD(idx) (idx & 1)
+
 static struct internal_allocator_data *internal_alloc_mappings_root;
 
 typedef enum internal_allocator_node_type {
@@ -16,7 +23,7 @@ typedef enum internal_allocator_node_type {
   NODE_FREE = 3,
 } ia_node_t;
 
-typedef enum traverse_state {
+typedef enum tree_traverse_state {
   DOWN,
   UP_LEFT,
   UP_RIGHT,
@@ -95,7 +102,7 @@ static void coalesce_free_nodes(uint8_t *mem, size_t idx) {
   size_t neigh_idx;
   ia_node_t state;
   while (idx > 1) {
-    neigh_idx = (idx & 1) ? idx - 1 : idx + 1;
+    neigh_idx = IS_RIGHT_CHILD(idx) ? idx - 1 : idx + 1;
     state = get_tree_item(mem, neigh_idx);
     if (state == NODE_FREE) {
       set_tree_item(mem, idx / 2, NODE_FREE);
@@ -113,7 +120,7 @@ static void coalesce_full_nodes(uint8_t *mem, size_t idx) {
   size_t neigh_idx;
   ia_node_t state;
   while (idx > 1) {
-    neigh_idx = (idx & 1) ? idx - 1 : idx + 1;
+    neigh_idx = IS_RIGHT_CHILD(idx) ? idx - 1 : idx + 1;
     state = get_tree_item(mem, neigh_idx);
     if (state == NODE_FULL || state == NODE_USED) {
       set_tree_item(mem, idx / 2, NODE_FULL);
@@ -126,7 +133,7 @@ static void coalesce_full_nodes(uint8_t *mem, size_t idx) {
 // Try to allocate with given root
 void *internal_alloc_with_root(struct internal_allocator_data *root,
                                size_t size) {
-  size_t idx, cur_size, max_idx;
+  size_t idx, cur_size;
   uintptr_t ptr;
   ia_node_t node;
   tstate_t state;
@@ -134,13 +141,12 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
   state = DOWN;
   cur_size = sizeof(root->memory);
   ptr = (uintptr_t)&root->memory;
-  max_idx = INTERNAL_ALLOC_NO_NODES;
   if (root->free_mem < size) return NULL;
 
   // Search stops when we come back to the root from the right child
   while (!(idx == 1 && state == UP_RIGHT)) {
     // If we are in a leaf node, visit and go up.
-    if (idx >= (max_idx + 1) / 2) {
+    if (IS_LEAF(idx)) {
       node = get_tree_item(root->buddy_tree, idx);
       switch (node) {
         case NODE_FREE:
@@ -154,9 +160,9 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
         case NODE_USED:
           se_debug("LeafNode(idx=%zu, state=NODE_USED)", idx);
           // Node is used, nothing we can do, go up.
-          state = (idx & 1) ? UP_RIGHT : UP_LEFT;
-          ptr = (idx & 1) ? ptr - cur_size : ptr;
-          idx = idx / 2;
+          state = IS_RIGHT_CHILD(idx) ? UP_RIGHT : UP_LEFT;
+          ptr = IS_RIGHT_CHILD(idx) ? ptr - cur_size : ptr;
+          idx = PARENT(idx);
           cur_size = cur_size * 2;
           break;
         case NODE_SPLIT:
@@ -176,14 +182,14 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
             // If this is the deepest node that can satisfy request
             // but is split, so backtrack
             if (cur_size / 2 < size && size <= cur_size) {
-              state = (idx & 1) ? UP_RIGHT : UP_LEFT;
-              ptr = (idx & 1) ? ptr - cur_size : ptr;
-              idx = idx / 2;
+              state = IS_RIGHT_CHILD(idx) ? UP_RIGHT : UP_LEFT;
+              ptr = IS_RIGHT_CHILD(idx) ? ptr - cur_size : ptr;
+              idx = PARENT(idx);
               cur_size = cur_size * 2;
             }
             // If size still fits, but node is split, then go to left child.
             else {
-              idx = idx * 2;
+              idx = LEFT_CHILD(idx);
               cur_size = cur_size / 2;
             }
             break;
@@ -201,25 +207,25 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
             // Split the node and go to the left child.
             else {
               set_tree_item(root->buddy_tree, idx, NODE_SPLIT);
-              set_tree_item(root->buddy_tree, idx * 2, NODE_FREE);
-              set_tree_item(root->buddy_tree, idx * 2 + 1, NODE_FREE);
+              set_tree_item(root->buddy_tree, LEFT_CHILD(idx), NODE_FREE);
+              set_tree_item(root->buddy_tree, RIGHT_CHILD(idx), NODE_FREE);
               cur_size = cur_size / 2;
-              idx = idx * 2;
+              idx = LEFT_CHILD(idx);
             }
             break;
           case NODE_USED:
             // Node is used, nothing we can do, go up.
-            state = (idx & 1) ? UP_RIGHT : UP_LEFT;
-            ptr = (idx & 1) ? ptr - cur_size : ptr;
-            idx = idx / 2;
+            state = IS_RIGHT_CHILD(idx) ? UP_RIGHT : UP_LEFT;
+            ptr = IS_RIGHT_CHILD(idx) ? ptr - cur_size : ptr;
+            idx = PARENT(idx);
             cur_size = cur_size * 2;
             break;
           case NODE_FULL:
             // Node is full, meaning it comprises of many allocations
             // but there no free memory, bo back
-            state = (idx & 1) ? UP_RIGHT : UP_LEFT;
-            ptr = (idx & 1) ? ptr - cur_size : ptr;
-            idx = idx / 2;
+            state = IS_RIGHT_CHILD(idx) ? UP_RIGHT : UP_LEFT;
+            ptr = IS_RIGHT_CHILD(idx) ? ptr - cur_size : ptr;
+            idx = PARENT(idx);
             cur_size = cur_size * 2;
             break;
         }
@@ -228,12 +234,12 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
         cur_size = cur_size / 2;
         ptr = ptr + cur_size;
         state = DOWN;
-        idx = idx * 2 + 1;
+        idx = RIGHT_CHILD(idx);
         break;
       case UP_RIGHT:
-        state = (idx & 1) ? UP_RIGHT : UP_LEFT;
-        ptr = (idx & 1) ? ptr - cur_size : ptr;
-        idx = idx / 2;
+        state = IS_RIGHT_CHILD(idx) ? UP_RIGHT : UP_LEFT;
+        ptr = IS_RIGHT_CHILD(idx) ? ptr - cur_size : ptr;
+        idx = PARENT(idx);
         cur_size = cur_size * 2;
         break;
     }
@@ -269,8 +275,7 @@ void *internal_alloc(size_t size) {
 
 // Free the chunk pointed by ptr
 void internal_free(void *ptr) {
-  size_t idx = 1, cur_size = INTERNAL_ALLOC_CHUNK_SIZE_BYTES,
-         max_idx = INTERNAL_ALLOC_NO_NODES;
+  size_t idx = 1, cur_size = INTERNAL_ALLOC_CHUNK_SIZE_BYTES;
   ptrdiff_t ptr_cur, ptr_dest = (ptrdiff_t)ptr;
   ia_node_t state;
   struct internal_allocator_data *root = NULL;
@@ -296,18 +301,18 @@ void internal_free(void *ptr) {
      * We are in a leaf node
      * and still haven't found the chunk.
      */
-    if (idx >= (max_idx + 1) / 2) {
+    if (IS_LEAF(idx)) {
       se_error("No chunk found");
     }
     cur_size /= 2;
     // Go to right child
     if (ptr_dest >= ptr_cur + cur_size) {
-      idx = idx * 2 + 1;
+      idx = RIGHT_CHILD(idx);
       ptr_cur += cur_size;
     }
     // Go to left child
     else {
-      idx = idx * 2;
+      idx = LEFT_CHILD(idx);
     }
     state = get_tree_item(root->buddy_tree, idx);
   }
