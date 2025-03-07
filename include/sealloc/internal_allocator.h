@@ -5,12 +5,12 @@
 
 /*
  * Least size chunk is 16 bytes
- * Entire buffer to partition is 2MB
- * Number of nodes in binary tree = (2MB / 16B) - 1
+ * Entire buffer to partition is 8MB
+ * Number of nodes in binary tree = (8MB / 16B) + (8MB / 16B) - 1
  * Each node takes 2 bits
  */
 
-#define INTERNAL_ALLOC_CHUNK_SIZE_BYTES 2147483648
+#define INTERNAL_ALLOC_CHUNK_SIZE_BYTES 8388608  // 2^23 B = 8MB
 #define INTERNAL_ALLOC_LEAST_REGION_SIZE_BYTES 16
 #define INTERNAL_ALLOC_NO_NODES_LAST_LAYER \
   (INTERNAL_ALLOC_CHUNK_SIZE_BYTES / INTERNAL_ALLOC_LEAST_REGION_SIZE_BYTES)
@@ -19,7 +19,7 @@
    (INTERNAL_ALLOC_NO_NODES_LAST_LAYER - 1))
 #define INTERNAL_ALLOC_BUDDY_TREE_SIZE_BITS (INTERNAL_ALLOC_NO_NODES * 2)
 #define INTERNAL_ALLOC_BUDDY_TREE_SIZE_BYTES \
-  (INTERNAL_ALLOC_BUDDY_TREE_SIZE_BITS + 7) & ~7
+  (((INTERNAL_ALLOC_BUDDY_TREE_SIZE_BITS + 7) & ~7) / 8)
 
 struct internal_allocator_data {
   struct internal_allocator_data *fd;
