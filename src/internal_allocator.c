@@ -10,7 +10,7 @@
 static struct internal_allocator_data *internal_alloc_mappings_root;
 
 typedef enum internal_allocator_node_type {
-  NODE_INVALID = 0,
+  NODE_FULL = 0,
   NODE_SPLIT = 1,
   NODE_USED = 2,
   NODE_FREE = 3,
@@ -73,6 +73,38 @@ static void set_tree_item(uint8_t *mem, size_t idx, ia_node_t node_state) {
               ((uint8_t)node_state << (off * 2));
 }
 
+// Coalesce nodes up the tree during allocation to indicate that this branch is
+// free
+static void coalesce_free_nodes(uint8_t *mem, size_t idx) {
+  size_t neigh_idx;
+  ia_node_t state;
+  while (idx != 1) {
+    neigh_idx = (idx & 1) ? idx - 1 : idx + 1;
+    state = get_tree_item(mem, neigh_idx);
+    if (state == NODE_FREE) {
+      set_tree_item(mem, idx / 2, NODE_FREE);
+    } else
+      break;
+    idx /= 2;
+  }
+}
+
+// Coalesce nodes up the tree during allocation to indicate that this branch is
+// full
+static void coalesce_full_nodes(uint8_t *mem, size_t idx) {
+  size_t neigh_idx;
+  ia_node_t state;
+  while (idx != 1) {
+    neigh_idx = (idx & 1) ? idx - 1 : idx + 1;
+    state = get_tree_item(mem, neigh_idx);
+    if (state == NODE_FULL || state == NODE_USED) {
+      set_tree_item(mem, idx / 2, NODE_FULL);
+    } else
+      break;
+    idx /= 2;
+  }
+}
+
 void *internal_alloc_with_root(struct internal_allocator_data *root,
                                size_t size) {
   size_t idx, cur_size, max_idx;
@@ -100,6 +132,7 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
           // There is no further splitting, allocate here.
           set_tree_item(root->buddy_tree, idx, NODE_USED);
           root->free_mem -= cur_size;
+          coalesce_full_nodes(root->buddy_tree, idx);
           return (void *)ptr;
           break;
         case NODE_USED:
@@ -113,9 +146,9 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
         case NODE_SPLIT:
           // Invalid state, leaf node cannot be split.
           se_error("leaf node state is NODE_SPLIT");
-        case NODE_INVALID:
-          // Invalid state, should never happen.
-          se_error("leaf node state is NODE_INVALID");
+        case NODE_FULL:
+          // Full state, should never happen.
+          se_error("leaf node state is NODE_FULL");
       }
       continue;
     }
@@ -125,7 +158,7 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
         switch (node) {
           case NODE_SPLIT:
             // If this is the deepest node that can satisfy request
-            // but is split, then backtrack
+            // but is split, so backtrack
             if (cur_size / 2 < size && size <= cur_size) {
               state = (idx & 1) ? UP_RIGHT : UP_LEFT;
               ptr = (idx & 1) ? ptr - cur_size : ptr;
@@ -144,6 +177,7 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
             if (cur_size / 2 < size && size <= cur_size) {
               set_tree_item(root->buddy_tree, idx, NODE_USED);
               root->free_mem -= cur_size;
+              coalesce_full_nodes(root->buddy_tree, idx);
               return (void *)ptr;
             }
             // We know node above us must have been split.
@@ -164,9 +198,14 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
             idx = idx / 2;
             cur_size = cur_size * 2;
             break;
-          case NODE_INVALID:
-            // Invalid state, should never happen.
-            se_error("NODE_INVALID");
+          case NODE_FULL:
+            // Node is full, meaning it comprises of many allocations
+            // but there no free memory, bo back
+            state = (idx & 1) ? UP_RIGHT : UP_LEFT;
+            ptr = (idx & 1) ? ptr - cur_size : ptr;
+            idx = idx / 2;
+            cur_size = cur_size * 2;
+            break;
         }
         break;
       case UP_LEFT:
@@ -214,7 +253,7 @@ void *internal_alloc(size_t size) {
 
 // Free the chunk pointed by ptr
 void internal_free(void *ptr) {
-  size_t idx = 1, cur_size = INTERNAL_ALLOC_CHUNK_SIZE_BYTES, neigh_idx,
+  size_t idx = 1, cur_size = INTERNAL_ALLOC_CHUNK_SIZE_BYTES,
          max_idx = INTERNAL_ALLOC_NO_NODES;
   ptrdiff_t ptr_cur, ptr_dest = (ptrdiff_t)ptr;
   ia_node_t state;
@@ -264,12 +303,5 @@ void internal_free(void *ptr) {
   root->free_mem += cur_size;
 
   // Second phase, go up and coalesce free nodes
-  while (idx != 1) {
-    neigh_idx = (idx & 1) ? idx - 1 : idx + 1;
-    state = get_tree_item(root->buddy_tree, neigh_idx);
-    if (state == NODE_FREE) {
-      set_tree_item(root->buddy_tree, idx / 2, NODE_FREE);
-    }
-    idx /= 2;
-  }
+  coalesce_free_nodes(root->buddy_tree, idx);
 }
