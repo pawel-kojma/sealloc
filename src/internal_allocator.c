@@ -76,7 +76,8 @@ static void set_tree_item(uint8_t *mem, size_t idx, ia_node_t node_state) {
 // Mark nodes as split up the tree when coalescing free nodes ends 
 static void mark_nodes_split(uint8_t *mem, size_t idx) {
   ia_node_t state;
-  while (idx != 1) {
+  // Here we want to also change the root to split
+  while (idx > 0) {
     state = get_tree_item(mem, idx);
     if (state == NODE_FULL) {
       set_tree_item(mem, idx, NODE_SPLIT);
@@ -91,13 +92,13 @@ static void mark_nodes_split(uint8_t *mem, size_t idx) {
 static void coalesce_free_nodes(uint8_t *mem, size_t idx) {
   size_t neigh_idx;
   ia_node_t state;
-  while (idx != 1) {
+  while (idx > 1) {
     neigh_idx = (idx & 1) ? idx - 1 : idx + 1;
     state = get_tree_item(mem, neigh_idx);
     if (state == NODE_FREE) {
       set_tree_item(mem, idx / 2, NODE_FREE);
     } else {
-      mark_nodes_split(mem, idx);
+      mark_nodes_split(mem, idx / 2);
       break;
     }
     idx /= 2;
@@ -109,7 +110,7 @@ static void coalesce_free_nodes(uint8_t *mem, size_t idx) {
 static void coalesce_full_nodes(uint8_t *mem, size_t idx) {
   size_t neigh_idx;
   ia_node_t state;
-  while (idx != 1) {
+  while (idx > 1) {
     neigh_idx = (idx & 1) ? idx - 1 : idx + 1;
     state = get_tree_item(mem, neigh_idx);
     if (state == NODE_FULL || state == NODE_USED) {
@@ -135,9 +136,6 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
 
   // Search stops when we come back to the root from the right child
   while (!(idx == 1 && state == UP_RIGHT)) {
-    if (idx == 1 && state == DOWN) {
-      se_debug("First iteration");
-    }
     // If we are in a leaf node, visit and go up.
     if (idx >= (max_idx + 1) / 2) {
       node = get_tree_item(root->buddy_tree, idx);
@@ -160,10 +158,10 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
           break;
         case NODE_SPLIT:
           // Invalid state, leaf node cannot be split.
-          se_error("leaf node state is NODE_SPLIT");
+          se_error("Leaf node state is NODE_SPLIT");
         case NODE_FULL:
           // Full state, should never happen.
-          se_error("leaf node state is NODE_FULL");
+          se_error("Leaf node state is NODE_FULL");
       }
       continue;
     }
