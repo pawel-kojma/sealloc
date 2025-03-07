@@ -57,12 +57,14 @@ int internal_allocator_init(void) {
   return 0;
 }
 
+// Get tree node type at given index
 static ia_node_t get_tree_item(uint8_t *mem, size_t idx) {
   size_t word = (idx - 1) / 4;
   size_t off = (idx - 1) % 4;
   return (ia_node_t)(mem[word] >> (2 * off)) & 3;
 }
 
+// Set tree node type to given type at index
 static void set_tree_item(uint8_t *mem, size_t idx, ia_node_t node_state) {
   size_t word = (idx - 1) / 4;
   size_t off = (idx - 1) % 4;
@@ -73,7 +75,7 @@ static void set_tree_item(uint8_t *mem, size_t idx, ia_node_t node_state) {
               ((uint8_t)node_state << (off * 2));
 }
 
-// Mark nodes as split up the tree when coalescing free nodes ends 
+// Mark nodes as split up the tree when coalescing free nodes ends
 static void mark_nodes_split(uint8_t *mem, size_t idx) {
   ia_node_t state;
   // Here we want to also change the root to split
@@ -121,6 +123,7 @@ static void coalesce_full_nodes(uint8_t *mem, size_t idx) {
   }
 }
 
+// Try to allocate with given root
 void *internal_alloc_with_root(struct internal_allocator_data *root,
                                size_t size) {
   size_t idx, cur_size, max_idx;
