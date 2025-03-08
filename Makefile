@@ -13,11 +13,13 @@ INCLUDE_FLAGS := $(addprefix -I,$(INCLUDE_DIRS))
 
 $(BUILD_DIR)/%.c.o: %.c
 	mkdir -p $(dir $@)
-ifdef LOGGING
+ifdef DEBUG
 	$(CC) $(CFLAGS_DEBUG) $(INCLUDE_FLAGS) -c $< -o $@
 else
 	$(CC) $(CFLAGS) $(INCLUDE_FLAGS) -c $< -o $@
 endif
+
+objs: $(OBJS)
 
 # Test targets
 
@@ -26,7 +28,7 @@ IA_SRCS := internal_allocator.c
 IA_SRCS := $(addprefix $(SRC_DIR)/,$(IA_SRCS))
 IA_OBJS := $(IA_SRCS:%=$(BUILD_DIR)/%.o)
 
-.PHONY: help clean test_ia
+.PHONY: objs help clean test_ia
 test_ia: $(IA_OBJS)
 	mkdir -p $(BUILD_DIR_TEST)
 	for test in $(IA_TEST); do \
@@ -39,6 +41,7 @@ clean:
 
 help:
 	@echo "Available targets:"
+	@echo "objs    - Build objects"
 	@echo "test_ia - Build test for internal allocator."
 	@echo "clean   - Clean build files."
 
