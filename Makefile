@@ -28,14 +28,26 @@ IA_SRCS := internal_allocator.c
 IA_SRCS := $(addprefix $(SRC_DIR)/,$(IA_SRCS))
 IA_OBJS := $(IA_SRCS:%=$(BUILD_DIR)/%.o)
 
-.PHONY: objs help clean test_ia
 test_ia: $(IA_OBJS)
 	mkdir -p $(BUILD_DIR_TEST)
 	for test in $(IA_TEST); do \
-		$(CC) $(CFLAGS_DEBUG) $(INCLUDE_FLAGS) -c $(TEST_DIR)/$${test}.c -o $(BUILD_DIR)/$${test}.o ; \
+		$(CC) $(CFLAGS_DEBUG) $(INCLUDE_FLAGS) -c $(TEST_DIR)/tests_ia/$${test}.c -o $(BUILD_DIR)/$${test}.o ; \
 		$(CC) -o $(BUILD_DIR_TEST)/$${test} $^ $(BUILD_DIR)/$${test}.o ; \
 	done
 
+RUN_TEST := test_run_1
+RUN_SRCS := run.c random.c
+RUN_SRCS := $(addprefix $(SRC_DIR)/,$(RUN_SRCS))
+RUN_OBJS := $(RUN_SRCS:%=$(BUILD_DIR)/%.o)
+
+test_run: $(RUN_OBJS)
+	mkdir -p $(BUILD_DIR_TEST)
+	for test in $(RUN_TEST); do \
+		$(CC) $(CFLAGS_DEBUG) $(INCLUDE_FLAGS) -c $(TEST_DIR)/tests_run/$${test}.c -o $(BUILD_DIR)/$${test}.o ; \
+		$(CC) -o $(BUILD_DIR_TEST)/$${test} $^ $(BUILD_DIR)/$${test}.o ; \
+	done
+
+.PHONY: objs help clean test_ia
 clean:
 	rm -rf $(BUILD_DIR)
 
@@ -43,5 +55,6 @@ help:
 	@echo "Available targets:"
 	@echo "objs    - Build objects"
 	@echo "test_ia - Build test for internal allocator."
+	@echo "test_run - Build test for run utils."
 	@echo "clean   - Clean build files."
 
