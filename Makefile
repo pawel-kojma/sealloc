@@ -13,11 +13,13 @@ INCLUDE_FLAGS := $(addprefix -I,$(INCLUDE_DIRS))
 
 $(BUILD_DIR)/%.c.o: %.c
 	mkdir -p $(dir $@)
-ifdef LOGGING
+ifdef DEBUG
 	$(CC) $(CFLAGS_DEBUG) $(INCLUDE_FLAGS) -c $< -o $@
 else
 	$(CC) $(CFLAGS) $(INCLUDE_FLAGS) -c $< -o $@
 endif
+
+objs: $(OBJS)
 
 # Test targets
 
@@ -26,19 +28,33 @@ IA_SRCS := internal_allocator.c
 IA_SRCS := $(addprefix $(SRC_DIR)/,$(IA_SRCS))
 IA_OBJS := $(IA_SRCS:%=$(BUILD_DIR)/%.o)
 
-.PHONY: help clean test_ia
 test_ia: $(IA_OBJS)
 	mkdir -p $(BUILD_DIR_TEST)
 	for test in $(IA_TEST); do \
-		$(CC) $(CFLAGS_DEBUG) $(INCLUDE_FLAGS) -c $(TEST_DIR)/$${test}.c -o $(BUILD_DIR)/$${test}.o ; \
+		$(CC) $(CFLAGS_DEBUG) $(INCLUDE_FLAGS) -c $(TEST_DIR)/tests_ia/$${test}.c -o $(BUILD_DIR)/$${test}.o ; \
 		$(CC) -o $(BUILD_DIR_TEST)/$${test} $^ $(BUILD_DIR)/$${test}.o ; \
 	done
 
+RUN_TEST := test_run_allocate test_run_deallocate test_run_deallocate_invalid_small test_run_deallocate_invalid_medium test_run_init test_run_allocate_write_regions
+RUN_SRCS := run.c random.c
+RUN_SRCS := $(addprefix $(SRC_DIR)/,$(RUN_SRCS))
+RUN_OBJS := $(RUN_SRCS:%=$(BUILD_DIR)/%.o)
+
+test_run: $(RUN_OBJS)
+	mkdir -p $(BUILD_DIR_TEST)
+	for test in $(RUN_TEST); do \
+		$(CC) $(CFLAGS_DEBUG) $(INCLUDE_FLAGS) -c $(TEST_DIR)/tests_run/$${test}.c -o $(BUILD_DIR)/$${test}.o ; \
+		$(CC) -o $(BUILD_DIR_TEST)/$${test} $^ $(BUILD_DIR)/$${test}.o ; \
+	done
+
+.PHONY: objs help clean test_ia
 clean:
 	rm -rf $(BUILD_DIR)
 
 help:
 	@echo "Available targets:"
+	@echo "objs    - Build objects"
 	@echo "test_ia - Build test for internal allocator."
+	@echo "test_run - Build test for run utils."
 	@echo "clean   - Clean build files."
 

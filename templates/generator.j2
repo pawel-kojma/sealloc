@@ -1,0 +1,33 @@
+/* Generators for runs */
+
+#include <stdint.h>
+
+#ifndef GENERATOR_H
+#define GENERATOR_H
+
+static unsigned GENERATORS_SMALL_LENGTHS[] ={
+    {% for generators in sc_small_gen %}
+    {{ len(generators) }},
+    {% endfor %}
+};
+
+static uint8_t GENERATORS_SMALL[{{len(sc_small_gen)}}][{{ max_gens_small }}] = {
+    {% for generators in sc_small_gen %}
+    { {{ generators|join(', ') }} },
+    {% endfor %}
+};
+
+static unsigned GENERATORS_MEDIUM_LENGTHS[] ={
+    {% for generators in sc_medium_gen %}
+    {{ len(generators) }},
+    {% endfor %}
+};
+
+static uint8_t GENERATORS_MEDIUM[{{len(sc_medium_gen)}}][{{ max_gens_medium }}] = {
+    {% for generators in sc_medium_gen %}
+    { {{ generators|join(', ') }} },
+    {% endfor %}
+};
+
+#endif
+
