@@ -39,6 +39,9 @@ void run_init(run_t *run, bin_t *bin, void *heap) {
     gen_idx = bin->reg_size / 1024 - 1;
     run->gen = GENERATORS_MEDIUM[gen_idx][splitmix32() %
                                           GENERATORS_MEDIUM_LENGTHS[gen_idx]];
+  } else {
+    // Runs services single large allocation
+    run->gen = 1;
   }
   // Start from random element
   run->current_idx = splitmix32() % (bin->reg_mask_size_bits / 2);
