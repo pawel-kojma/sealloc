@@ -30,9 +30,6 @@ void *run_allocate(run_t *run, bin_t *bin);
 // Deallocate region from run
 void run_deallocate(run_t *run, bin_t *bin, void *ptr);
 
-// Validate if ptr is freeable
-void run_validate_freeable(run_t *run, bin_t *bin, void *ptr);
-
 // Check if run is empty
 bool run_is_empty(run_t *run, bin_t *bin);
 

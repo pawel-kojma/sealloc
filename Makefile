@@ -35,7 +35,7 @@ test_ia: $(IA_OBJS)
 		$(CC) -o $(BUILD_DIR_TEST)/$${test} $^ $(BUILD_DIR)/$${test}.o ; \
 	done
 
-RUN_TEST := test_run_1
+RUN_TEST := test_run_allocate test_run_deallocate test_run_deallocate_invalid_small test_run_deallocate_invalid_medium test_run_init test_run_allocate_write_regions
 RUN_SRCS := run.c random.c
 RUN_SRCS := $(addprefix $(SRC_DIR)/,$(RUN_SRCS))
 RUN_OBJS := $(RUN_SRCS:%=$(BUILD_DIR)/%.o)
