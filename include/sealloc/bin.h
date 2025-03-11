@@ -19,3 +19,9 @@ typedef struct bin_state {
 
 // Initialize bin
 void bin_init(bin_t *bin, size_t reg_size);
+
+// Add run to bin 
+void bin_add_run(bin_t *bin, run_t *run);
+
+// Delete run from bin
+void bin_del_run(bin_t *bin, run_t *run);
