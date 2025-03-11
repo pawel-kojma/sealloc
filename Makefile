@@ -29,7 +29,7 @@ IA_SRCS := $(addprefix $(SRC_DIR)/,$(IA_SRCS))
 IA_OBJS := $(IA_SRCS:%=$(BUILD_DIR)/%.o)
 
 test_ia: $(IA_OBJS)
-	mkdir -p $(BUILD_DIR_TEST)
+	@mkdir -p $(BUILD_DIR_TEST)
 	for test in $(IA_TEST); do \
 		$(CC) $(CFLAGS_DEBUG) $(INCLUDE_FLAGS) -c $(TEST_DIR)/tests_ia/$${test}.c -o $(BUILD_DIR)/$${test}.o ; \
 		$(CC) -o $(BUILD_DIR_TEST)/$${test} $^ $(BUILD_DIR)/$${test}.o ; \
@@ -41,9 +41,21 @@ RUN_SRCS := $(addprefix $(SRC_DIR)/,$(RUN_SRCS))
 RUN_OBJS := $(RUN_SRCS:%=$(BUILD_DIR)/%.o)
 
 test_run: $(RUN_OBJS)
-	mkdir -p $(BUILD_DIR_TEST)
+	@mkdir -p $(BUILD_DIR_TEST)
 	for test in $(RUN_TEST); do \
 		$(CC) $(CFLAGS_DEBUG) $(INCLUDE_FLAGS) -c $(TEST_DIR)/tests_run/$${test}.c -o $(BUILD_DIR)/$${test}.o ; \
+		$(CC) -o $(BUILD_DIR_TEST)/$${test} $^ $(BUILD_DIR)/$${test}.o ; \
+	done
+
+BIN_TEST := test_bin_init
+BIN_SRCS := bin.c random.c
+BIN_SRCS := $(addprefix $(SRC_DIR)/,$(BIN_SRCS))
+BIN_OBJS := $(BIN_SRCS:%=$(BUILD_DIR)/%.o)
+
+test_bin: $(BIN_OBJS)
+	@mkdir -p $(BUILD_DIR_TEST)
+	for test in $(BIN_TEST); do \
+		$(CC) $(CFLAGS_DEBUG) $(INCLUDE_FLAGS) -c $(TEST_DIR)/tests_bin/$${test}.c -o $(BUILD_DIR)/$${test}.o ; \
 		$(CC) -o $(BUILD_DIR_TEST)/$${test} $^ $(BUILD_DIR)/$${test}.o ; \
 	done
 
