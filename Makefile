@@ -48,7 +48,7 @@ test_run: $(RUN_OBJS)
 	done
 
 BIN_TEST := test_bin_init
-BIN_SRCS := bin.c random.c
+BIN_SRCS := bin.c run.c random.c
 BIN_SRCS := $(addprefix $(SRC_DIR)/,$(BIN_SRCS))
 BIN_OBJS := $(BIN_SRCS:%=$(BUILD_DIR)/%.o)
 
