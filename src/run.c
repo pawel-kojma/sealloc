@@ -28,7 +28,8 @@ static void set_bitmap_item(uint8_t *mem, size_t idx, bstate_t state) {
 void run_init(run_t *run, bin_t *bin, void *heap) {
   unsigned gen_idx;
   run->run_heap = heap;
-  run->nfree = bin->reg_mask_size_bits / 2;
+  run->navail = bin->reg_mask_size_bits / 2;
+  run->nfreed = 0;
 
   // Choose a generator
   if (IS_SIZE_SMALL(bin->reg_size)) {
@@ -53,7 +54,7 @@ void run_init(run_t *run, bin_t *bin, void *heap) {
 // Allocate region from run
 void *run_allocate(run_t *run, bin_t *bin) {
   // Check if we still have regions to give
-  if (run->nfree == 0) return NULL;
+  if (run->navail == 0) return NULL;
 
   uintptr_t heap = (uintptr_t)run->run_heap;
   unsigned elems = (unsigned)(bin->reg_mask_size_bits / 2);
@@ -68,14 +69,14 @@ void *run_allocate(run_t *run, bin_t *bin) {
     se_error(
         "Region is not free, Region(heap=%p, nfree=%u, gen=%u, "
         "current_idx=%u), state=%u",
-        run->run_heap, run->nfree, run->gen, run->current_idx, state);
+        run->run_heap, run->navail, run->gen, run->current_idx, state);
   }
 
   // Mark region as allocated
   set_bitmap_item(run->reg_bitmap, run->current_idx, STATE_ALLOC);
 
   // Decrese amount of free regions
-  run->nfree--;
+  run->navail--;
 
   return (void *)(heap + (run->current_idx * bin->reg_size));
 }
@@ -104,9 +105,10 @@ void run_deallocate(run_t *run, bin_t *bin, void *ptr) {
 
   // Mark as freed
   set_bitmap_item(run->reg_bitmap, bitmap_idx, STATE_ALLOC_FREE);
+  run->nfreed++;
 }
 
-bool run_is_full(run_t *run) { return run->nfree == 0; }
-bool run_is_empty(run_t *run, bin_t *bin) {
-  return run->nfree == bin->reg_mask_size_bits / 2;
+bool run_is_depleted(run_t *run) { return run->navail == 0; }
+bool run_is_freeable(run_t *run, bin_t *bin) {
+  return run->nfreed == bin->reg_mask_size_bits / 2;
 }

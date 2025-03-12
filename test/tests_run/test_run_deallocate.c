@@ -25,15 +25,16 @@ void test_small(void) {
       (run_t *)malloc(sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
 
   run_init(run, bin, heap);
-  assert(run_is_empty(run, bin) == true);
-  int elems = run->nfree;
+  int elems = run->navail;
   for (int i = 0; i < elems; i++) {
     chunks[i] = run_allocate(run, bin);
   }
-  assert(run_is_full(run) == true);
+  assert(run_is_freeable(run, bin) == false);
+  assert(run_is_depleted(run) == true);
   for (int i = 0; i < elems; i++) {
     run_deallocate(run, bin, chunks[i]);
   }
+  assert(run_is_freeable(run, bin) == true);
 }
 
 void test_medium(void) {
@@ -53,12 +54,11 @@ void test_medium(void) {
       (run_t *)malloc(sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
 
   run_init(run, bin, heap);
-  int elems = run->nfree;
-  assert(run_is_empty(run, bin) == true);
+  int elems = run->navail;
   for (int i = 0; i < elems; i++) {
     chunks[i] = run_allocate(run, bin);
   }
-  assert(run_is_full(run) == true);
+  assert(run_is_depleted(run) == true);
   for (int i = 0; i < elems; i++) {
     run_deallocate(run, bin, chunks[i]);
   }

@@ -25,11 +25,11 @@ void test_small(void) {
       (run_t *)malloc(sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
 
   run_init(run, bin, heap);
-  int elems = run->nfree;
+  int elems = run->navail;
   for (int i = 0; i < elems; i++) {
     chunks[i] = run_allocate(run, bin);
   }
-  assert(run_is_full(run) == true);
+  assert(run_is_depleted(run) == true);
   for (int i = 0; i < BITS2BYTES_CEIL(bin->reg_mask_size_bits) - 1; i++) {
     assert(run->reg_bitmap[i] == 0x55);
   }
@@ -52,11 +52,11 @@ void test_medium(void) {
       (run_t *)malloc(sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
 
   run_init(run, bin, heap);
-  int elems = run->nfree;
+  int elems = run->navail;
   for (int i = 0; i < elems; i++) {
     chunks[i] = run_allocate(run, bin);
   }
-  assert(run_is_full(run) == true);
+  assert(run_is_depleted(run) == true);
   for (int i = 0; i < BITS2BYTES_CEIL(bin->reg_mask_size_bits) - 1; i++) {
     assert(run->reg_bitmap[i] == 0xff);
   }
@@ -79,12 +79,12 @@ void test_large(void) {
       (run_t *)malloc(sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
 
   run_init(run, bin, heap);
-  int elems = run->nfree;
+  int elems = run->navail;
   for (int i = 0; i < elems; i++) {
     chunk = run_allocate(run, bin);
   }
   (void)chunk;
-  assert(run_is_full(run) == true);
+  assert(run_is_depleted(run) == true);
   assert(run->reg_bitmap[0] == 0x01);
 }
 

@@ -18,7 +18,8 @@ typedef struct run_state {
   struct run_state *fd;
   struct run_state *bk;
   void *run_heap;        // Run pointer on user heap
-  uint16_t nfree;        // Number of remaining free regions
+  uint16_t navail;       // Number of remaining free regions
+  uint16_t nfreed;       // Number of freed regions
   uint8_t gen;           // Generator
   uint8_t current_idx;   // Current index
   uint8_t reg_bitmap[];  // Region bitmap
@@ -30,11 +31,11 @@ void *run_allocate(run_t *run, bin_t *bin);
 // Deallocate region from run
 void run_deallocate(run_t *run, bin_t *bin, void *ptr);
 
-// Check if run is empty
-bool run_is_empty(run_t *run, bin_t *bin);
+// Returns true if run is fully deallocated and can be collected
+bool run_is_freeable(run_t *run, bin_t *bin);
 
-// Check if run is full
-bool run_is_full(run_t *run);
+// Returns false if run can still allocate, false otherwise
+bool run_is_depleted(run_t *run);
 
 // Initialize run
 void run_init(run_t *run, bin_t *bin, void *heap);

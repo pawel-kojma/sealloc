@@ -37,7 +37,8 @@ void test_small(void) {
       (run_t *)malloc(sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
 
   run_init(run, bin, heap);
-  assert(run->nfree == 256);
+  assert(run->navail == 256);
+  assert(run->nfreed == 0);
   assert(run->gen == 229);
   assert(run->current_idx == 181);
   for (int i = 0; i < BITS2BYTES_CEIL(bin->reg_mask_size_bits); i++) {
@@ -61,7 +62,8 @@ void test_medium(void) {
       (run_t *)malloc(sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
 
   run_init(run, bin, heap);
-  assert(run->nfree == 4);
+  assert(run->navail == 4);
+  assert(run->nfreed == 0);
   assert(run->gen == 1);
   assert(run->current_idx == 1);
   for (int i = 0; i < BITS2BYTES_CEIL(bin->reg_mask_size_bits); i++) {

@@ -26,11 +26,11 @@ void test_medium(void) {
       (run_t *)malloc(sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
 
   run_init(run, bin, heap);
-  int elems = run->nfree;
+  int elems = run->navail;
   for (int i = 0; i < elems; i++) {
     chunks[i] = run_allocate(run, bin);
   }
-  assert(run_is_full(run) == true);
+  assert(run_is_depleted(run) == true);
   run_deallocate(run, bin, chunks[3]);
   run_deallocate(run, bin, chunks[3]);
 }

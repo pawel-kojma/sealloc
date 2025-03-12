@@ -35,7 +35,7 @@ void test_small(void) {
       (run_t *)malloc(sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
 
   run_init(run, bin, heap);
-  int elems = run->nfree;
+  int elems = run->navail;
   for (int i = 0; i < elems; i++) {
     chunks[i] = run_allocate(run, bin);
     chunks_m[i] = malloc(16);
@@ -73,7 +73,7 @@ void test_medium(void) {
       (run_t *)malloc(sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
 
   run_init(run, bin, heap);
-  int elems = run->nfree;
+  int elems = run->navail;
   for (int i = 0; i < elems; i++) {
     chunks[i] = run_allocate(run, bin);
     chunks_m[i] = malloc(1024);
