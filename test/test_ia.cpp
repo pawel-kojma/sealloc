@@ -63,17 +63,12 @@ TEST(InternalAllocatorTest, RandomizedAllocationCrashTest) {
   std::cout << "Success\n";
 }
 
-auto rand_byte() {
-  static std::random_device rd;
-  static std::uniform_int_distribution<unsigned char> dist(0, 255);
-  static std::mt19937 engine{rd()};
-  return dist(engine);
-}
-
 TEST(InternalAllocatorTest, MemoryIntegrity) {
   constexpr unsigned CHUNKS = 10000;
   void *a, *b, *full;
   void *chunks_dut[CHUNKS];
+  std::independent_bits_engine<std::default_random_engine, 8, unsigned char>
+      engine{1};
   std::vector<unsigned char> chunks_exp[CHUNKS];
   size_t size[CHUNKS];
   std::vector<size_t> SIZES{5, 10, 16, 17, 24, 32, 50, 4535, 12343, 544223};
@@ -84,7 +79,7 @@ TEST(InternalAllocatorTest, MemoryIntegrity) {
     size[i] = SIZES[rand() % SIZES.size()];
     chunks_dut[i] = internal_alloc(size[i]);
     chunks_exp[i].reserve(size[i]);
-    std::generate(chunks_exp[i].begin(), chunks_exp[i].end(), rand_byte);
+    std::generate(chunks_exp[i].begin(), chunks_exp[i].end(), std::ref(engine));
     std::memcpy(chunks_dut[i], chunks_exp[i].data(), size[i]);
   }
 

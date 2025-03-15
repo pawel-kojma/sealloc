@@ -12,7 +12,7 @@ typedef struct bin_state {
   run_t *run_list_active;        // List of runs with active regions
   run_t *run_list_inactive;      // List of dead runs
   uint32_t run_list_active_cnt;  // Number of runs currently in the active list
-  uint32_t run_list_dead_cnt;    // Number of runs currently in the dead list
+  uint32_t run_list_inactive_cnt;    // Number of runs currently in the dead list
   uint16_t reg_size;             // Size of single region
   uint16_t run_size_pages;       // Number of pages that each run spans
   uint32_t reg_mask_size_bits;   // Number of bits in region bitmask
