@@ -113,6 +113,22 @@ TEST_F(RunUtilsTestSmall, MemoryIntegrity) {
   }
 }
 
+TEST_F(RunUtilsTestSmall, DoubleFree) {
+  run_init(run, bin, heap);
+  int elems = run->navail;
+  void *chunks_dut[elems];
+  for (int i = 0; i < elems; i++) {
+    chunks_dut[i] = run_allocate(run, bin);
+  }
+  EXPECT_TRUE(run_is_depleted(run));
+  ASSERT_DEATH(
+      {
+        run_deallocate(run, bin, chunks_dut[13243 % elems]);
+        run_deallocate(run, bin, chunks_dut[13243 % elems]);
+      },
+      ".* Provided ptr not freeable .*");
+}
+
 }  // namespace
 
 namespace {
@@ -200,6 +216,23 @@ TEST_F(RunUtilsTestMedium, MemoryIntegrity) {
         << "Chunks of size " << bin->reg_size << " at index " << i << " differ";
   }
 }
+
+TEST_F(RunUtilsTestMedium, DoubleFree) {
+  run_init(run, bin, heap);
+  int elems = run->navail;
+  void *chunks_dut[elems];
+  for (int i = 0; i < elems; i++) {
+    chunks_dut[i] = run_allocate(run, bin);
+  }
+  EXPECT_TRUE(run_is_depleted(run));
+  ASSERT_DEATH(
+      {
+        run_deallocate(run, bin, chunks_dut[13243 % elems]);
+        run_deallocate(run, bin, chunks_dut[13243 % elems]);
+      },
+      ".* Provided ptr not freeable .*");
+}
+
 }  // namespace
 
 namespace {
@@ -284,4 +317,21 @@ TEST_F(RunUtilsTestLarge, MemoryIntegrity) {
         << "Chunks of size " << bin->reg_size << " at index " << i << " differ";
   }
 }
+
+TEST_F(RunUtilsTestLarge, DoubleFree) {
+  run_init(run, bin, heap);
+  int elems = run->navail;
+  void *chunks_dut[elems];
+  for (int i = 0; i < elems; i++) {
+    chunks_dut[i] = run_allocate(run, bin);
+  }
+  EXPECT_TRUE(run_is_depleted(run));
+  ASSERT_DEATH(
+      {
+        run_deallocate(run, bin, chunks_dut[13243 % elems]);
+        run_deallocate(run, bin, chunks_dut[13243 % elems]);
+      },
+      ".* Provided ptr not freeable .*");
+}
+
 }  // namespace
