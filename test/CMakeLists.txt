@@ -1,19 +1,18 @@
 enable_testing()
 
 add_library(test_cflags INTERFACE)
-target_compile_features(test_cflags INTERFACE cxx_std_14)
+target_compile_features(test_cflags INTERFACE cxx_std_20)
 
-add_executable(
-  hello_test
-  hello_test.cpp
+
+add_executable(test_ia
+  test_ia.cpp
 )
-target_link_libraries(
-  hello_test
+target_link_libraries(test_ia
   GTest::gtest_main
   sealloc
   test_cflags
 )
 
 include(GoogleTest)
-gtest_discover_tests(hello_test)
+gtest_discover_tests(test_ia)
 
