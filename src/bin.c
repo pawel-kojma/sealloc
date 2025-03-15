@@ -6,7 +6,7 @@
 #include <sealloc/utils.h>
 
 void bin_init(bin_t *bin, size_t reg_size) {
-  if (!IS_ALIGNED(reg_size, PAGE_SIZE)) {
+  if (!IS_ALIGNED(reg_size, SIZE_CLASS_ALIGNMENT)) {
     se_error("reg_size is not aligned");
   }
   bin->run_list_active = NULL;
