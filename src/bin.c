@@ -1,9 +1,9 @@
 #include <sealloc/bin.h>
-#include <sealloc/generator.h>
 #include <sealloc/internal_allocator.h>
 #include <sealloc/logging.h>
 #include <sealloc/random.h>
 #include <sealloc/run.h>
+#include <sealloc/utils.h>
 
 void bin_init(bin_t *bin, size_t reg_size) {
   if (!IS_ALIGNED(reg_size, PAGE_SIZE)) {

@@ -7,4 +7,9 @@
 #define ALIGNUP_16(n) ((n + 15) & ~15)
 #define BITS2BYTES_CEIL(bits) (ALIGNUP_8(bits) / 8)
 
+#define PAGE_SIZE 4096
+#define IS_ALIGNED(X, Y) (((X) % (Y)) == 0)
+#define IS_SIZE_SMALL(size) (16 <= size && size <= 512)
+#define IS_SIZE_MEDIUM(size) (512 < size && size <= 2048)
+
 #endif
