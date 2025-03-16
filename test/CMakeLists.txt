@@ -15,6 +15,7 @@ add_executable(test_bin test_bin.cpp)
 target_link_libraries(test_ia ${test_libs})
 target_link_libraries(test_run ${test_libs})
 target_link_libraries(test_bin ${test_libs})
+target_compile_options(test_bin PRIVATE -O0 -ggdb)
 
 include(GoogleTest)
 gtest_discover_tests(test_ia)

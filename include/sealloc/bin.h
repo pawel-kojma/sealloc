@@ -12,20 +12,23 @@ typedef struct bin_state {
   run_t *run_list_active;        // List of runs with active regions
   run_t *run_list_inactive;      // List of dead runs
   uint32_t run_list_active_cnt;  // Number of runs currently in the active list
-  uint32_t run_list_inactive_cnt;    // Number of runs currently in the dead list
+  uint32_t run_list_inactive_cnt;    // Number of runs currently in the inactive list
   uint16_t reg_size;             // Size of single region
   uint16_t run_size_pages;       // Number of pages that each run spans
   uint32_t reg_mask_size_bits;   // Number of bits in region bitmask
 } bin_t;
 
 // Initialize bin
-void bin_init(bin_t *bin, size_t reg_size);
+void bin_init(bin_t *bin, uint16_t reg_size);
 
-// Add run to bin
+// Add freshly initialized run to the bin
 void bin_add_fresh_run(bin_t *bin, run_t *run);
 
-// Delete run from bin
+// Put depleted run 
 void bin_del_dead_run(bin_t *bin, run_t *run);
+
+// Put run on inactive list
+void bin_retire_run(bin_t *bin, run_t *run);
 
 // Get run for allocation
 run_t *bin_get_non_full_run(bin_t *bin);
