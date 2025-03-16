@@ -1,12 +1,12 @@
 #include <sealloc/bin.h>
-#include <sealloc/generator.h>
 #include <sealloc/internal_allocator.h>
 #include <sealloc/logging.h>
 #include <sealloc/random.h>
 #include <sealloc/run.h>
+#include <sealloc/utils.h>
 
 void bin_init(bin_t *bin, size_t reg_size) {
-  if (!IS_ALIGNED(reg_size, PAGE_SIZE)) {
+  if (!IS_ALIGNED(reg_size, SIZE_CLASS_ALIGNMENT)) {
     se_error("reg_size is not aligned");
   }
   bin->run_list_active = NULL;
@@ -20,7 +20,7 @@ void bin_init(bin_t *bin, size_t reg_size) {
   }
   bin->reg_mask_size_bits = ((bin->run_size_pages * PAGE_SIZE) / reg_size) * 2;
   bin->run_list_active_cnt = 0;
-  bin->run_list_dead_cnt = 0;
+  bin->run_list_inactive_cnt = 0;
 }
 
 void bin_add_fresh_run(bin_t *bin, run_t *run) {

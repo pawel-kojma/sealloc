@@ -5,11 +5,6 @@
 #ifndef GENERATOR_H
 #define GENERATOR_H
 
-#define PAGE_SIZE 4096
-#define IS_ALIGNED(X, Y) (((X) % (Y)) == 0)
-#define IS_SIZE_SMALL(size) (16 <= size && size <= 512)
-#define IS_SIZE_MEDIUM(size) (512 < size && size <= 2048)
-
 static unsigned GENERATORS_SMALL_LENGTHS[] = {
     128, 64, 64, 32, 32, 12, 12, 16, 12, 20, 22, 12, 18, 6, 16, 8,
     8,   6,  12, 4,  4,  10, 10, 4,  4,  6,  6,  6,  4,  4, 4,  4,

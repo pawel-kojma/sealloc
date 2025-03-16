@@ -8,3 +8,6 @@ Pseudomonarchia jemallocum - https://phrack.org/issues/68/10#article
 Scudo internals - https://un1fuzz.github.io/articles/scudo_internals.html
 Attacking Scudo's Quarantine - https://un1fuzz.github.io/articles/quarantine_attack.html
 Scalable memory allocation using jemalloc - https://www.facebook.com/notes/10158791475077200/
+
+Unit testing C code with gtest - https://notes.eatonphil.com/unit-testing-c-code-with-gtest.html
+Quickstart: CMake - http://google.github.io/googletest/quickstart-cmake.html
