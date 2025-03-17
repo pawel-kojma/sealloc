@@ -19,8 +19,8 @@ typedef struct run_state {
   ll_entry_t entry;      // Contains run_heap ptr as key
   uint16_t navail;       // Number of remaining free regions
   uint16_t nfreed;       // Number of freed regions
-  uint8_t gen;           // Generator
-  uint8_t current_idx;   // Current index
+  uint16_t gen;           // Generator
+  uint16_t current_idx;   // Current index
   uint8_t reg_bitmap[];  // Region bitmap
 } run_t;
 

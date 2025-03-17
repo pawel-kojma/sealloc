@@ -1,4 +1,4 @@
-add_library(sealloc internal_allocator.c random.c run.c container_ll.c)
+add_library(sealloc bin.c internal_allocator.c random.c run.c container_ll.c)
 
 set(gcc_like_c "$<COMPILE_LANG_AND_ID:C,ARMClang,AppleClang,Clang,GNU,LCC>")
 if (BuildType MATCHES "Release")

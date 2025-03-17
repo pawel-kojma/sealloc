@@ -1,66 +1,40 @@
 #include <sealloc/bin.h>
-#include <sealloc/internal_allocator.h>
+#include <sealloc/container_ll.h>
 #include <sealloc/logging.h>
 #include <sealloc/random.h>
 #include <sealloc/run.h>
 #include <sealloc/utils.h>
 
-void bin_init(bin_t *bin, size_t reg_size) {
+void bin_init(bin_t *bin, uint16_t reg_size) {
   if (!IS_ALIGNED(reg_size, SIZE_CLASS_ALIGNMENT)) {
     se_error("reg_size is not aligned");
   }
-  bin->run_list_active = NULL;
-  bin->run_list_inactive = NULL;
+  ll_init(&bin->run_list_inactive);
   bin->reg_size = reg_size;
   if (IS_SIZE_SMALL(reg_size) || IS_SIZE_MEDIUM(reg_size)) {
-    bin->run_size_pages = 1;
+    bin->run_size_pages = 2;
   } else {
     // Assuming large size class
     bin->run_size_pages = reg_size / PAGE_SIZE;
   }
   bin->reg_mask_size_bits = ((bin->run_size_pages * PAGE_SIZE) / reg_size) * 2;
-  bin->run_list_active_cnt = 0;
   bin->run_list_inactive_cnt = 0;
 }
 
-void bin_add_fresh_run(bin_t *bin, run_t *run) {
-  run->fd = bin->run_list_active;
-  run->bk = NULL;
-  bin->run_list_active->bk = run;
-  bin->run_list_active = run;
+void bin_delete_run(bin_t *bin, run_t *run) {
+  ll_del(&bin->run_list_inactive, &run->entry);
 }
 
-void bin_del_dead_run(bin_t *bin, run_t *run) {
-  bool found = false;
-  if (!run_is_depleted(run)) {
-    se_error("Run is active");
-  }
-  if (bin->run_list_active == NULL) return;
-  if (run == bin->run_list_active) {
-    bin->run_list_active = NULL;
-    return;
-  }
-  for (run_t *r = bin->run_list_active; r != NULL; r = r->fd) {
-    if (r == run) {
-      found = true;
-      if (run->bk) run->bk->fd = run->fd;
-      if (run->fd) run->fd->bk = run->bk;
-    }
-  }
-  if (!found) {
-    se_error("Run could not be found.");
-  }
+void bin_retire_current_run(bin_t *bin) {
+  ll_add(&bin->run_list_inactive, &bin->runcur->entry);
+  bin->runcur = NULL;
 }
 
-run_t *bin_get_non_full_run(bin_t *bin) {
-  if (bin->run_list_active == 0) {
-    return NULL;
+run_t *bin_get_non_full_run(bin_t *bin) { return bin->runcur; }
+
+run_t *bin_get_run_by_addr(bin_t *bin, void *run_ptr) {
+  if (bin->runcur != NULL && bin->runcur->entry.key == run_ptr) {
+    return bin->runcur;
   }
-  uint32_t idx = splitmix32() % bin->run_list_active_cnt;
-  run_t *r = bin->run_list_active;
-  for (; r != NULL; r = r->fd) {
-    if (idx == 0) break;
-    idx--;
-  }
-  return r;
+  return CONTAINER_OF(ll_find(&bin->run_list_inactive, run_ptr), run_t, entry);
 }
