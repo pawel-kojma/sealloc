@@ -35,9 +35,7 @@ class RunUtilsTestSmall : public ::testing::Test {
   void SetUp() override {
     init_splitmix32(1);
     bin = (bin_t *)malloc(sizeof(bin_t));
-    bin->run_list_active = NULL;
-    bin->run_list_active_cnt = 0;
-    bin->run_list_inactive = NULL;
+    ll_init(&bin->run_list_inactive);
     bin->run_list_inactive_cnt = 0;
     bin->reg_size = 16;
     bin->run_size_pages = 1;
@@ -51,7 +49,7 @@ TEST_F(RunUtilsTestSmall, RunInit) {
   heap = malloc(1);
   run_init(run, bin, heap);
   EXPECT_EQ(run->navail, 256);
-  EXPECT_EQ(run->run_heap, heap);
+  EXPECT_EQ(run->entry.key, heap);
   EXPECT_EQ(run->nfreed, 0);
   EXPECT_EQ(run->gen, 229);
   EXPECT_EQ(run->current_idx, 181);
@@ -140,9 +138,7 @@ class RunUtilsTestMedium : public ::testing::Test {
   void SetUp() override {
     init_splitmix32(1);
     bin = (bin_t *)malloc(sizeof(bin_t));
-    bin->run_list_active = NULL;
-    bin->run_list_active_cnt = 0;
-    bin->run_list_inactive = NULL;
+    ll_init(&bin->run_list_inactive);
     bin->run_list_inactive_cnt = 0;
     bin->reg_size = 1024;
     bin->run_size_pages = 1;
@@ -156,7 +152,7 @@ TEST_F(RunUtilsTestMedium, RunInit) {
   heap = malloc(1);
   run_init(run, bin, heap);
   EXPECT_EQ(run->navail, 4);
-  EXPECT_EQ(run->run_heap, heap);
+  EXPECT_EQ(run->entry.key, heap);
   EXPECT_EQ(run->nfreed, 0);
   EXPECT_EQ(run->gen, 1);
   EXPECT_EQ(run->current_idx, 1);
@@ -244,9 +240,7 @@ class RunUtilsTestLarge : public ::testing::Test {
   void SetUp() override {
     init_splitmix32(1);
     bin = (bin_t *)malloc(sizeof(bin_t));
-    bin->run_list_active = NULL;
-    bin->run_list_active_cnt = 0;
-    bin->run_list_inactive = NULL;
+    ll_init(&bin->run_list_inactive);
     bin->run_list_inactive_cnt = 0;
     bin->reg_size = 8192;
     bin->run_size_pages = 2;
@@ -260,7 +254,7 @@ TEST_F(RunUtilsTestLarge, RunInit) {
   heap = malloc(1);
   run_init(run, bin, heap);
   EXPECT_EQ(run->navail, 1);
-  EXPECT_EQ(run->run_heap, heap);
+  EXPECT_EQ(run->entry.key, heap);
   EXPECT_EQ(run->nfreed, 0);
   EXPECT_EQ(run->current_idx, 0);
   for (int i = 0; i < BITS2BYTES_CEIL(bin->reg_mask_size_bits); i++) {

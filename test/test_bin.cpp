@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
 #include <cstring>
-#include <random>
 
 extern "C" {
 #include <sealloc/bin.h>

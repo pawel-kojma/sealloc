@@ -12,7 +12,7 @@ typedef struct chunk_state chunk_t;
 // Each bin describes different size class
 // Small - len(16, ..., 16*i, ..., 512) = 32
 // Medium - len(1KB, 2KB, 4KB) = 3
-// Large - len(8KB, ..., 4KB * (2 ** i), 1MB) = 8
+// Large - len(8KB, ..., 8KB * (2 ** (i-1)), 1MB) = 8
 #define ARENA_NO_BINS 43
 
 typedef struct arena_state {

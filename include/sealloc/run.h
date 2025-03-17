@@ -1,5 +1,6 @@
 /* Run management API */
 
+#include <sealloc/container_ll.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -15,9 +16,7 @@ typedef enum run_bitmap_state {
 } bstate_t;
 
 typedef struct run_state {
-  struct run_state *fd;
-  struct run_state *bk;
-  void *run_heap;        // Run pointer on user heap
+  ll_entry_t entry;      // Contains run_heap ptr as key
   uint16_t navail;       // Number of remaining free regions
   uint16_t nfreed;       // Number of freed regions
   uint8_t gen;           // Generator
