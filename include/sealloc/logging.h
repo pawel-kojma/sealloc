@@ -9,33 +9,38 @@
 
 #ifdef LOGGING
 #define pr_fmt "%s:%d (%s) ", __FILE__, __LINE__, __func__
-#define se_debug(...)          \
-  {                            \
-    printf("[DEBUG] " pr_fmt); \
-    printf(__VA_ARGS__);       \
-    putchar('\n');             \
+#define se_debug(...)                   \
+  {                                     \
+    fprintf(stderr, "[DEBUG] " pr_fmt); \
+    fprintf(stderr, __VA_ARGS__);       \
+    fprintf(stderr, "\n");              \
   }
-#define se_error(...)          \
-  {                            \
-    printf("[ERROR] " pr_fmt); \
-    printf(__VA_ARGS__);       \
-    putchar('\n');             \
-    exit(1);                   \
+#define se_error(...)                   \
+  {                                     \
+    fprintf(stderr, "[ERROR] " pr_fmt); \
+    fprintf(stderr, __VA_ARGS__);       \
+    fprintf(stderr, "\n");              \
+    exit(1);                            \
   }
-#define se_error_with_errno(...) \
-  {                              \
-    printf("[ERROR] " pr_fmt);   \
-    printf(__VA_ARGS__);         \
-    putchar('\n');               \
-    exit(errno);                 \
+#define se_error_with_errno(...)        \
+  {                                     \
+    fprintf(stderr, "[ERROR] " pr_fmt); \
+    fprintf(stderr, __VA_ARGS__);       \
+    fprintf(stderr, "\n");              \
+    exit(errno);                        \
   }
 #else
 #define se_debug(...) \
-  {}
+  {                   \
+  }
 #define se_error(...) \
-  { exit(1); }
+  {                   \
+    exit(1);          \
+  }
 #define se_error_with_errno(...) \
-  { exit(errno); }
+  {                              \
+    exit(errno);                 \
+  }
 #endif
 
 #endif
