@@ -20,6 +20,7 @@ typedef struct run_state run_t;
 #define CHUNK_NO_NODES \
   (CHUNK_NO_NODES_LAST_LAYER + (CHUNK_NO_NODES_LAST_LAYER - 1))
 #define CHUNK_BUDDY_TREE_SIZE_BITS (CHUNK_NO_NODES * 2)
+#define CHUNK_BUDDY_TREE_DEPTH 9 // TODO: derive this value from other values
 
 #define CHUNK_BUDDY_TREE_SIZE_BYTES \
   ((((CHUNK_BUDDY_TREE_SIZE_BITS) + 7) & ~7) / 8)
