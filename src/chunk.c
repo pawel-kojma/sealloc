@@ -57,20 +57,6 @@ static void mark_nodes_split_guard(uint8_t *mem, size_t idx) {
   }
 }
 
-// Mark nodes as split up the tree when coalescing free nodes ends
-static void mark_nodes_split_free(uint8_t *mem, size_t idx) {
-  chunk_node_t state;
-  // Here we want to also change the root to split
-  while (idx > 0) {
-    state = get_tree_item(mem, idx);
-    if (state == NODE_FULL) {
-      set_tree_item(mem, idx, NODE_SPLIT);
-    } else
-      break;
-    idx /= 2;
-  }
-}
-
 // Coalesce nodes up the tree during allocation to indicate that this branch is
 // full
 static void coalesce_full_nodes(uint8_t *mem, size_t idx) {
@@ -79,7 +65,8 @@ static void coalesce_full_nodes(uint8_t *mem, size_t idx) {
   while (idx > 1) {
     neigh_idx = IS_RIGHT_CHILD(idx) ? idx - 1 : idx + 1;
     state = get_tree_item(mem, neigh_idx);
-    if (state == NODE_FULL || state == NODE_USED) {
+    if (state == NODE_FULL || state == NODE_USED_FOUND_GUARD ||
+        state == NODE_USED_SET_GUARD) {
       set_tree_item(mem, idx / 2, NODE_FULL);
     } else
       break;
@@ -87,26 +74,12 @@ static void coalesce_full_nodes(uint8_t *mem, size_t idx) {
   }
 }
 
-// Coalesce nodes up the tree during allocation to indicate that this branch is
-// free, change full node to split ones
-static void coalesce_free_nodes(uint8_t *mem, size_t idx) {
-  size_t neigh_idx;
-  chunk_node_t state;
-  while (idx > 1) {
-    neigh_idx = IS_RIGHT_CHILD(idx) ? idx - 1 : idx + 1;
-    state = get_tree_item(mem, neigh_idx);
-    if (state == NODE_FREE) {
-      set_tree_item(mem, idx / 2, NODE_FREE);
-    } else {
-      mark_nodes_split(mem, idx / 2);
-      break;
-    }
-    idx /= 2;
-  }
+static inline size_t get_rightmost_idx(size_t idx, size_t depth) {
+  return (idx << depth) + (1 << depth) - 1;
 }
 
-static size_t get_rightmost_idx(size_t idx, size_t depth) {
-  return (idx << depth) + (1 << depth) - 1;
+static inline size_t get_leftmost_idx(size_t idx, size_t depth) {
+  return (idx << depth);
 }
 
 // Set guard protections on memory range that the node at the given index spans
@@ -118,8 +91,6 @@ void chunk_init(chunk_t *chunk, void *heap) {
          sizeof(chunk->reg_size_small_medium));
   chunk->buddy_tree[0] = (uint8_t)NODE_FREE;
   chunk->free_mem = CHUNK_SIZE_BYTES;
-  set_tree_item(chunk->buddy_tree, CHUNK_NO_NODES, NODE_GUARD);
-  guard_tree_item(chunk->entry.key, CHUNK_NO_NODES);
 }
 
 void *chunk_allocate_run(chunk_t *chunk, size_t run_size, size_t reg_size) {
@@ -146,13 +117,13 @@ void *chunk_allocate_run(chunk_t *chunk, size_t run_size, size_t reg_size) {
             neigh = NODE_GUARD;
           else
             neigh = get_tree_item(chunk->buddy_tree, idx + 1);
-          if (neigh == NODE_GUARD || neigh == NODE_FREE) {
-            if (neigh == NODE_GUARD) {
-              set_tree_item(chunk->buddy_tree, idx, NODE_USED_FOUND_GUARD);
-            } else {
+          if (neigh != NODE_USED_FOUND_GUARD && neigh != NODE_USED_SET_GUARD) {
+            if (neigh == NODE_FREE) {
               set_tree_item(chunk->buddy_tree, idx, NODE_USED_SET_GUARD);
               guard_tree_item(chunk->entry.key, idx + 1);
               mark_nodes_split_guard(chunk->buddy_tree, idx + 1);
+            } else {
+              set_tree_item(chunk->buddy_tree, idx, NODE_USED_FOUND_GUARD);
             }
             chunk->free_mem -= cur_size;
             coalesce_full_nodes(chunk->buddy_tree, idx);
@@ -220,13 +191,18 @@ void *chunk_allocate_run(chunk_t *chunk, size_t run_size, size_t reg_size) {
             // We cannot go deeper because cur_size / 2 < run_size
             // If anything we have to allocate here
             // Make sure neighbor node is guarded or free
-            else if (neigh == NODE_GUARD || neigh == NODE_FREE) {
-              if (neigh == NODE_GUARD) {
-                set_tree_item(chunk->buddy_tree, idx, NODE_USED_FOUND_GUARD);
-              } else {
+            else if (neigh != NODE_USED_FOUND_GUARD &&
+                     neigh != NODE_USED_SET_GUARD) {
+              if (neigh == NODE_FREE) {
                 set_tree_item(chunk->buddy_tree, idx, NODE_USED_SET_GUARD);
+                set_tree_item(chunk->buddy_tree, get_leftmost_idx(idx, depth),
+                              NODE_USED_SET_GUARD);
                 guard_tree_item(chunk->entry.key, idx + 1);
                 mark_nodes_split_guard(chunk->buddy_tree, idx + 1);
+              } else {
+                set_tree_item(chunk->buddy_tree, idx, NODE_USED_FOUND_GUARD);
+                set_tree_item(chunk->buddy_tree, get_leftmost_idx(idx, depth),
+                              NODE_USED_FOUND_GUARD);
               }
               chunk->free_mem -= cur_size;
               coalesce_full_nodes(chunk->buddy_tree, idx);
