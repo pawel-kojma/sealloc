@@ -11,3 +11,4 @@ Scalable memory allocation using jemalloc - https://www.facebook.com/notes/10158
 
 Unit testing C code with gtest - https://notes.eatonphil.com/unit-testing-c-code-with-gtest.html
 Quickstart: CMake - http://google.github.io/googletest/quickstart-cmake.html
+container_of - https://radek.io/posts/magical-container_of-macro/

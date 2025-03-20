@@ -11,7 +11,7 @@ static unsigned GENERATORS_SMALL_LENGTHS[] ={
     {% endfor %}
 };
 
-static uint8_t GENERATORS_SMALL[{{len(sc_small_gen)}}][{{ max_gens_small }}] = {
+static uint16_t GENERATORS_SMALL[{{len(sc_small_gen)}}][{{ max_gens_small }}] = {
     {% for generators in sc_small_gen %}
     { {{ generators|join(', ') }} },
     {% endfor %}
@@ -23,7 +23,7 @@ static unsigned GENERATORS_MEDIUM_LENGTHS[] ={
     {% endfor %}
 };
 
-static uint8_t GENERATORS_MEDIUM[{{len(sc_medium_gen)}}][{{ max_gens_medium }}] = {
+static uint16_t GENERATORS_MEDIUM[{{len(sc_medium_gen)}}][{{ max_gens_medium }}] = {
     {% for generators in sc_medium_gen %}
     { {{ generators|join(', ') }} },
     {% endfor %}

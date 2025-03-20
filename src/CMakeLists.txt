@@ -1,8 +1,8 @@
-add_library(sealloc bin.c internal_allocator.c random.c run.c)
+add_library(sealloc bin.c internal_allocator.c random.c run.c container_ll.c)
 
 set(gcc_like_c "$<COMPILE_LANG_AND_ID:C,ARMClang,AppleClang,Clang,GNU,LCC>")
 if (BuildType MATCHES "Release")
-    set(EXTRA_COMPILE_OPTIONS $<${gcc_like_c}:-03>)
+    set(EXTRA_COMPILE_OPTIONS $<${gcc_like_c}:-O3>)
     set(enable_logging 0)
 elseif(BuildType MATCHES "Debug")
     set(EXTRA_COMPILE_OPTIONS $<${gcc_like_c}:-O0 -ggdb>)

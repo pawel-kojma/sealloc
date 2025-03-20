@@ -27,7 +27,7 @@ static void set_bitmap_item(uint8_t *mem, size_t idx, bstate_t state) {
 
 void run_init(run_t *run, bin_t *bin, void *heap) {
   unsigned gen_idx;
-  run->run_heap = heap;
+  run->entry.key = heap;
   run->navail = bin->reg_mask_size_bits / 2;
   run->nfreed = 0;
 
@@ -56,7 +56,7 @@ void *run_allocate(run_t *run, bin_t *bin) {
   // Check if we still have regions to give
   if (run->navail == 0) return NULL;
 
-  uintptr_t heap = (uintptr_t)run->run_heap;
+  uintptr_t heap = (uintptr_t)run->entry.key;
   unsigned elems = (unsigned)(bin->reg_mask_size_bits / 2);
 
   // Get next item from generator
@@ -69,7 +69,7 @@ void *run_allocate(run_t *run, bin_t *bin) {
     se_error(
         "Region is not free, Region(heap=%p, nfree=%u, gen=%u, "
         "current_idx=%u), state=%u",
-        run->run_heap, run->navail, run->gen, run->current_idx, state);
+        run->entry.key, run->navail, run->gen, run->current_idx, state);
   }
 
   // Mark region as allocated
@@ -83,7 +83,7 @@ void *run_allocate(run_t *run, bin_t *bin) {
 
 static size_t run_validate_freeable(run_t *run, bin_t *bin, void *ptr) {
   // Here, we trust that ptr is in range of current run
-  ptrdiff_t rel_ptr = (uintptr_t)ptr - (uintptr_t)run->run_heap;
+  ptrdiff_t rel_ptr = (uintptr_t)ptr - (uintptr_t)run->entry.key;
   size_t bitmap_idx = rel_ptr / bin->reg_size;
   // Check if ptr is unaligned
   if (rel_ptr % bin->reg_size != 0) {

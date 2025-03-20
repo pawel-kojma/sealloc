@@ -3,10 +3,11 @@ import math
 from pathlib import Path
 
 PAGE_SIZE = 2**12
+RUN_SIZE = 2 * PAGE_SIZE
 MIN_SIZE_CLASS_SMALL = 16
 MAX_SIZE_CLASS_SMALL = 512
 MIN_SIZE_CLASS_MEDIUM = 1024
-MAX_SIZE_CLASS_MEDIUM = 2048
+MAX_SIZE_CLASS_MEDIUM = 4096
 
 SIZE_CLASS_SMALL = [x for x in range(
     MIN_SIZE_CLASS_SMALL, MAX_SIZE_CLASS_SMALL + 1, 16)]
@@ -21,8 +22,8 @@ def coprime(n):
 
 def main():
     loader = jinja2.FileSystemLoader('templates/')
-    sc_small_gen = [coprime(PAGE_SIZE // n) for n in SIZE_CLASS_SMALL]
-    sc_medium_gen = [coprime(PAGE_SIZE // n) for n in SIZE_CLASS_MEDIUM]
+    sc_small_gen = [coprime(RUN_SIZE // n) for n in SIZE_CLASS_SMALL]
+    sc_medium_gen = [coprime(RUN_SIZE // n) for n in SIZE_CLASS_MEDIUM]
     env = jinja2.Environment(
         loader=loader,
         trim_blocks=True,
