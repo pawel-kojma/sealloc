@@ -10,7 +10,7 @@
 #define IS_LEAF(idx) (idx >= ((CHUNK_NO_NODES + 1) / 2))
 #define IS_RIGHT_CHILD(idx) (idx & 1)
 
-typedef enum chunk_node_type {
+typedef enum chunk_node {
   NODE_FULL = 0,
   NODE_SPLIT = 1,
   NODE_USED_SET_GUARD = 2,
@@ -21,11 +21,11 @@ typedef enum chunk_node_type {
   NODE_UNMAPPED = 7
 } chunk_node_t;
 
-typedef enum tree_traverse_state {
+typedef enum search_state {
   DOWN,
   UP_LEFT,
   UP_RIGHT,
-} tstate_t;
+} search_state_t;
 
 // Get tree node type at given index
 static uint8_t get_tree_item(uint8_t *mem, size_t idx) {
@@ -93,161 +93,174 @@ void chunk_init(chunk_t *chunk, void *heap) {
   chunk->free_mem = CHUNK_SIZE_BYTES;
 }
 
+typedef struct buddy_state {
+  size_t idx;            // Current node index
+  size_t cur_size;       // Chunk size spanned by current node
+  size_t depth_to_leaf;  // Number of levels left to leaf nodes
+  uintptr_t ptr;         // Points to region of current node
+  search_state_t state;  // Current search state
+} buddy_ctx_t;
+
+void buddy_state_go_up(buddy_ctx_t *ctx) {
+  ctx->state = IS_RIGHT_CHILD(ctx->idx) ? UP_RIGHT : UP_LEFT;
+  ctx->ptr = IS_RIGHT_CHILD(ctx->idx) ? ctx->ptr - ctx->cur_size : ctx->ptr;
+  ctx->idx = PARENT(ctx->idx);
+  ctx->cur_size *= 2;
+  ctx->depth_to_leaf++;
+}
+
+void buddy_state_go_right(buddy_ctx_t *ctx) {
+  ctx->state = DOWN;
+  ctx->cur_size = ctx->cur_size / 2;
+  ctx->ptr = ctx->ptr + ctx->cur_size;
+  ctx->idx = RIGHT_CHILD(ctx->idx);
+  ctx->depth_to_leaf--;
+}
+
+void buddy_state_go_left(buddy_ctx_t *ctx) {
+  ctx->idx = LEFT_CHILD(ctx->idx);
+  ctx->cur_size = ctx->cur_size / 2;
+  ctx->depth_to_leaf--;
+}
+
+void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk) {
+  size_t neigh_idx = ctx->idx + 1;
+  chunk_node_t neigh, node = get_tree_item(chunk->buddy_tree, ctx->idx);
+  switch (node) {
+    case NODE_FREE:
+      // Check if we can place a guard page.
+      if (neigh_idx > CHUNK_NO_NODES)
+        neigh = NODE_GUARD;
+      else
+        neigh = get_tree_item(chunk->buddy_tree, neigh_idx);
+      if (neigh != NODE_USED_FOUND_GUARD && neigh != NODE_USED_SET_GUARD) {
+        if (neigh == NODE_FREE) {
+          set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED_SET_GUARD);
+          guard_tree_item(chunk->entry.key, neigh_idx);
+          mark_nodes_split_guard(chunk->buddy_tree, neigh_idx);
+        } else {
+          set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED_FOUND_GUARD);
+        }
+        chunk->free_mem -= ctx->cur_size;
+        coalesce_full_nodes(chunk->buddy_tree, ctx->idx);
+        return (void *)ctx->ptr;
+      }
+      // fallthrough if neighbor node is not free or guarded.
+    case NODE_GUARD:
+    case NODE_USED_FOUND_GUARD:
+    case NODE_USED_SET_GUARD:
+    case NODE_DEPLETED:
+      // Node is used/guarded, nothing we can do, go up.
+      buddy_state_go_up(ctx);
+      break;
+    // Invalid states, leaf node cannot be split/unmapped/full.
+    case NODE_SPLIT:
+      se_error("Leaf node state is NODE_SPLIT");
+    case NODE_FULL:
+      se_error("Leaf node state is NODE_FULL");
+    case NODE_UNMAPPED:
+      se_error("Leaf node state is NODE_UNMAPPED");
+  }
+  return NULL;
+}
+
+void *visit_regular_node(buddy_ctx_t *ctx, chunk_t *chunk, size_t run_size) {
+  size_t neigh_idx = get_rightmost_idx(ctx->idx, ctx->depth_to_leaf) + 1;
+  chunk_node_t neigh, node = get_tree_item(chunk->buddy_tree, ctx->idx);
+  switch (node) {
+    case NODE_SPLIT:
+      // If this is the deepest node that can satisfy request
+      // but is split, so backtrack
+      if (ctx->cur_size / 2 < run_size && run_size <= ctx->cur_size)
+        buddy_state_go_up(ctx);
+      // If size still fits, but node is split, then go to left child.
+      else
+        buddy_state_go_left(ctx);
+      break;
+    case NODE_FREE:
+      // Let arena handle guard pages between chunks
+      if (neigh_idx > CHUNK_NO_NODES)
+        neigh = NODE_GUARD;
+      else
+        neigh = get_tree_item(chunk->buddy_tree, neigh_idx);
+      // If run size still overfits, search deeper
+      if (run_size <= ctx->cur_size / 2) {
+        set_tree_item(chunk->buddy_tree, ctx->idx, NODE_SPLIT);
+        set_tree_item(chunk->buddy_tree, LEFT_CHILD(ctx->idx), NODE_FREE);
+        set_tree_item(chunk->buddy_tree, RIGHT_CHILD(ctx->idx), NODE_FREE);
+        buddy_state_go_left(ctx);
+      }
+      // We cannot go deeper because cur_size / 2 < run_size
+      // If anything we have to allocate here
+      // Make sure neighbor node is guarded or free
+      else if (neigh != NODE_USED_FOUND_GUARD && neigh != NODE_USED_SET_GUARD) {
+        if (neigh == NODE_FREE) {
+          set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED_SET_GUARD);
+          set_tree_item(chunk->buddy_tree,
+                        get_leftmost_idx(ctx->idx, ctx->depth_to_leaf),
+                        NODE_USED_SET_GUARD);
+          guard_tree_item(chunk->entry.key, neigh_idx);
+          mark_nodes_split_guard(chunk->buddy_tree, neigh_idx);
+        } else {
+          set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED_FOUND_GUARD);
+          set_tree_item(chunk->buddy_tree,
+                        get_leftmost_idx(ctx->idx, ctx->depth_to_leaf),
+                        NODE_USED_FOUND_GUARD);
+        }
+        chunk->free_mem -= ctx->cur_size;
+        coalesce_full_nodes(chunk->buddy_tree, ctx->idx);
+        return (void *)ctx->ptr;
+      } else {
+        // We cannot guard a neighbor node and deeper nodes are too small
+        // Go up
+        buddy_state_go_up(ctx);
+      }
+      break;
+    // Node is used, nothing we can do, go up.
+    case NODE_USED_FOUND_GUARD:
+    case NODE_USED_SET_GUARD:
+    // Node is full, meaning it comprises of many allocations
+    // but there is no free memory, so go back
+    case NODE_FULL:
+    // Unavaliable memory, either guarded, already used or unmapped
+    case NODE_DEPLETED:
+    case NODE_GUARD:
+    case NODE_UNMAPPED:
+      buddy_state_go_up(ctx);
+      break;
+  }
+  return NULL;
+}
+
 void *chunk_allocate_run(chunk_t *chunk, size_t run_size, size_t reg_size) {
-  size_t idx, cur_size, depth, neigh_idx;
-  uintptr_t ptr;
-  chunk_node_t node, neigh;
-  tstate_t state;
-  idx = 1;
-  state = DOWN;
-  depth = CHUNK_BUDDY_TREE_DEPTH;
-  cur_size = CHUNK_SIZE_BYTES;
-  ptr = (uintptr_t)&chunk->entry.key;
+  void *ptr;
+  buddy_ctx_t ctx = {
+      .idx = 1,
+      .state = DOWN,
+      .depth_to_leaf = CHUNK_BUDDY_TREE_DEPTH,
+      .cur_size = CHUNK_SIZE_BYTES,
+      .ptr = (uintptr_t)&chunk->entry.key,
+  };
   if (chunk->free_mem < run_size) return NULL;
 
   // Search stops when we come back to the root from the right child
-  while (!(idx == 1 && state == UP_RIGHT)) {
+  while (!(ctx.idx == 1 && ctx.state == UP_RIGHT)) {
     // If we are in a leaf node, visit and go up if needed.
-    if (IS_LEAF(idx)) {
-      node = get_tree_item(chunk->buddy_tree, idx);
-      switch (node) {
-        case NODE_FREE:
-          // Check if we can place a guard page.
-          if (idx + 1 > CHUNK_NO_NODES)
-            neigh = NODE_GUARD;
-          else
-            neigh = get_tree_item(chunk->buddy_tree, idx + 1);
-          if (neigh != NODE_USED_FOUND_GUARD && neigh != NODE_USED_SET_GUARD) {
-            if (neigh == NODE_FREE) {
-              set_tree_item(chunk->buddy_tree, idx, NODE_USED_SET_GUARD);
-              guard_tree_item(chunk->entry.key, idx + 1);
-              mark_nodes_split_guard(chunk->buddy_tree, idx + 1);
-            } else {
-              set_tree_item(chunk->buddy_tree, idx, NODE_USED_FOUND_GUARD);
-            }
-            chunk->free_mem -= cur_size;
-            coalesce_full_nodes(chunk->buddy_tree, idx);
-            return (void *)ptr;
-          }
-          // fallthrough if neighbor node is not free or guarded.
-        case NODE_GUARD:
-        case NODE_USED_FOUND_GUARD:
-        case NODE_USED_SET_GUARD:
-        case NODE_DEPLETED:
-          // Node is used/guarded, nothing we can do, go up.
-          state = IS_RIGHT_CHILD(idx) ? UP_RIGHT : UP_LEFT;
-          ptr = IS_RIGHT_CHILD(idx) ? ptr - cur_size : ptr;
-          idx = PARENT(idx);
-          cur_size = cur_size * 2;
-          depth++;
-          break;
-        // Invalid states, leaf node cannot be split/unmapped/full.
-        case NODE_SPLIT:
-          se_error("Leaf node state is NODE_SPLIT");
-        case NODE_FULL:
-          se_error("Leaf node state is NODE_FULL");
-        case NODE_UNMAPPED:
-          se_error("Leaf node state is NODE_UNMAPPED");
-      }
+    if (IS_LEAF(ctx.idx)) {
+      ptr = visit_leaf_node(&ctx, chunk);
+      if (ptr != NULL) return ptr;
       continue;
     }
-    switch (state) {
+    switch (ctx.state) {
       case DOWN:
-        node = get_tree_item(chunk->buddy_tree, idx);
-        switch (node) {
-          case NODE_SPLIT:
-            // If this is the deepest node that can satisfy request
-            // but is split, so backtrack
-            if (cur_size / 2 < run_size && run_size <= cur_size) {
-              state = IS_RIGHT_CHILD(idx) ? UP_RIGHT : UP_LEFT;
-              ptr = IS_RIGHT_CHILD(idx) ? ptr - cur_size : ptr;
-              idx = PARENT(idx);
-              cur_size = cur_size * 2;
-              depth++;
-            }
-            // If size still fits, but node is split, then go to left child.
-            else {
-              idx = LEFT_CHILD(idx);
-              cur_size = cur_size / 2;
-              depth--;
-            }
-            break;
-          case NODE_FREE:
-            neigh_idx = get_rightmost_idx(idx, depth) + 1;
-            // Let arena handle guard pages between chunks
-            if (neigh_idx > CHUNK_NO_NODES)
-              neigh = NODE_GUARD;
-            else
-              neigh = get_tree_item(chunk->buddy_tree, neigh_idx);
-            // If run size still overfits, search deeper
-            if (run_size <= cur_size / 2) {
-              set_tree_item(chunk->buddy_tree, idx, NODE_SPLIT);
-              set_tree_item(chunk->buddy_tree, LEFT_CHILD(idx), NODE_FREE);
-              set_tree_item(chunk->buddy_tree, RIGHT_CHILD(idx), NODE_FREE);
-              cur_size = cur_size / 2;
-              idx = LEFT_CHILD(idx);
-              depth--;
-            }
-            // We cannot go deeper because cur_size / 2 < run_size
-            // If anything we have to allocate here
-            // Make sure neighbor node is guarded or free
-            else if (neigh != NODE_USED_FOUND_GUARD &&
-                     neigh != NODE_USED_SET_GUARD) {
-              if (neigh == NODE_FREE) {
-                set_tree_item(chunk->buddy_tree, idx, NODE_USED_SET_GUARD);
-                set_tree_item(chunk->buddy_tree, get_leftmost_idx(idx, depth),
-                              NODE_USED_SET_GUARD);
-                guard_tree_item(chunk->entry.key, idx + 1);
-                mark_nodes_split_guard(chunk->buddy_tree, idx + 1);
-              } else {
-                set_tree_item(chunk->buddy_tree, idx, NODE_USED_FOUND_GUARD);
-                set_tree_item(chunk->buddy_tree, get_leftmost_idx(idx, depth),
-                              NODE_USED_FOUND_GUARD);
-              }
-              chunk->free_mem -= cur_size;
-              coalesce_full_nodes(chunk->buddy_tree, idx);
-              return (void *)ptr;
-            } else {
-              // We cannot guard a neighbor node and deeper nodes are too small
-              // Go up
-              state = IS_RIGHT_CHILD(idx) ? UP_RIGHT : UP_LEFT;
-              ptr = IS_RIGHT_CHILD(idx) ? ptr - cur_size : ptr;
-              idx = PARENT(idx);
-              cur_size = cur_size * 2;
-              depth++;
-            }
-            break;
-          // Node is used, nothing we can do, go up.
-          case NODE_USED_FOUND_GUARD:
-          case NODE_USED_SET_GUARD:
-          // Node is full, meaning it comprises of many allocations
-          // but there is no free memory, so go back
-          case NODE_FULL:
-          // Unavaliable memory, either guarded, already used or unmapped
-          case NODE_DEPLETED:
-          case NODE_GUARD:
-          case NODE_UNMAPPED:
-            state = IS_RIGHT_CHILD(idx) ? UP_RIGHT : UP_LEFT;
-            ptr = IS_RIGHT_CHILD(idx) ? ptr - cur_size : ptr;
-            idx = PARENT(idx);
-            cur_size = cur_size * 2;
-            depth++;
-            break;
-        }
+        ptr = visit_regular_node(&ctx, chunk, run_size);
+        if (ptr != NULL) return ptr;
         break;
       case UP_LEFT:
-        cur_size = cur_size / 2;
-        ptr = ptr + cur_size;
-        state = DOWN;
-        idx = RIGHT_CHILD(idx);
-        depth--;
+        buddy_state_go_right(&ctx);
         break;
       case UP_RIGHT:
-        state = IS_RIGHT_CHILD(idx) ? UP_RIGHT : UP_LEFT;
-        ptr = IS_RIGHT_CHILD(idx) ? ptr - cur_size : ptr;
-        idx = PARENT(idx);
-        cur_size = cur_size * 2;
-        depth++;
+        buddy_state_go_up(&ctx);
         break;
     }
   }
