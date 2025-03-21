@@ -27,22 +27,44 @@ typedef enum search_state {
   UP_RIGHT,
 } search_state_t;
 
+static inline unsigned get_mask(unsigned bits) { return (1 << bits) - 1; }
+
 // Get tree node type at given index
-static uint8_t get_tree_item(uint8_t *mem, size_t idx) {
-  size_t word = (idx - 1) / 4;
-  size_t off = (idx - 1) % 4;
-  return (mem[word] >> (2 * off)) & 3;
+static chunk_node_t get_tree_item(uint8_t *mem, unsigned idx) {
+  unsigned bits_to_skip = (idx - 1) * NODE_STATE_BITS;
+  unsigned word_idx = bits_to_skip / 8, off = bits_to_skip % 8;
+  uint8_t fst_part = (mem[word_idx] >> off) & get_mask(8 - off);
+  uint8_t snd_part = 0;
+  if (NODE_STATE_BITS + off > 8) {
+    snd_part = mem[word_idx + 1] & get_mask(off + NODE_STATE_BITS - 8);
+    return (chunk_node_t)(snd_part << (8 - off) | fst_part);
+  }
+  return (chunk_node_t)fst_part;
 }
 
 // Set tree node type to given type at index
-static void set_tree_item(uint8_t *mem, size_t idx, chunk_node_t node_state) {
-  size_t word = (idx - 1) / 4;
-  size_t off = (idx - 1) % 4;
-  uint8_t erase_bits = 3;  // 0b11
-  // First, clear the bits we want to set in mem[word]
-  // Second, set two node_state bits in their place
-  mem[word] = (mem[word] & ~(erase_bits << (off * 2))) |
-              ((uint8_t)node_state << (off * 2));
+static void set_tree_item(uint8_t *mem, unsigned idx, chunk_node_t node_state) {
+  unsigned bits_to_skip = (idx - 1) * NODE_STATE_BITS;
+  unsigned word_idx = bits_to_skip / 8, off = bits_to_skip % 8;
+  unsigned remaining, fst_bits;
+  uint8_t state = (uint8_t)node_state;
+
+  if (NODE_STATE_BITS + off > 8) {
+    remaining = NODE_STATE_BITS + off - 8;
+    fst_bits = NODE_STATE_BITS - remaining;
+
+    // Set bits in the first word
+    mem[word_idx] =
+        (mem[word_idx] & ~(get_mask(fst_bits) << off)) | (state << off);
+    // Set remaining bits in the second word
+    mem[word_idx + 1] =
+        (mem[word_idx + 1] & ~get_mask(remaining)) | (state >> fst_bits);
+  } else {
+    // First, clear the bits we want to set in mem[word]
+    // Second, set two node_state bits in their place
+    mem[word_idx] = (mem[word_idx] & ~(get_mask(NODE_STATE_BITS) << off)) |
+                    ((uint8_t)node_state << off);
+  }
 }
 
 // Mark nodes as split up the tree when setting guard page on allocation
@@ -121,6 +143,12 @@ void buddy_state_go_left(buddy_ctx_t *ctx) {
   ctx->idx = LEFT_CHILD(ctx->idx);
   ctx->cur_size = ctx->cur_size / 2;
   ctx->depth_to_leaf--;
+}
+
+void mark_reg_size(buddy_ctx_t *ctx, chunk_t *chunk, size_t reg_size) {
+  unsigned base = CHUNK_NO_NODES + 1 / 2;
+  unsigned idx = ctx->idx - base;  // 0-based index
+                                   // TODO: finish this function
 }
 
 void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk) {
@@ -208,6 +236,7 @@ void *visit_regular_node(buddy_ctx_t *ctx, chunk_t *chunk, size_t run_size) {
                         NODE_USED_FOUND_GUARD);
         }
         chunk->free_mem -= ctx->cur_size;
+        mark_reg_size(ctx, chunk);
         coalesce_full_nodes(chunk->buddy_tree, ctx->idx);
         return (void *)ctx->ptr;
       } else {
