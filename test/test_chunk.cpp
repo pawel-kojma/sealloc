@@ -37,6 +37,8 @@ TEST_F(ChunkUtilsTest, ChunkSingleAllocation) {
   chunk_init(chunk, heap);
   alloc = chunk_allocate_run(chunk, run_size, reg_size);
   EXPECT_NE(alloc, nullptr);
+  alloc = chunk_allocate_run(chunk, run_size, reg_size);
+  EXPECT_NE(alloc, nullptr);
 }
 
 TEST_F(ChunkUtilsTest, ChunkManyAllocations) {
@@ -46,10 +48,11 @@ TEST_F(ChunkUtilsTest, ChunkManyAllocations) {
   std::vector<void *> chunks;
   chunks.reserve(CHUNKS);
   std::srand(123);
+  chunk_init(chunk, heap);
   for (int i = 0; i < CHUNKS; i++) {
     auto [run_size, reg_size] = run_reg_sizes[rand() % run_reg_sizes.size()];
     chunks[i] = chunk_allocate_run(chunk, run_size, reg_size);
-    EXPECT_NE(chunks[i], nullptr);
+    EXPECT_NE(chunks[i], nullptr) << "Failed at " << i << " idx\n";
   }
   EXPECT_TRUE(all_unique(chunks));
 }
