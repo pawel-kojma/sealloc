@@ -148,7 +148,7 @@ void buddy_state_go_left(buddy_ctx_t *ctx) {
 // Sets info about what region size is allocated at which run ptr
 void mark_reg_size(buddy_ctx_t *ctx, chunk_t *chunk, size_t reg_size) {
   if (!IS_SIZE_SMALL(reg_size) && !IS_SIZE_MEDIUM(reg_size)) return;
-  unsigned base = CHUNK_NO_NODES + 1 / 2;
+  unsigned base = (CHUNK_NO_NODES + 1) / 2;
   // We know that if reg_size is small or medium, then we allocated at the leaf
   // 0-based index
   unsigned idx = ctx->idx - base;
