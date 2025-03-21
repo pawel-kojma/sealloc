@@ -32,8 +32,8 @@ bool all_unique(std::vector<T> &v) {
 
 TEST_F(ChunkUtilsTest, ChunkSingleAllocation) {
   void *alloc;
-  size_t run_size = 2 * PAGE_SIZE;
-  size_t reg_size = 16;
+  unsigned run_size = 2 * PAGE_SIZE;
+  unsigned reg_size = 16;
   chunk_init(chunk, heap);
   alloc = chunk_allocate_run(chunk, run_size, reg_size);
   EXPECT_NE(alloc, nullptr);

@@ -11,11 +11,11 @@
 #define IS_RIGHT_CHILD(idx) (idx & 1)
 
 typedef enum chunk_node {
-  NODE_FULL = 0,
+  NODE_FREE = 0,
   NODE_SPLIT = 1,
   NODE_USED_SET_GUARD = 2,
   NODE_USED_FOUND_GUARD = 3,
-  NODE_FREE = 4,
+  NODE_FULL = 4,
   NODE_GUARD = 5,
   NODE_DEPLETED = 6,
   NODE_UNMAPPED = 7
@@ -29,15 +29,17 @@ typedef enum search_state {
 
 static inline unsigned get_mask(unsigned bits) { return (1 << bits) - 1; }
 
+static inline unsigned min(unsigned a, unsigned b) { return a > b ? b : a; }
+
 // Get tree node type at given index
 static chunk_node_t get_tree_item(uint8_t *mem, unsigned idx) {
   unsigned bits_to_skip = (idx - 1) * NODE_STATE_BITS;
   unsigned word_idx = bits_to_skip / 8, off = bits_to_skip % 8;
-  uint8_t fst_part = (mem[word_idx] >> off) & get_mask(8 - off);
+  uint8_t fst_part = (mem[word_idx] >> off) & get_mask(min(8 - off, 3));
   uint8_t snd_part = 0;
   if (NODE_STATE_BITS + off > 8) {
     snd_part = mem[word_idx + 1] & get_mask(off + NODE_STATE_BITS - 8);
-    return (chunk_node_t)(snd_part << (8 - off) | fst_part);
+    return (chunk_node_t)((snd_part << (8 - off)) | fst_part);
   }
   return (chunk_node_t)fst_part;
 }
@@ -113,6 +115,7 @@ void chunk_init(chunk_t *chunk, void *heap) {
          sizeof(chunk->reg_size_small_medium));
   chunk->buddy_tree[0] = (uint8_t)NODE_FREE;
   chunk->free_mem = CHUNK_SIZE_BYTES;
+  memset(&chunk->buddy_tree, 0, sizeof(chunk->buddy_tree));
 }
 
 typedef struct buddy_state {
@@ -132,9 +135,9 @@ void buddy_state_go_up(buddy_ctx_t *ctx) {
 }
 
 void buddy_state_go_right(buddy_ctx_t *ctx) {
-  ctx->state = DOWN;
   ctx->cur_size = ctx->cur_size / 2;
   ctx->ptr = ctx->ptr + ctx->cur_size;
+  ctx->state = DOWN;
   ctx->idx = RIGHT_CHILD(ctx->idx);
   ctx->depth_to_leaf--;
 }
