@@ -21,7 +21,7 @@ typedef struct run_state run_t;
 #define CHUNK_NO_NODES \
   (CHUNK_NO_NODES_LAST_LAYER + (CHUNK_NO_NODES_LAST_LAYER - 1))
 #define CHUNK_BUDDY_TREE_SIZE_BITS (CHUNK_NO_NODES * NODE_STATE_BITS)
-#define CHUNK_BUDDY_TREE_DEPTH 9 // TODO: derive this value from other values
+#define CHUNK_BUDDY_TREE_DEPTH 9  // TODO: derive this value from other values
 
 #define CHUNK_BUDDY_TREE_SIZE_BYTES \
   ((((CHUNK_BUDDY_TREE_SIZE_BITS) + 7) & ~7) / 8)
@@ -29,10 +29,8 @@ typedef struct run_state run_t;
 typedef struct chunk_state {
   ll_entry_t entry;
   size_t free_mem;
-  uint8_t
-      reg_size_small_medium[CHUNK_NO_NODES_LAST_LAYER];  // Stores reg_size //
-                                                         // 16 for small and
-                                                         // medium size class
+  // Stores (reg_size / 16) for small and medium size class
+  uint8_t reg_size_small_medium[CHUNK_NO_NODES_LAST_LAYER];
   uint8_t buddy_tree[CHUNK_BUDDY_TREE_SIZE_BYTES];
 } chunk_t;
 

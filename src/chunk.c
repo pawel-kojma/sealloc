@@ -75,7 +75,7 @@ static void mark_nodes_split_guard(uint8_t *mem, size_t idx) {
     state = get_tree_item(mem, idx);
     if (state == NODE_SPLIT) break;
     set_tree_item(mem, idx, NODE_SPLIT);
-    idx /= 2;
+    idx = PARENT(idx);
   }
 }
 
@@ -89,18 +89,18 @@ static void coalesce_full_nodes(uint8_t *mem, size_t idx) {
     state = get_tree_item(mem, neigh_idx);
     if (state == NODE_FULL || state == NODE_USED_FOUND_GUARD ||
         state == NODE_USED_SET_GUARD) {
-      set_tree_item(mem, idx / 2, NODE_FULL);
+      set_tree_item(mem, PARENT(idx), NODE_FULL);
     } else
       break;
-    idx /= 2;
+    idx = PARENT(idx);
   }
 }
 
-static inline size_t get_rightmost_idx(size_t idx, size_t depth) {
+static inline unsigned get_rightmost_idx(unsigned idx, unsigned depth) {
   return (idx << depth) + (1 << depth) - 1;
 }
 
-static inline size_t get_leftmost_idx(size_t idx, size_t depth) {
+static inline unsigned get_leftmost_idx(unsigned idx, unsigned depth) {
   return (idx << depth);
 }
 
@@ -145,14 +145,20 @@ void buddy_state_go_left(buddy_ctx_t *ctx) {
   ctx->depth_to_leaf--;
 }
 
+// Sets info about what region size is allocated at which run ptr
 void mark_reg_size(buddy_ctx_t *ctx, chunk_t *chunk, size_t reg_size) {
+  if (!IS_SIZE_SMALL(reg_size) && !IS_SIZE_MEDIUM(reg_size)) return;
   unsigned base = CHUNK_NO_NODES + 1 / 2;
-  unsigned idx = ctx->idx - base;  // 0-based index
-                                   // TODO: finish this function
+  // We know that if reg_size is small or medium, then we allocated at the leaf
+  // 0-based index
+  unsigned idx = ctx->idx - base;
+  // Note that reg_size 4096 will eval to 0
+  chunk->reg_size_small_medium[idx] =
+      (reg_size / SIZE_CLASS_ALIGNMENT) & UINT8_MAX;
 }
 
-void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk) {
-  size_t neigh_idx = ctx->idx + 1;
+void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk, size_t reg_size) {
+  unsigned neigh_idx = ctx->idx + 1;
   chunk_node_t neigh, node = get_tree_item(chunk->buddy_tree, ctx->idx);
   switch (node) {
     case NODE_FREE:
@@ -165,11 +171,13 @@ void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk) {
         if (neigh == NODE_FREE) {
           set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED_SET_GUARD);
           guard_tree_item(chunk->entry.key, neigh_idx);
-          mark_nodes_split_guard(chunk->buddy_tree, neigh_idx);
+          set_tree_item(chunk->buddy_tree, neigh_idx, NODE_GUARD);
+          mark_nodes_split_guard(chunk->buddy_tree, PARENT(neigh_idx));
         } else {
           set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED_FOUND_GUARD);
         }
         chunk->free_mem -= ctx->cur_size;
+        mark_reg_size(ctx, chunk, reg_size);
         coalesce_full_nodes(chunk->buddy_tree, ctx->idx);
         return (void *)ctx->ptr;
       }
@@ -193,7 +201,7 @@ void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk) {
 }
 
 void *visit_regular_node(buddy_ctx_t *ctx, chunk_t *chunk, size_t run_size) {
-  size_t neigh_idx = get_rightmost_idx(ctx->idx, ctx->depth_to_leaf) + 1;
+  unsigned neigh_idx = get_rightmost_idx(ctx->idx, ctx->depth_to_leaf) + 1;
   chunk_node_t neigh, node = get_tree_item(chunk->buddy_tree, ctx->idx);
   switch (node) {
     case NODE_SPLIT:
@@ -228,7 +236,8 @@ void *visit_regular_node(buddy_ctx_t *ctx, chunk_t *chunk, size_t run_size) {
                         get_leftmost_idx(ctx->idx, ctx->depth_to_leaf),
                         NODE_USED_SET_GUARD);
           guard_tree_item(chunk->entry.key, neigh_idx);
-          mark_nodes_split_guard(chunk->buddy_tree, neigh_idx);
+          set_tree_item(chunk->buddy_tree, neigh_idx, NODE_GUARD);
+          mark_nodes_split_guard(chunk->buddy_tree, PARENT(neigh_idx));
         } else {
           set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED_FOUND_GUARD);
           set_tree_item(chunk->buddy_tree,
@@ -236,7 +245,6 @@ void *visit_regular_node(buddy_ctx_t *ctx, chunk_t *chunk, size_t run_size) {
                         NODE_USED_FOUND_GUARD);
         }
         chunk->free_mem -= ctx->cur_size;
-        mark_reg_size(ctx, chunk);
         coalesce_full_nodes(chunk->buddy_tree, ctx->idx);
         return (void *)ctx->ptr;
       } else {
@@ -276,7 +284,7 @@ void *chunk_allocate_run(chunk_t *chunk, size_t run_size, size_t reg_size) {
   while (!(ctx.idx == 1 && ctx.state == UP_RIGHT)) {
     // If we are in a leaf node, visit and go up if needed.
     if (IS_LEAF(ctx.idx)) {
-      ptr = visit_leaf_node(&ctx, chunk);
+      ptr = visit_leaf_node(&ctx, chunk, reg_size);
       if (ptr != NULL) return ptr;
       continue;
     }
