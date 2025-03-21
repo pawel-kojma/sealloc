@@ -37,14 +37,16 @@ TEST_F(ChunkUtilsTest, ChunkSingleAllocation) {
   chunk_init(chunk, heap);
   alloc = chunk_allocate_run(chunk, run_size, reg_size);
   EXPECT_NE(alloc, nullptr);
-  alloc = chunk_allocate_run(chunk, run_size, reg_size);
-  EXPECT_NE(alloc, nullptr);
 }
 
 TEST_F(ChunkUtilsTest, ChunkManyAllocations) {
-  constexpr unsigned CHUNKS = 50;
+  constexpr unsigned CHUNKS = 100;
   std::vector<std::pair<size_t, size_t>> run_reg_sizes = {
-      {2 * PAGE_SIZE, 16}, {2 * PAGE_SIZE, 1024}, {4 * PAGE_SIZE, 16384}};
+      {2 * PAGE_SIZE, 16},
+      {2 * PAGE_SIZE, 32},
+      {2 * PAGE_SIZE, 48},
+      {2 * PAGE_SIZE, 1024},
+      {4 * PAGE_SIZE, 16384}};
   std::vector<void *> chunks;
   chunks.reserve(CHUNKS);
   std::srand(123);
@@ -55,6 +57,24 @@ TEST_F(ChunkUtilsTest, ChunkManyAllocations) {
     EXPECT_NE(chunks[i], nullptr) << "Failed at " << i << " idx\n";
   }
   EXPECT_TRUE(all_unique(chunks));
+}
+
+TEST_F(ChunkUtilsTest, ChunkRegSizeArrayUpdate) {
+  void *alloc;
+  unsigned run_size = 2 * PAGE_SIZE;
+  chunk_init(chunk, heap);
+  alloc = chunk_allocate_run(chunk, run_size, 16);
+  EXPECT_NE(alloc, nullptr);
+  alloc = chunk_allocate_run(chunk, run_size, 32);
+  EXPECT_NE(alloc, nullptr);
+  alloc = chunk_allocate_run(chunk, run_size, 48);
+  EXPECT_NE(alloc, nullptr);
+  EXPECT_EQ(chunk->reg_size_small_medium[0], 1);
+  EXPECT_EQ(chunk->reg_size_small_medium[2], 2);
+  EXPECT_EQ(chunk->reg_size_small_medium[4], 3);
+  EXPECT_EQ(chunk->reg_size_small_medium[1], 0xff);
+  EXPECT_EQ(chunk->reg_size_small_medium[3], 0xff);
+  EXPECT_EQ(chunk->reg_size_small_medium[5], 0xff);
 }
 
 }  // namespace
