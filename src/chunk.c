@@ -68,7 +68,7 @@ static void set_tree_item(uint8_t *mem, unsigned idx, chunk_node_t node_state) {
 }
 
 // Mark nodes as split up the tree when setting guard page on allocation
-static void mark_nodes_split_guard(uint8_t *mem, size_t idx) {
+static void mark_nodes_split_guard(uint8_t *mem, unsigned idx) {
   chunk_node_t state;
   // Here we want to also change the root to split
   while (idx > 0) {
@@ -81,8 +81,8 @@ static void mark_nodes_split_guard(uint8_t *mem, size_t idx) {
 
 // Coalesce nodes up the tree during allocation to indicate that this branch is
 // full
-static void coalesce_full_nodes(uint8_t *mem, size_t idx) {
-  size_t neigh_idx;
+static void coalesce_full_nodes(uint8_t *mem, unsigned idx) {
+  unsigned neigh_idx;
   chunk_node_t state;
   while (idx > 1) {
     neigh_idx = IS_RIGHT_CHILD(idx) ? idx - 1 : idx + 1;
@@ -105,7 +105,7 @@ static inline unsigned get_leftmost_idx(unsigned idx, unsigned depth) {
 }
 
 // Set guard protections on memory range that the node at the given index spans
-void guard_tree_item(void *heap, size_t idx) {}
+void guard_tree_item(void *heap, unsigned idx) {}
 
 void chunk_init(chunk_t *chunk, void *heap) {
   chunk->entry.key = heap;
@@ -146,7 +146,7 @@ void buddy_state_go_left(buddy_ctx_t *ctx) {
 }
 
 // Sets info about what region size is allocated at which run ptr
-void mark_reg_size(buddy_ctx_t *ctx, chunk_t *chunk, size_t reg_size) {
+void mark_reg_size(buddy_ctx_t *ctx, chunk_t *chunk, unsigned reg_size) {
   if (!IS_SIZE_SMALL(reg_size) && !IS_SIZE_MEDIUM(reg_size)) return;
   unsigned base = (CHUNK_NO_NODES + 1) / 2;
   // We know that if reg_size is small or medium, then we allocated at the leaf
@@ -157,7 +157,7 @@ void mark_reg_size(buddy_ctx_t *ctx, chunk_t *chunk, size_t reg_size) {
       (reg_size / SIZE_CLASS_ALIGNMENT) & UINT8_MAX;
 }
 
-void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk, size_t reg_size) {
+void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned reg_size) {
   unsigned neigh_idx = ctx->idx + 1;
   chunk_node_t neigh, node = get_tree_item(chunk->buddy_tree, ctx->idx);
   switch (node) {
@@ -200,7 +200,7 @@ void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk, size_t reg_size) {
   return NULL;
 }
 
-void *visit_regular_node(buddy_ctx_t *ctx, chunk_t *chunk, size_t run_size) {
+void *visit_regular_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned run_size) {
   unsigned neigh_idx = get_rightmost_idx(ctx->idx, ctx->depth_to_leaf) + 1;
   chunk_node_t neigh, node = get_tree_item(chunk->buddy_tree, ctx->idx);
   switch (node) {
@@ -269,7 +269,7 @@ void *visit_regular_node(buddy_ctx_t *ctx, chunk_t *chunk, size_t run_size) {
   return NULL;
 }
 
-void *chunk_allocate_run(chunk_t *chunk, size_t run_size, size_t reg_size) {
+void *chunk_allocate_run(chunk_t *chunk, unsigned run_size, unsigned reg_size) {
   void *ptr;
   buddy_ctx_t ctx = {
       .idx = 1,
