@@ -279,7 +279,7 @@ void *chunk_allocate_run(chunk_t *chunk, unsigned run_size, unsigned reg_size) {
       .state = DOWN,
       .depth_to_leaf = CHUNK_BUDDY_TREE_DEPTH,
       .cur_size = CHUNK_SIZE_BYTES,
-      .ptr = (uintptr_t)&chunk->entry.key,
+      .ptr = (uintptr_t)chunk->entry.key,
   };
   if (chunk->free_mem < run_size) return NULL;
 
