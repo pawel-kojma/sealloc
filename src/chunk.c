@@ -1,5 +1,6 @@
 #include <sealloc/chunk.h>
 #include <sealloc/logging.h>
+#include <sealloc/platform_api.h>
 #include <sealloc/run.h>
 #include <sealloc/utils.h>
 #include <string.h>
@@ -115,12 +116,6 @@ static inline unsigned get_leftmost_idx(unsigned idx, unsigned depth) {
   return (idx << depth);
 }
 
-// Set guard protections on memory range that the node at the given index spans
-void guard_tree_item(buddy_ctx_t *ctx, chunk_t *chunk, unsigned idx) {}
-
-// Set normal protections on memory range that the node at the given index spans
-void unguard_tree_item(buddy_ctx_t *ctx, chunk_t *chunk, unsigned idx) {}
-
 void chunk_init(chunk_t *chunk, void *heap) {
   chunk->entry.key = heap;
   memset(chunk->reg_size_small_medium, 0xff,
@@ -177,7 +172,13 @@ void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned reg_size) {
       if (neigh != NODE_USED_FOUND_GUARD && neigh != NODE_USED_SET_GUARD) {
         if (neigh == NODE_FREE) {
           set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED_SET_GUARD);
-          guard_tree_item(ctx, chunk, neigh_idx);
+          // Guard neighbor
+          if (platform_guard((void *)(ctx->ptr + ctx->cur_size),
+                             CHUNK_LEAST_REGION_SIZE_BYTES) < 0) {
+            se_error("Failed call platform_guard(%p, %u)",
+                     (void *)(ctx->ptr + ctx->cur_size),
+                     CHUNK_LEAST_REGION_SIZE_BYTES);
+          }
           set_tree_item(chunk->buddy_tree, neigh_idx, NODE_GUARD);
           mark_nodes_split_guard(chunk->buddy_tree, PARENT(neigh_idx));
         } else {
@@ -242,7 +243,13 @@ void *visit_regular_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned run_size) {
           set_tree_item(chunk->buddy_tree,
                         get_leftmost_idx(ctx->idx, ctx->depth_to_leaf),
                         NODE_USED_SET_GUARD);
-          guard_tree_item(ctx, chunk, neigh_idx);
+          // Guard neighbor
+          if (platform_guard((void *)(ctx->ptr + ctx->cur_size),
+                             CHUNK_LEAST_REGION_SIZE_BYTES) < 0) {
+            se_error("Failed call platform_guard(%p, %u)",
+                     (void *)(ctx->ptr + ctx->cur_size),
+                     CHUNK_LEAST_REGION_SIZE_BYTES);
+          }
           set_tree_item(chunk->buddy_tree, neigh_idx, NODE_GUARD);
           mark_nodes_split_guard(chunk->buddy_tree, PARENT(neigh_idx));
         } else {
@@ -378,7 +385,10 @@ static void coalesce_depleted_nodes(buddy_ctx_t *ctx, chunk_t *chunk) {
   // Check if depth passed the unmap threshold
   if (ctx->depth_to_leaf >= CHUNK_UNMAP_THRESHOLD) {
     // We passed the threshold, unmap
-    platform_unmap((void *)ctx->ptr, ctx->cur_size);
+    if (platform_unmap((void *)ctx->ptr, ctx->cur_size) < 0) {
+      se_error("Failed call platform_unmap(%p, %u)", (void *)ctx->ptr,
+               ctx->cur_size);
+    }
     coalesce_unmapped_nodes(ctx, chunk);
   }
 }
@@ -420,7 +430,9 @@ bool chunk_deallocate_run(chunk_t *chunk, run_t *run) {
                 NODE_GUARD);
   // Guard the memory region, may be unnecessary because we might be unmapping
   // it later
-  guard_tree_item(&ctx, chunk, ctx.idx);
+  if (platform_guard((void *)ctx.ptr, ctx.cur_size) < 0)
+    se_error("Failed call platform_guard(%p, %u)", (void *)ctx.ptr,
+             ctx.cur_size);
 
   unsigned neigh_idx = get_rightmost_idx(ctx.idx, ctx.depth_to_leaf) + 1;
   chunk_node_t neigh;
@@ -429,13 +441,18 @@ bool chunk_deallocate_run(chunk_t *chunk, run_t *run) {
     if (neigh == NODE_USED_SET_GUARD) {
       // That means the guard page was not used before
       // Unguard it and make it free
-      unguard_tree_item(&ctx, chunk, neigh_idx);
+      if (platform_unguard((void *)(ctx.ptr + ctx.cur_size),
+                           CHUNK_LEAST_REGION_SIZE_BYTES) < 0) {
+        se_error("Failed call platform_unguard(%p, %u)",
+                 (void *)(ctx.ptr + ctx.cur_size),
+                 CHUNK_LEAST_REGION_SIZE_BYTES);
+      }
       set_tree_item(chunk->buddy_tree, neigh_idx, NODE_FREE);
+      chunk->free_mem += CHUNK_LEAST_REGION_SIZE_BYTES;
       coalesce_free_nodes(chunk->buddy_tree, neigh_idx);
     }
   }
 
-  chunk->free_mem += CHUNK_LEAST_REGION_SIZE_BYTES;
   coalesce_depleted_nodes(&ctx, chunk);
   // Check if we unmapped the entire mapping to return information to delete
   // the chunk metadata
