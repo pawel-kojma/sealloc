@@ -393,8 +393,8 @@ static void coalesce_depleted_nodes(buddy_ctx_t *ctx, chunk_t *chunk) {
   }
 }
 
-bool chunk_deallocate_run(chunk_t *chunk, run_t *run) {
-  uintptr_t ptr_dest = (uintptr_t)run->entry.key;
+bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
+  uintptr_t ptr_dest = (uintptr_t)run_ptr;
   chunk_node_t node;
   buddy_ctx_t ctx = {
       .idx = 1,
@@ -409,25 +409,26 @@ bool chunk_deallocate_run(chunk_t *chunk, run_t *run) {
     if (IS_LEAF(ctx.idx)) {
       se_error("No run found");
     }
-    ctx.cur_size /= 2;
     // Go to right child
     if (ptr_dest >= ctx.ptr + ctx.cur_size) {
-      ctx.idx = RIGHT_CHILD(ctx.idx);
-      ctx.ptr += ctx.cur_size;
+      buddy_state_go_right(&ctx);
     }
     // Go to left child
     else {
-      ctx.idx = LEFT_CHILD(ctx.idx);
+      buddy_state_go_left(&ctx);
     }
     node = get_tree_item(chunk->buddy_tree, ctx.idx);
   }
-
   // Mark the node as depleted as we wont be using this memory again
   set_tree_item(chunk->buddy_tree, ctx.idx, NODE_DEPLETED);
+
   // Set leftmost as guarded to indicate that other allocations do not need to
   // guard pages
-  set_tree_item(chunk->buddy_tree, get_leftmost_idx(ctx.idx, ctx.depth_to_leaf),
-                NODE_GUARD);
+  // Check if its not a leaf because leftmost of leaf == leaf
+  if (!IS_LEAF(ctx.idx)) {
+    set_tree_item(chunk->buddy_tree,
+                  get_leftmost_idx(ctx.idx, ctx.depth_to_leaf), NODE_GUARD);
+  }
   // Guard the memory region, may be unnecessary because we might be unmapping
   // it later
   if (platform_guard((void *)ctx.ptr, ctx.cur_size) < 0)
@@ -435,10 +436,8 @@ bool chunk_deallocate_run(chunk_t *chunk, run_t *run) {
              ctx.cur_size);
 
   unsigned neigh_idx = get_rightmost_idx(ctx.idx, ctx.depth_to_leaf) + 1;
-  chunk_node_t neigh;
   if (neigh_idx < CHUNK_NO_NODES) {
-    neigh = get_tree_item(chunk->buddy_tree, neigh_idx);
-    if (neigh == NODE_USED_SET_GUARD) {
+    if (node == NODE_USED_SET_GUARD) {
       // That means the guard page was not used before
       // Unguard it and make it free
       if (platform_unguard((void *)(ctx.ptr + ctx.cur_size),

@@ -38,8 +38,9 @@ typedef struct chunk_state {
 
 void *chunk_allocate_run(chunk_t *chunk, unsigned run_size, unsigned reg_size);
 // Deallocates a specified run
-// Returns true if chunk was fully unmapped during this deallocation, false otherwise
-bool chunk_deallocate_run(chunk_t *chunk, run_t *run);
+// Returns true if chunk was fully unmapped during this deallocation, false
+// otherwise
+bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr);
 bool chunk_is_empty(chunk_t *chunk);
 bool chunk_is_full(chunk_t *chunk);
 void chunk_init(chunk_t *chunk, void *heap);

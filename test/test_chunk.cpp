@@ -24,6 +24,33 @@ class ChunkUtilsTest : public ::testing::Test {
   }
 };
 
+typedef enum chunk_node {
+  NODE_FREE = 0,
+  NODE_SPLIT = 1,
+  NODE_USED_SET_GUARD = 2,
+  NODE_USED_FOUND_GUARD = 3,
+  NODE_FULL = 4,
+  NODE_GUARD = 5,
+  NODE_DEPLETED = 6,
+  NODE_UNMAPPED = 7
+} chunk_node_t;
+
+inline unsigned get_mask(unsigned bits) { return (1 << bits) - 1; }
+
+inline unsigned min(unsigned a, unsigned b) { return a > b ? b : a; }
+
+chunk_node_t get_tree_item(uint8_t *mem, unsigned idx) {
+  unsigned bits_to_skip = (idx - 1) * NODE_STATE_BITS;
+  unsigned word_idx = bits_to_skip / 8, off = bits_to_skip % 8;
+  uint8_t fst_part = (mem[word_idx] >> off) & get_mask(min(8 - off, 3));
+  uint8_t snd_part = 0;
+  if (NODE_STATE_BITS + off > 8) {
+    snd_part = mem[word_idx + 1] & get_mask(off + NODE_STATE_BITS - 8);
+    return (chunk_node_t)((snd_part << (8 - off)) | fst_part);
+  }
+  return (chunk_node_t)fst_part;
+}
+
 template <class T>
 bool all_unique(std::vector<T> &v) {
   std::sort(v.begin(), v.end());
@@ -37,6 +64,9 @@ TEST_F(ChunkUtilsTest, ChunkSingleAllocation) {
   chunk_init(chunk, heap);
   alloc = chunk_allocate_run(chunk, run_size, reg_size);
   EXPECT_NE(alloc, nullptr);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 512), NODE_USED_SET_GUARD);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 513), NODE_GUARD);
+  EXPECT_EQ(chunk->free_mem, CHUNK_SIZE_BYTES - run_size);
 }
 
 TEST_F(ChunkUtilsTest, ChunkManyAllocations) {
@@ -76,5 +106,15 @@ TEST_F(ChunkUtilsTest, ChunkRegSizeArrayUpdate) {
   EXPECT_EQ(chunk->reg_size_small_medium[3], 0xff);
   EXPECT_EQ(chunk->reg_size_small_medium[5], 0xff);
 }
+
+TEST_F(ChunkUtilsTest, ChunkSingleDeallocate){
+  void *alloc;
+  unsigned run_size = 2 * PAGE_SIZE;
+  chunk_init(chunk, heap);
+  alloc = chunk_allocate_run(chunk, run_size, 16);
+  chunk_deallocate_run(chunk, alloc);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 512), NODE_DEPLETED);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 513), NODE_FREE);
+} 
 
 }  // namespace
