@@ -421,14 +421,12 @@ bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
   }
   // Mark the node as depleted as we wont be using this memory again
   set_tree_item(chunk->buddy_tree, ctx.idx, NODE_DEPLETED);
-
   // Set leftmost as guarded to indicate that other allocations do not need to
   // guard pages
-  // Check if its not a leaf because leftmost of leaf == leaf
-  if (!IS_LEAF(ctx.idx)) {
-    set_tree_item(chunk->buddy_tree,
-                  get_leftmost_idx(ctx.idx, ctx.depth_to_leaf), NODE_GUARD);
-  }
+  // Note that leaf node will be just NODE_GUARD since leftmost of leaf == leaf
+  set_tree_item(chunk->buddy_tree, get_leftmost_idx(ctx.idx, ctx.depth_to_leaf),
+                NODE_GUARD);
+
   // Guard the memory region, may be unnecessary because we might be unmapping
   // it later
   if (platform_guard((void *)ctx.ptr, ctx.cur_size) < 0)

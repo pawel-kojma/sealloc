@@ -113,8 +113,19 @@ TEST_F(ChunkUtilsTest, ChunkSingleDeallocate){
   chunk_init(chunk, heap);
   alloc = chunk_allocate_run(chunk, run_size, 16);
   chunk_deallocate_run(chunk, alloc);
-  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 512), NODE_DEPLETED);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 512), NODE_GUARD);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 513), NODE_FREE);
 } 
 
+TEST_F(ChunkUtilsTest, ChunkAllocateInGuardPage){
+  void *alloc1, *alloc2, *alloc3;
+  unsigned run_size = 2 * PAGE_SIZE;
+  chunk_init(chunk, heap);
+  alloc1 = chunk_allocate_run(chunk, run_size, 16);
+  alloc2 = chunk_allocate_run(chunk, run_size, 16);
+  EXPECT_NE(alloc1, nullptr);
+  EXPECT_NE(alloc2, nullptr);
+  chunk_deallocate_run(chunk, alloc1);
+  alloc3 = chunk_allocate_run(chunk, run_size, 16);
+} 
 }  // namespace
