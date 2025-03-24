@@ -27,12 +27,11 @@ class ChunkUtilsTest : public ::testing::Test {
 typedef enum chunk_node {
   NODE_FREE = 0,
   NODE_SPLIT = 1,
-  NODE_USED_SET_GUARD = 2,
-  NODE_USED_FOUND_GUARD = 3,
-  NODE_FULL = 4,
-  NODE_GUARD = 5,
-  NODE_DEPLETED = 6,
-  NODE_UNMAPPED = 7
+  NODE_USED = 2,
+  NODE_FULL = 3,
+  NODE_GUARD = 4,
+  NODE_DEPLETED = 5,
+  NODE_UNMAPPED = 6
 } chunk_node_t;
 
 inline unsigned get_mask(unsigned bits) { return (1 << bits) - 1; }
@@ -64,7 +63,7 @@ TEST_F(ChunkUtilsTest, ChunkSingleAllocation) {
   chunk_init(chunk, heap);
   alloc = chunk_allocate_run(chunk, run_size, reg_size);
   EXPECT_NE(alloc, nullptr);
-  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 512), NODE_USED_SET_GUARD);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 512), NODE_USED);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 513), NODE_GUARD);
   EXPECT_EQ(chunk->free_mem, CHUNK_SIZE_BYTES - run_size);
 }
@@ -107,25 +106,122 @@ TEST_F(ChunkUtilsTest, ChunkRegSizeArrayUpdate) {
   EXPECT_EQ(chunk->reg_size_small_medium[5], 0xff);
 }
 
-TEST_F(ChunkUtilsTest, ChunkSingleDeallocate){
+TEST_F(ChunkUtilsTest, ChunkSingleDeallocate) {
   void *alloc;
   unsigned run_size = 2 * PAGE_SIZE;
   chunk_init(chunk, heap);
   alloc = chunk_allocate_run(chunk, run_size, 16);
   chunk_deallocate_run(chunk, alloc);
-  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 512), NODE_GUARD);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 512), NODE_DEPLETED);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 513), NODE_FREE);
-} 
+}
 
-TEST_F(ChunkUtilsTest, ChunkAllocateInGuardPage){
+TEST_F(ChunkUtilsTest, ChunkAllocationPlacement1) {
   void *alloc1, *alloc2, *alloc3;
   unsigned run_size = 2 * PAGE_SIZE;
   chunk_init(chunk, heap);
   alloc1 = chunk_allocate_run(chunk, run_size, 16);
   alloc2 = chunk_allocate_run(chunk, run_size, 16);
-  EXPECT_NE(alloc1, nullptr);
-  EXPECT_NE(alloc2, nullptr);
+  EXPECT_EQ((uintptr_t)alloc1, (uintptr_t)chunk->entry.key);
+  EXPECT_EQ((uintptr_t)alloc2, (uintptr_t)chunk->entry.key + (4 * PAGE_SIZE));
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 512), NODE_USED);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 513), NODE_GUARD);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 514), NODE_USED);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 515), NODE_GUARD);
+}
+
+TEST_F(ChunkUtilsTest, ChunkAllocationPlacement2) {
+  void *alloc_large, *alloc_small;
+  unsigned run_size_large = 4 * PAGE_SIZE, run_size_small = 2 * PAGE_SIZE;
+  chunk_init(chunk, heap);
+  alloc_large = chunk_allocate_run(chunk, run_size_large, run_size_large);
+  alloc_small = chunk_allocate_run(chunk, run_size_small, 16);
+  EXPECT_EQ((uintptr_t)alloc_large, (uintptr_t)chunk->entry.key);
+  EXPECT_EQ((uintptr_t)alloc_small,
+            (uintptr_t)chunk->entry.key + 6 * PAGE_SIZE);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, (512 / 2)), NODE_USED);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 512), NODE_USED);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 514), NODE_GUARD);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 515), NODE_USED);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 516), NODE_GUARD);
+}
+
+TEST_F(ChunkUtilsTest, ChunkAllocateOnGuardPage) {
+  void *alloc1, *alloc2, *alloc3;
+  unsigned run_size = 2 * PAGE_SIZE;
+  chunk_init(chunk, heap);
+  alloc1 = chunk_allocate_run(chunk, run_size, 16);
+  alloc2 = chunk_allocate_run(chunk, run_size, 16);
   chunk_deallocate_run(chunk, alloc1);
+  chunk_deallocate_run(chunk, alloc2);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 512), NODE_DEPLETED);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 513), NODE_FREE);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 514), NODE_DEPLETED);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 515), NODE_FREE);
   alloc3 = chunk_allocate_run(chunk, run_size, 16);
-} 
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 513), NODE_USED);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 514), NODE_DEPLETED);
+}
+
+/* Jakie jeszcze testy
+ * 2. coalescing depleted:
+ *  2.1 unmapowanie
+ * 3. coalescig free
+ * 4. wykorzystanie informacji w lisciu kiedy alokacja jest większa i jest wyzej
+ * w drzewie
+ *  5. coalesce full, musi też zlączac gdy node jest guard/depleted
+ */
+
+TEST_F(ChunkUtilsTest, ChunkCoalesceDepleted) {
+  void *alloc1, *alloc2, *alloc3, *alloc4;
+  unsigned run_size = 2 * PAGE_SIZE;
+  chunk_init(chunk, heap);
+  alloc1 = chunk_allocate_run(chunk, run_size, 16);
+  alloc2 = chunk_allocate_run(chunk, run_size, 16);
+  chunk_deallocate_run(chunk, alloc1);
+  chunk_deallocate_run(chunk, alloc2);
+  alloc3 = chunk_allocate_run(chunk, run_size, 16);
+  alloc4 = chunk_allocate_run(chunk, run_size, 16);
+  chunk_deallocate_run(chunk, alloc3);
+  chunk_deallocate_run(chunk, alloc4);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 256), NODE_DEPLETED);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 257), NODE_DEPLETED);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 128), NODE_DEPLETED);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 64), NODE_SPLIT);
+}
+
+TEST_F(ChunkUtilsTest, ChunkCoalesceDepletedUnmapping) {
+  void *alloc1, *alloc2;
+  unsigned run_size = 16 * PAGE_SIZE;
+  chunk_init(chunk, heap);
+  alloc1 = chunk_allocate_run(chunk, run_size, run_size);
+  chunk_deallocate_run(chunk, alloc1);
+  alloc2 = chunk_allocate_run(chunk, run_size, run_size);
+  chunk_deallocate_run(chunk, alloc2);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 32), NODE_UNMAPPED);
+}
+
+TEST_F(ChunkUtilsTest, ChunkCoalesceFreeNodes) {
+  void *alloc1;
+  unsigned run_size = 8 * PAGE_SIZE;
+  chunk_init(chunk, heap);
+  alloc1 = chunk_allocate_run(chunk, run_size, run_size);
+  unsigned idx = 516, it;
+  it = idx;
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, it), NODE_GUARD);
+  it /= 2;
+  while (it > 0) {
+    EXPECT_EQ(get_tree_item(chunk->buddy_tree, it), NODE_SPLIT);
+    it /= 2;
+  }
+  chunk_deallocate_run(chunk, alloc1);
+  it = idx;
+  while (it > 64) {
+    EXPECT_EQ(get_tree_item(chunk->buddy_tree, it), NODE_FREE);
+    it /= 2;
+  }
+}
+
+TEST_F(ChunkUtilsTest, ChunkCoalesceFullNodes) {}
+
 }  // namespace

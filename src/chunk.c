@@ -15,12 +15,11 @@
 typedef enum chunk_node {
   NODE_FREE = 0,
   NODE_SPLIT = 1,
-  NODE_USED_SET_GUARD = 2,
-  NODE_USED_FOUND_GUARD = 3,
-  NODE_FULL = 4,
-  NODE_GUARD = 5,
-  NODE_DEPLETED = 6,
-  NODE_UNMAPPED = 7
+  NODE_USED = 2,
+  NODE_FULL = 3,
+  NODE_GUARD = 4,
+  NODE_DEPLETED = 5,
+  NODE_UNMAPPED = 6
 } chunk_node_t;
 
 typedef enum search_state {
@@ -99,8 +98,8 @@ static void coalesce_full_nodes(uint8_t *mem, unsigned idx) {
   while (idx > 1) {
     neigh_idx = IS_RIGHT_CHILD(idx) ? idx - 1 : idx + 1;
     state = get_tree_item(mem, neigh_idx);
-    if (state == NODE_FULL || state == NODE_USED_FOUND_GUARD ||
-        state == NODE_USED_SET_GUARD) {
+    if (state == NODE_FULL || state == NODE_USED || state == NODE_GUARD ||
+        state == NODE_DEPLETED || state == NODE_UNMAPPED) {
       set_tree_item(mem, PARENT(idx), NODE_FULL);
     } else
       break;
@@ -169,9 +168,9 @@ void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned reg_size) {
         neigh = NODE_GUARD;
       else
         neigh = get_tree_item(chunk->buddy_tree, neigh_idx);
-      if (neigh != NODE_USED_FOUND_GUARD && neigh != NODE_USED_SET_GUARD) {
+      if (neigh != NODE_USED) {
         if (neigh == NODE_FREE) {
-          set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED_SET_GUARD);
+          set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED);
           // Guard neighbor
           if (platform_guard((void *)(ctx->ptr + ctx->cur_size),
                              CHUNK_LEAST_REGION_SIZE_BYTES) < 0) {
@@ -182,7 +181,7 @@ void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned reg_size) {
           set_tree_item(chunk->buddy_tree, neigh_idx, NODE_GUARD);
           mark_nodes_split_guard(chunk->buddy_tree, PARENT(neigh_idx));
         } else {
-          set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED_FOUND_GUARD);
+          set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED);
         }
         chunk->free_mem -= ctx->cur_size;
         mark_reg_size(ctx, chunk, reg_size);
@@ -191,8 +190,7 @@ void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned reg_size) {
       }
       // fallthrough if neighbor node is not free or guarded.
     case NODE_GUARD:
-    case NODE_USED_FOUND_GUARD:
-    case NODE_USED_SET_GUARD:
+    case NODE_USED:
     case NODE_DEPLETED:
       // Node is used/guarded, nothing we can do, go up.
       buddy_state_go_up(ctx);
@@ -237,12 +235,12 @@ void *visit_regular_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned run_size) {
       // We cannot go deeper because cur_size / 2 < run_size
       // If anything we have to allocate here
       // Make sure neighbor node is guarded or free
-      else if (neigh != NODE_USED_FOUND_GUARD && neigh != NODE_USED_SET_GUARD) {
+      else if (neigh != NODE_USED) {
         if (neigh == NODE_FREE) {
-          set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED_SET_GUARD);
+          set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED);
           set_tree_item(chunk->buddy_tree,
                         get_leftmost_idx(ctx->idx, ctx->depth_to_leaf),
-                        NODE_USED_SET_GUARD);
+                        NODE_USED);
           // Guard neighbor
           if (platform_guard((void *)(ctx->ptr + ctx->cur_size),
                              CHUNK_LEAST_REGION_SIZE_BYTES) < 0) {
@@ -253,10 +251,10 @@ void *visit_regular_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned run_size) {
           set_tree_item(chunk->buddy_tree, neigh_idx, NODE_GUARD);
           mark_nodes_split_guard(chunk->buddy_tree, PARENT(neigh_idx));
         } else {
-          set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED_FOUND_GUARD);
+          set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED);
           set_tree_item(chunk->buddy_tree,
                         get_leftmost_idx(ctx->idx, ctx->depth_to_leaf),
-                        NODE_USED_FOUND_GUARD);
+                        NODE_USED);
         }
         chunk->free_mem -= ctx->cur_size;
         coalesce_full_nodes(chunk->buddy_tree, ctx->idx);
@@ -268,8 +266,7 @@ void *visit_regular_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned run_size) {
       }
       break;
     // Node is used, nothing we can do, go up.
-    case NODE_USED_FOUND_GUARD:
-    case NODE_USED_SET_GUARD:
+    case NODE_USED:
     // Node is full, meaning it comprises of many allocations
     // but there is no free memory, so go back
     case NODE_FULL:
@@ -328,7 +325,7 @@ static void mark_nodes_split(uint8_t *mem, unsigned idx) {
       set_tree_item(mem, idx, NODE_SPLIT);
     } else
       break;
-    idx /= 2;
+    idx = PARENT(idx);
   }
 }
 
@@ -389,13 +386,14 @@ static void coalesce_depleted_nodes(buddy_ctx_t *ctx, chunk_t *chunk) {
       se_error("Failed call platform_unmap(%p, %u)", (void *)ctx->ptr,
                ctx->cur_size);
     }
+    set_tree_item(chunk->buddy_tree, ctx->idx, NODE_UNMAPPED);
     coalesce_unmapped_nodes(ctx, chunk);
   }
 }
 
 bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
   uintptr_t ptr_dest = (uintptr_t)run_ptr;
-  chunk_node_t node;
+  chunk_node_t node, neigh;
   buddy_ctx_t ctx = {
       .idx = 1,
       .state = DOWN,
@@ -404,8 +402,7 @@ bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
       .ptr = (uintptr_t)chunk->entry.key,
   };
   node = get_tree_item(chunk->buddy_tree, ctx.idx);
-  while (!(ptr_dest == ctx.ptr &&
-           (node == NODE_USED_FOUND_GUARD || node == NODE_USED_SET_GUARD))) {
+  while (!(ptr_dest == ctx.ptr && node == NODE_USED)) {
     if (IS_LEAF(ctx.idx)) {
       se_error("No run found");
     }
@@ -423,7 +420,8 @@ bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
   set_tree_item(chunk->buddy_tree, ctx.idx, NODE_DEPLETED);
   // Set leftmost as guarded to indicate that other allocations do not need to
   // guard pages
-  // Note that leaf node will be just NODE_DEPLETED since leftmost of leaf == leaf
+  // Note that leaf node will be just NODE_DEPLETED since leftmost of leaf ==
+  // leaf
   set_tree_item(chunk->buddy_tree, get_leftmost_idx(ctx.idx, ctx.depth_to_leaf),
                 NODE_DEPLETED);
 
@@ -435,7 +433,8 @@ bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
 
   unsigned neigh_idx = get_rightmost_idx(ctx.idx, ctx.depth_to_leaf) + 1;
   if (neigh_idx < CHUNK_NO_NODES) {
-    if (node == NODE_USED_SET_GUARD) {
+    neigh = get_tree_item(chunk->buddy_tree, neigh_idx);
+    if (neigh == NODE_GUARD) {
       // That means the guard page was not used before
       // Unguard it and make it free
       if (platform_unguard((void *)(ctx.ptr + ctx.cur_size),
