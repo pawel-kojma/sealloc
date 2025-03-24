@@ -1,6 +1,7 @@
-add_library(sealloc bin.c internal_allocator.c random.c run.c container_ll.c)
-
 set(gcc_like_c "$<COMPILE_LANG_AND_ID:C,ARMClang,AppleClang,Clang,GNU,LCC>")
+set(msvc_like_c "$<COMPILE_LANG_AND_ID:C,MSVC>")
+add_library(sealloc platform.c chunk.c bin.c internal_allocator.c random.c run.c container_ll.c)
+
 if (BuildType MATCHES "Release")
     set(EXTRA_COMPILE_OPTIONS $<${gcc_like_c}:-O3>)
     set(enable_logging 0)
