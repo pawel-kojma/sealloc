@@ -410,7 +410,7 @@ bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
       se_error("No run found");
     }
     // Go to right child
-    if (ptr_dest >= ctx.ptr + ctx.cur_size) {
+    if (ptr_dest >= ctx.ptr + (ctx.cur_size / 2)) {
       buddy_state_go_right(&ctx);
     }
     // Go to left child
@@ -423,9 +423,9 @@ bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
   set_tree_item(chunk->buddy_tree, ctx.idx, NODE_DEPLETED);
   // Set leftmost as guarded to indicate that other allocations do not need to
   // guard pages
-  // Note that leaf node will be just NODE_GUARD since leftmost of leaf == leaf
+  // Note that leaf node will be just NODE_DEPLETED since leftmost of leaf == leaf
   set_tree_item(chunk->buddy_tree, get_leftmost_idx(ctx.idx, ctx.depth_to_leaf),
-                NODE_GUARD);
+                NODE_DEPLETED);
 
   // Guard the memory region, may be unnecessary because we might be unmapping
   // it later
