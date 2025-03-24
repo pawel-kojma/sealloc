@@ -18,6 +18,8 @@ class ChunkUtilsTest : public ::testing::Test {
  protected:
   chunk_t *chunk;
   void *heap;
+  unsigned run_size_small = 2 * PAGE_SIZE;
+  unsigned run_size_large = 4 * PAGE_SIZE;
   void SetUp() override {
     chunk = (chunk_t *)malloc(sizeof(chunk_t));
     heap = malloc(16);
@@ -58,14 +60,13 @@ bool all_unique(std::vector<T> &v) {
 
 TEST_F(ChunkUtilsTest, ChunkSingleAllocation) {
   void *alloc;
-  unsigned run_size = 2 * PAGE_SIZE;
   unsigned reg_size = 16;
   chunk_init(chunk, heap);
-  alloc = chunk_allocate_run(chunk, run_size, reg_size);
+  alloc = chunk_allocate_run(chunk, run_size_small, reg_size);
   EXPECT_NE(alloc, nullptr);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 512), NODE_USED);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 513), NODE_GUARD);
-  EXPECT_EQ(chunk->free_mem, CHUNK_SIZE_BYTES - run_size);
+  EXPECT_EQ(chunk->free_mem, CHUNK_SIZE_BYTES - run_size_small);
 }
 
 TEST_F(ChunkUtilsTest, ChunkManyAllocations) {
@@ -90,13 +91,12 @@ TEST_F(ChunkUtilsTest, ChunkManyAllocations) {
 
 TEST_F(ChunkUtilsTest, ChunkRegSizeArrayUpdate) {
   void *alloc;
-  unsigned run_size = 2 * PAGE_SIZE;
   chunk_init(chunk, heap);
-  alloc = chunk_allocate_run(chunk, run_size, 16);
+  alloc = chunk_allocate_run(chunk, run_size_small, 16);
   EXPECT_NE(alloc, nullptr);
-  alloc = chunk_allocate_run(chunk, run_size, 32);
+  alloc = chunk_allocate_run(chunk, run_size_small, 32);
   EXPECT_NE(alloc, nullptr);
-  alloc = chunk_allocate_run(chunk, run_size, 48);
+  alloc = chunk_allocate_run(chunk, run_size_small, 48);
   EXPECT_NE(alloc, nullptr);
   EXPECT_EQ(chunk->reg_size_small_medium[0], 1);
   EXPECT_EQ(chunk->reg_size_small_medium[2], 2);
@@ -108,9 +108,8 @@ TEST_F(ChunkUtilsTest, ChunkRegSizeArrayUpdate) {
 
 TEST_F(ChunkUtilsTest, ChunkSingleDeallocate) {
   void *alloc;
-  unsigned run_size = 2 * PAGE_SIZE;
   chunk_init(chunk, heap);
-  alloc = chunk_allocate_run(chunk, run_size, 16);
+  alloc = chunk_allocate_run(chunk, run_size_small, 16);
   chunk_deallocate_run(chunk, alloc);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 512), NODE_DEPLETED);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 513), NODE_FREE);
@@ -118,10 +117,9 @@ TEST_F(ChunkUtilsTest, ChunkSingleDeallocate) {
 
 TEST_F(ChunkUtilsTest, ChunkAllocationPlacement1) {
   void *alloc1, *alloc2, *alloc3;
-  unsigned run_size = 2 * PAGE_SIZE;
   chunk_init(chunk, heap);
-  alloc1 = chunk_allocate_run(chunk, run_size, 16);
-  alloc2 = chunk_allocate_run(chunk, run_size, 16);
+  alloc1 = chunk_allocate_run(chunk, run_size_small, 16);
+  alloc2 = chunk_allocate_run(chunk, run_size_small, 16);
   EXPECT_EQ((uintptr_t)alloc1, (uintptr_t)chunk->entry.key);
   EXPECT_EQ((uintptr_t)alloc2, (uintptr_t)chunk->entry.key + (4 * PAGE_SIZE));
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 512), NODE_USED);
@@ -132,7 +130,6 @@ TEST_F(ChunkUtilsTest, ChunkAllocationPlacement1) {
 
 TEST_F(ChunkUtilsTest, ChunkAllocationPlacement2) {
   void *alloc_large, *alloc_small;
-  unsigned run_size_large = 4 * PAGE_SIZE, run_size_small = 2 * PAGE_SIZE;
   chunk_init(chunk, heap);
   alloc_large = chunk_allocate_run(chunk, run_size_large, run_size_large);
   alloc_small = chunk_allocate_run(chunk, run_size_small, 16);
@@ -148,31 +145,29 @@ TEST_F(ChunkUtilsTest, ChunkAllocationPlacement2) {
 
 TEST_F(ChunkUtilsTest, ChunkAllocateOnGuardPage) {
   void *alloc1, *alloc2, *alloc3;
-  unsigned run_size = 2 * PAGE_SIZE;
   chunk_init(chunk, heap);
-  alloc1 = chunk_allocate_run(chunk, run_size, 16);
-  alloc2 = chunk_allocate_run(chunk, run_size, 16);
+  alloc1 = chunk_allocate_run(chunk, run_size_small, 16);
+  alloc2 = chunk_allocate_run(chunk, run_size_small, 16);
   chunk_deallocate_run(chunk, alloc1);
   chunk_deallocate_run(chunk, alloc2);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 512), NODE_DEPLETED);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 513), NODE_FREE);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 514), NODE_DEPLETED);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 515), NODE_FREE);
-  alloc3 = chunk_allocate_run(chunk, run_size, 16);
+  alloc3 = chunk_allocate_run(chunk, run_size_small, 16);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 513), NODE_USED);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 514), NODE_DEPLETED);
 }
 
 TEST_F(ChunkUtilsTest, ChunkCoalesceDepleted) {
   void *alloc1, *alloc2, *alloc3, *alloc4;
-  unsigned run_size = 2 * PAGE_SIZE;
   chunk_init(chunk, heap);
-  alloc1 = chunk_allocate_run(chunk, run_size, 16);
-  alloc2 = chunk_allocate_run(chunk, run_size, 16);
+  alloc1 = chunk_allocate_run(chunk, run_size_small, 16);
+  alloc2 = chunk_allocate_run(chunk, run_size_small, 16);
   chunk_deallocate_run(chunk, alloc1);
   chunk_deallocate_run(chunk, alloc2);
-  alloc3 = chunk_allocate_run(chunk, run_size, 16);
-  alloc4 = chunk_allocate_run(chunk, run_size, 16);
+  alloc3 = chunk_allocate_run(chunk, run_size_small, 16);
+  alloc4 = chunk_allocate_run(chunk, run_size_small, 16);
   chunk_deallocate_run(chunk, alloc3);
   chunk_deallocate_run(chunk, alloc4);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 256), NODE_DEPLETED);
@@ -216,19 +211,17 @@ TEST_F(ChunkUtilsTest, ChunkCoalesceFreeNodes) {
 
 TEST_F(ChunkUtilsTest, ChunkCoalesceFullNodes) {
   void *alloc1, *alloc2;
-  unsigned run_size = 2 * PAGE_SIZE;
   chunk_init(chunk, heap);
-  alloc1 = chunk_allocate_run(chunk, run_size, 16);
+  alloc1 = chunk_allocate_run(chunk, run_size_small, 16);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 256), NODE_FULL);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 128), NODE_SPLIT);
-  alloc2 = chunk_allocate_run(chunk, run_size, 16);
+  alloc2 = chunk_allocate_run(chunk, run_size_small, 16);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 257), NODE_FULL);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 128), NODE_FULL);
 }
 
 TEST_F(ChunkUtilsTest, ChunkLeafNodeInfoUsage) {
   void *alloc1, *alloc2, *alloc3, *alloc4;
-  unsigned run_size_small = 2 * PAGE_SIZE;
   unsigned run_size_large1 = 4 * PAGE_SIZE;
   unsigned run_size_large2 = 8 * PAGE_SIZE;
   chunk_init(chunk, heap);
@@ -238,6 +231,39 @@ TEST_F(ChunkUtilsTest, ChunkLeafNodeInfoUsage) {
   alloc3 = chunk_allocate_run(chunk, run_size_small, 16);
   EXPECT_EQ((uintptr_t)alloc2, (uintptr_t)chunk->entry.key + 8 * PAGE_SIZE);
   EXPECT_EQ((uintptr_t)alloc3, (uintptr_t)chunk->entry.key + 6 * PAGE_SIZE);
+}
+
+TEST_F(ChunkUtilsTest, ChunkGetRunPointerPositive) {
+  void *expected_run_ptr, *run_ptr;
+  unsigned reg_size, run_size;
+  run_ptr = NULL;
+  chunk_init(chunk, heap);
+  expected_run_ptr = chunk_allocate_run(chunk, run_size_small, 48);
+  chunk_get_run_ptr(chunk, (void *)((uintptr_t)expected_run_ptr + 48 * 5),
+                    &run_ptr, &run_size, &reg_size);
+  EXPECT_NE(run_ptr, nullptr);
+  EXPECT_EQ(expected_run_ptr, run_ptr);
+  EXPECT_EQ(reg_size, 48);
+  EXPECT_EQ(run_size, run_size_small);
+}
+
+TEST_F(ChunkUtilsTest, ChunkGetRunPointerNegative) {
+  void *alloc, *run_ptr;
+  unsigned reg_size, run_size;
+  run_ptr = NULL;
+  chunk_init(chunk, heap);
+  alloc = chunk_allocate_run(chunk, run_size_small, 48);
+  chunk_get_run_ptr(chunk, (void *)((uintptr_t)alloc + run_size_small),
+                    &run_ptr, &run_size, &reg_size);
+  EXPECT_EQ(run_ptr, nullptr);
+}
+
+TEST_F(ChunkUtilsTest, ChunkIsFull) {
+  unsigned chunks_to_alloc = CHUNK_NO_NODES_LAST_LAYER / 2;
+  for (int i = 0; i < chunks_to_alloc; i++) {
+    chunk_allocate_run(chunk, run_size_small, 16);
+  }
+  EXPECT_TRUE(chunk_is_full(chunk));
 }
 
 }  // namespace

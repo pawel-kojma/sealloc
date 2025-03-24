@@ -457,3 +457,48 @@ bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
   if (ctx.idx == 1) return true;
   return false;
 }
+
+// Fills run data based of ptr
+void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
+                       unsigned *run_size, unsigned *reg_size) {
+  uintptr_t ptr_dest = (uintptr_t)ptr;
+  chunk_node_t node;
+  buddy_ctx_t ctx = {
+      .idx = 1,
+      .state = DOWN,
+      .depth_to_leaf = CHUNK_BUDDY_TREE_DEPTH,
+      .cur_size = CHUNK_SIZE_BYTES,
+      .ptr = (uintptr_t)chunk->entry.key,
+  };
+  node = get_tree_item(chunk->buddy_tree, ctx.idx);
+  while (node == NODE_SPLIT || node == NODE_FULL) {
+    if (IS_LEAF(ctx.idx)) {
+      return;
+    }
+    if (ptr_dest >= ctx.ptr + (ctx.cur_size / 2))
+      buddy_state_go_right(&ctx);
+    else
+      buddy_state_go_left(&ctx);
+    node = get_tree_item(chunk->buddy_tree, ctx.idx);
+  }
+
+  if (node != NODE_USED) return;
+  *run_ptr = (void *)ctx.ptr;
+  *run_size = ctx.cur_size;
+
+  unsigned base = (CHUNK_NO_NODES + 1) / 2;
+  unsigned idx = ctx.idx - base;
+  uint8_t compressed_reg_size;
+  if (IS_LEAF(ctx.idx)) {
+    compressed_reg_size = chunk->reg_size_small_medium[idx];
+    if (compressed_reg_size == 0)
+      *reg_size = (UINT8_MAX + 1) * SIZE_CLASS_ALIGNMENT;
+    else
+      *reg_size = compressed_reg_size * SIZE_CLASS_ALIGNMENT;
+  }
+}
+
+bool chunk_is_empty(chunk_t *chunk) {
+  return chunk->free_mem == CHUNK_SIZE_BYTES;
+}
+bool chunk_is_full(chunk_t *chunk) { return chunk->free_mem == 0; }

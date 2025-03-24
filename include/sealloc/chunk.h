@@ -46,6 +46,8 @@ bool chunk_is_full(chunk_t *chunk);
 void chunk_init(chunk_t *chunk, void *heap);
 // TODO: improve buddy tree so that we can implement that efficiently
 /* bool chunk_can_allocate_run(chunk_t *chunk, size_t run_size); */
+
+// Fill run info based on ptr inside some run.
 void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
                        unsigned *run_size, unsigned *reg_size);
 
