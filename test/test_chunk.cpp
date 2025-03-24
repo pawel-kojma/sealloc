@@ -163,15 +163,6 @@ TEST_F(ChunkUtilsTest, ChunkAllocateOnGuardPage) {
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 514), NODE_DEPLETED);
 }
 
-/* Jakie jeszcze testy
- * 2. coalescing depleted:
- *  2.1 unmapowanie
- * 3. coalescig free
- * 4. wykorzystanie informacji w lisciu kiedy alokacja jest większa i jest wyzej
- * w drzewie
- *  5. coalesce full, musi też zlączac gdy node jest guard/depleted
- */
-
 TEST_F(ChunkUtilsTest, ChunkCoalesceDepleted) {
   void *alloc1, *alloc2, *alloc3, *alloc4;
   unsigned run_size = 2 * PAGE_SIZE;
@@ -220,8 +211,33 @@ TEST_F(ChunkUtilsTest, ChunkCoalesceFreeNodes) {
     EXPECT_EQ(get_tree_item(chunk->buddy_tree, it), NODE_FREE);
     it /= 2;
   }
+  EXPECT_NE(get_tree_item(chunk->buddy_tree, 32), NODE_FREE);
 }
 
-TEST_F(ChunkUtilsTest, ChunkCoalesceFullNodes) {}
+TEST_F(ChunkUtilsTest, ChunkCoalesceFullNodes) {
+  void *alloc1, *alloc2;
+  unsigned run_size = 2 * PAGE_SIZE;
+  chunk_init(chunk, heap);
+  alloc1 = chunk_allocate_run(chunk, run_size, 16);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 256), NODE_FULL);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 128), NODE_SPLIT);
+  alloc2 = chunk_allocate_run(chunk, run_size, 16);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 257), NODE_FULL);
+  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 128), NODE_FULL);
+}
+
+TEST_F(ChunkUtilsTest, ChunkLeafNodeInfoUsage) {
+  void *alloc1, *alloc2, *alloc3, *alloc4;
+  unsigned run_size_small = 2 * PAGE_SIZE;
+  unsigned run_size_large1 = 4 * PAGE_SIZE;
+  unsigned run_size_large2 = 8 * PAGE_SIZE;
+  chunk_init(chunk, heap);
+  alloc1 = chunk_allocate_run(chunk, run_size_large1, run_size_large1);
+  alloc2 = chunk_allocate_run(chunk, run_size_large2, run_size_large2);
+  chunk_deallocate_run(chunk, alloc2);
+  alloc3 = chunk_allocate_run(chunk, run_size_small, 16);
+  EXPECT_EQ((uintptr_t)alloc2, (uintptr_t)chunk->entry.key + 8 * PAGE_SIZE);
+  EXPECT_EQ((uintptr_t)alloc3, (uintptr_t)chunk->entry.key + 6 * PAGE_SIZE);
+}
 
 }  // namespace
