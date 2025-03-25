@@ -1,5 +1,6 @@
 #include <sealloc/internal_allocator.h>
 #include <sealloc/logging.h>
+#include <sealloc/platform_api.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -32,13 +33,15 @@ typedef enum tree_traverse_state {
 // Get a fresh mapping from kernel for further allocations
 // Link it to the beginning of the list
 static int morecore(void) {
-  struct internal_allocator_data *map = (struct internal_allocator_data *)mmap(
-      NULL, sizeof(struct internal_allocator_data), PROT_READ | PROT_WRITE,
-      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  se_debug("map=%p", map);
-  if (internal_alloc_mappings_root == MAP_FAILED) {
-    se_error_with_errno("mmap failed");
+  struct internal_allocator_data *map;
+  platform_status_code_t code =
+      platform_map(NULL, sizeof(struct internal_allocator_data), (void **)&map);
+  if (code != PLATFORM_STATUS_OK) {
+    se_error("Failed to allocate mapping for internal allocator: %s.",
+             platform_strerror(code));
   }
+
+  se_debug("map=%p", (void *)map);
   internal_alloc_mappings_root->bk = map;
   map->fd = internal_alloc_mappings_root;
   map->bk = NULL;
@@ -50,11 +53,11 @@ static int morecore(void) {
 
 // Initialize internal allocator with fresh mapping
 int internal_allocator_init(void) {
-  internal_alloc_mappings_root = (struct internal_allocator_data *)mmap(
-      NULL, sizeof(struct internal_allocator_data), PROT_READ | PROT_WRITE,
-      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if (internal_alloc_mappings_root == MAP_FAILED) {
-    se_error_with_errno("mmap failed");
+  platform_status_code_t code;
+  if ((code = platform_map(NULL, sizeof(struct internal_allocator_data),
+                           (void **)&internal_alloc_mappings_root)) !=
+      PLATFORM_STATUS_OK) {
+    se_error("Failed to allocate mapping for internal allocator: %s.", code);
   }
   internal_alloc_mappings_root->bk = NULL;
   internal_alloc_mappings_root->fd = NULL;
@@ -253,7 +256,7 @@ void *internal_alloc(size_t size) {
   // Loop over memory mappings and try to satisfy the request
   for (struct internal_allocator_data *root = internal_alloc_mappings_root;
        root != NULL; root = root->fd) {
-    se_debug("Trying to allocate with root = %p", root);
+    se_debug("Trying to allocate with root = %p", (void *)root);
     alloc = internal_alloc_with_root(root, size);
     if (alloc != NULL) return alloc;
   }
