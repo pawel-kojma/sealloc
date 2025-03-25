@@ -4,6 +4,7 @@
 
 extern "C" {
 #include <sealloc/chunk.h>
+#include <sealloc/platform_api.h>
 #include <sealloc/utils.h>
 }
 
@@ -22,7 +23,8 @@ class ChunkUtilsTest : public ::testing::Test {
   unsigned run_size_large = 4 * PAGE_SIZE;
   void SetUp() override {
     chunk = (chunk_t *)malloc(sizeof(chunk_t));
-    heap = malloc(16);
+
+    platform_map(NULL, CHUNK_SIZE_BYTES, &heap);
   }
 };
 
@@ -264,6 +266,15 @@ TEST_F(ChunkUtilsTest, ChunkIsFull) {
     chunk_allocate_run(chunk, run_size_small, 16);
   }
   EXPECT_TRUE(chunk_is_full(chunk));
+}
+
+TEST_F(ChunkUtilsTest, ChunkDeathOnGuardPageWrite) {
+  void *alloc;
+  chunk_init(chunk, heap);
+  alloc = chunk_allocate_run(chunk, run_size_small, 16);
+  ((int *)alloc)[run_size_small / sizeof(int) - 1] = 42;
+  EXPECT_DEATH(
+      { ((int *)alloc)[run_size_small / sizeof(int)] = 42; }, ".*");
 }
 
 }  // namespace

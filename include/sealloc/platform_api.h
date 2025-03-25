@@ -3,11 +3,21 @@
 #ifndef _SEALLOC_PLATFORM_API_H_
 #define _SEALLOC_PLATFORM_API_H_
 
+#include <sealloc/logging.h>
+#include <stdarg.h>
 #include <stddef.h>
 
-void* platform_map(void *hint, size_t len);
-int platform_unmap(void *ptr, size_t len);
-int platform_guard(void *ptr, size_t len);
-int platform_unguard(void *ptr, size_t len);
+typedef enum status_code {
+  PLATFORM_STATUS_ERR_UNKNOWN,
+  PLATFORM_STATUS_ERR_NOMEM,
+  PLATFORM_STATUS_ERR_INVAL,
+  PLATFORM_STATUS_OK
+} platform_status_code_t;
+
+char *platform_strerror(platform_status_code_t code);
+platform_status_code_t platform_map(void *hint, size_t len, void **result);
+platform_status_code_t platform_unmap(void *ptr, size_t len);
+platform_status_code_t platform_guard(void *ptr, size_t len);
+platform_status_code_t platform_unguard(void *ptr, size_t len);
 
 #endif  // _SEALLOC_PLATFORM_API_H_

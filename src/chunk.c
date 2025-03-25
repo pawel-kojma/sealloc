@@ -161,6 +161,7 @@ void mark_reg_size(buddy_ctx_t *ctx, chunk_t *chunk, unsigned reg_size) {
 void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned reg_size) {
   unsigned neigh_idx = ctx->idx + 1;
   chunk_node_t neigh, node = get_tree_item(chunk->buddy_tree, ctx->idx);
+  platform_status_code_t code;
   switch (node) {
     case NODE_FREE:
       // Check if we can place a guard page.
@@ -172,11 +173,12 @@ void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned reg_size) {
         if (neigh == NODE_FREE) {
           set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED);
           // Guard neighbor
-          if (platform_guard((void *)(ctx->ptr + ctx->cur_size),
-                             CHUNK_LEAST_REGION_SIZE_BYTES) < 0) {
-            se_error("Failed call platform_guard(%p, %u)",
+          if ((code = platform_guard((void *)(ctx->ptr + ctx->cur_size),
+                                     CHUNK_LEAST_REGION_SIZE_BYTES)) !=
+              PLATFORM_STATUS_OK) {
+            se_error("Failed to guard page (ptr : %p, size : %zu): %s",
                      (void *)(ctx->ptr + ctx->cur_size),
-                     CHUNK_LEAST_REGION_SIZE_BYTES);
+                     CHUNK_LEAST_REGION_SIZE_BYTES, platform_strerror(code));
           }
           set_tree_item(chunk->buddy_tree, neigh_idx, NODE_GUARD);
           mark_nodes_split_guard(chunk->buddy_tree, PARENT(neigh_idx));
@@ -209,6 +211,7 @@ void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned reg_size) {
 void *visit_regular_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned run_size) {
   unsigned neigh_idx = get_rightmost_idx(ctx->idx, ctx->depth_to_leaf) + 1;
   chunk_node_t neigh, node = get_tree_item(chunk->buddy_tree, ctx->idx);
+  platform_status_code_t code;
   switch (node) {
     case NODE_SPLIT:
       // If this is the deepest node that can satisfy request
@@ -242,12 +245,14 @@ void *visit_regular_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned run_size) {
                         get_leftmost_idx(ctx->idx, ctx->depth_to_leaf),
                         NODE_USED);
           // Guard neighbor
-          if (platform_guard((void *)(ctx->ptr + ctx->cur_size),
-                             CHUNK_LEAST_REGION_SIZE_BYTES) < 0) {
-            se_error("Failed call platform_guard(%p, %u)",
+          if ((code = platform_guard((void *)(ctx->ptr + ctx->cur_size),
+                                     CHUNK_LEAST_REGION_SIZE_BYTES)) !=
+              PLATFORM_STATUS_OK) {
+            se_error("Failed to guard page (ptr : %p, size : %zu): %s",
                      (void *)(ctx->ptr + ctx->cur_size),
-                     CHUNK_LEAST_REGION_SIZE_BYTES);
+                     CHUNK_LEAST_REGION_SIZE_BYTES, platform_strerror(code));
           }
+
           set_tree_item(chunk->buddy_tree, neigh_idx, NODE_GUARD);
           mark_nodes_split_guard(chunk->buddy_tree, PARENT(neigh_idx));
         } else {
@@ -368,6 +373,7 @@ static void coalesce_unmapped_nodes(buddy_ctx_t *ctx, chunk_t *chunk) {
 static void coalesce_depleted_nodes(buddy_ctx_t *ctx, chunk_t *chunk) {
   unsigned neigh_idx;
   chunk_node_t node;
+  platform_status_code_t code;
   while (ctx->idx > 1) {
     neigh_idx = IS_RIGHT_CHILD(ctx->idx) ? ctx->idx - 1 : ctx->idx + 1;
     node = get_tree_item(chunk->buddy_tree, neigh_idx);
@@ -382,9 +388,10 @@ static void coalesce_depleted_nodes(buddy_ctx_t *ctx, chunk_t *chunk) {
   // Check if depth passed the unmap threshold
   if (ctx->depth_to_leaf >= CHUNK_UNMAP_THRESHOLD) {
     // We passed the threshold, unmap
-    if (platform_unmap((void *)ctx->ptr, ctx->cur_size) < 0) {
-      se_error("Failed call platform_unmap(%p, %u)", (void *)ctx->ptr,
-               ctx->cur_size);
+    if ((code = platform_unmap((void *)ctx->ptr, ctx->cur_size)) !=
+        PLATFORM_STATUS_OK) {
+      se_error("Failed unmap page (ptr : %p, size : %u): %s.", (void *)ctx->ptr,
+               ctx->cur_size, platform_strerror(code));
     }
     set_tree_item(chunk->buddy_tree, ctx->idx, NODE_UNMAPPED);
     coalesce_unmapped_nodes(ctx, chunk);
@@ -427,9 +434,12 @@ bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
 
   // Guard the memory region, may be unnecessary because we might be unmapping
   // it later
-  if (platform_guard((void *)ctx.ptr, ctx.cur_size) < 0)
-    se_error("Failed call platform_guard(%p, %u)", (void *)ctx.ptr,
-             ctx.cur_size);
+  platform_status_code_t code;
+  if ((code = platform_guard((void *)ctx.ptr, ctx.cur_size) !=
+              PLATFORM_STATUS_OK)) {
+    se_error("Failed to guard page (ptr : %p, size : %zu): %s", (void *)ctx.ptr,
+             ctx.cur_size, platform_strerror(code));
+  }
 
   unsigned neigh_idx = get_rightmost_idx(ctx.idx, ctx.depth_to_leaf) + 1;
   if (neigh_idx < CHUNK_NO_NODES) {
@@ -437,11 +447,12 @@ bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
     if (neigh == NODE_GUARD) {
       // That means the guard page was not used before
       // Unguard it and make it free
-      if (platform_unguard((void *)(ctx.ptr + ctx.cur_size),
-                           CHUNK_LEAST_REGION_SIZE_BYTES) < 0) {
-        se_error("Failed call platform_unguard(%p, %u)",
+      if ((code = platform_unguard((void *)(ctx.ptr + ctx.cur_size),
+                                   CHUNK_LEAST_REGION_SIZE_BYTES)) !=
+          PLATFORM_STATUS_OK) {
+        se_error("Failed to unguard page (ptr : %p, size : %zu): %s",
                  (void *)(ctx.ptr + ctx.cur_size),
-                 CHUNK_LEAST_REGION_SIZE_BYTES);
+                 CHUNK_LEAST_REGION_SIZE_BYTES, platform_strerror(code));
       }
       set_tree_item(chunk->buddy_tree, neigh_idx, NODE_FREE);
       chunk->free_mem += CHUNK_LEAST_REGION_SIZE_BYTES;
