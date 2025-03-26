@@ -1,6 +1,7 @@
 /* arena utils API */
 
 #include <sealloc/bin.h>
+#include <sealloc/container_ll.h>
 #include <sealloc/utils.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -14,20 +15,22 @@ typedef struct chunk_state chunk_t;
 // Medium - len(1KB, 2KB, 4KB) = 3
 // Large - len(8KB, ..., 8KB * (2 ** (i-1)), 1MB) = 8
 #define ARENA_NO_BINS 43
+#define CHUNKS_PER_MAPPING 4
 
 typedef struct arena_state {
-  size_t secret;
-  chunk_t *chunk_list;
+  uint32_t secret;       // PRNG seed
+  ll_head_t chunk_list;  // Chunk pointers
+  uintptr_t alloc_ptr;
+  unsigned chunks_left;
+  ll_head_t huge_mappings;  // Huge allocation pointers
   bin_t bins[ARENA_NO_BINS];
-  // TODO: huge allocations
 } arena_t;
 
 void arena_init(arena_t *arena);
 chunk_t *arena_allocate_chunk(arena_t *arena);
 void arena_deallocate_chunk(arena_t *arena, chunk_t *chunk);
 chunk_t *arena_get_chunk_from_ptr(arena_t *arena, void *ptr);
-/*
- * arena_find_huge_mapping(arena_t *arena, void *chunk_ptr);
- * arena_create_huge_mapping(arena_t *arena, size_t huge_size);
- * arena_delete_huge_mapping(arena_t *arena, void *huge);
- */
+bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size);
+ll_entry_t *arena_find_huge_mapping(arena_t *arena, void *huge_map);
+void arena_create_huge_mapping(arena_t *arena, size_t huge_size);
+void arena_delete_huge_mapping(arena_t *arena, void *huge_map);
