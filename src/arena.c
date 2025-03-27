@@ -83,4 +83,58 @@ chunk_t *arena_get_chunk_from_ptr(arena_t *arena, void *ptr) {
   return chunk;
 }
 
-bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size) { return NULL;}
+static unsigned ctz(unsigned x) {
+  unsigned cnt = 0;
+  while (x > 1) {
+    cnt++;
+    x >>= 1;
+  }
+  return cnt;
+}
+
+bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size) {
+  unsigned skip_bins = 0;
+  // Assume reg_size is either small, medium or large class
+  if (IS_SIZE_SMALL(reg_size)) {
+    return &arena->bins[reg_size / SIZE_CLASS_ALIGNMENT - 1];
+  }
+  skip_bins += ARENA_NO_SMALL_BINS;
+  if (IS_SIZE_MEDIUM(reg_size)) {
+    return &arena->bins[skip_bins + (reg_size / MEDIUM_CLASS_ALIGNMENT) - 1];
+  }
+  skip_bins += ARENA_NO_MEDIUM_BINS;
+  return &arena->bins[skip_bins + ctz(reg_size / (2 * PAGE_SIZE))];
+}
+
+huge_chunk_t *arena_find_huge_mapping(arena_t *arena, void *huge_map) {
+  return CONTAINER_OF(ll_find(&arena->huge_mappings, huge_map), huge_chunk_t,
+                      entry);
+}
+huge_chunk_t *arena_allocate_huge_mapping(arena_t *arena, size_t size) {
+  platform_status_code_t code;
+  void *huge_map;
+  if ((code = platform_map(NULL, size, (void **)&huge_map)) !=
+      PLATFORM_STATUS_OK) {
+    se_error("Failed to allocate huge mapping (size : %u): %s", size,
+             platform_strerror(code));
+  }
+  huge_chunk_t *chunk = internal_alloc(sizeof(huge_chunk_t));
+  chunk->len = size;
+  ll_add(&arena->huge_mappings, &chunk->entry);
+  return chunk;
+}
+void arena_deallocate_huge_mapping(arena_t *arena, void *huge_map) {
+  platform_status_code_t code;
+  ll_entry_t *entry = ll_find(&arena->huge_mappings, huge_map);
+  if (entry == NULL) {
+    se_error("Failed to find huge mapping (ptr : %p)", huge_map);
+  }
+  huge_chunk_t *chunk = CONTAINER_OF(entry, huge_chunk_t, entry);
+
+  if ((code = platform_unmap(chunk->entry.key, chunk->len)) !=
+      PLATFORM_STATUS_OK) {
+    se_error("Failed to deallocate huge mapping (ptr : %p, size : %u): %s",
+             chunk->entry.key, chunk->len, platform_strerror(code));
+  }
+  internal_free((void *)chunk);
+}

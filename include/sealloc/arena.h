@@ -14,8 +14,17 @@ typedef struct chunk_state chunk_t;
 // Small - len(16, ..., 16*i, ..., 512) = 32
 // Medium - len(1KB, 2KB, 4KB) = 3
 // Large - len(8KB, ..., 8KB * (2 ** (i-1)), 1MB) = 8
-#define ARENA_NO_BINS 43
+#define ARENA_NO_SMALL_BINS 32
+#define ARENA_NO_MEDIUM_BINS 3
+#define ARENA_NO_LARGE_BINS 8
+#define ARENA_NO_BINS \
+  (ARENA_NO_SMALL_BINS + ARENA_NO_MEDIUM_BINS + ARENA_NO_LARGE_BINS)
 #define CHUNKS_PER_MAPPING 4
+
+typedef struct huge_chunk {
+  ll_entry_t entry;
+  size_t len;
+} huge_chunk_t;
 
 typedef struct arena_state {
   uint32_t secret;       // PRNG seed
@@ -31,6 +40,6 @@ chunk_t *arena_allocate_chunk(arena_t *arena);
 void arena_deallocate_chunk(arena_t *arena, chunk_t *chunk);
 chunk_t *arena_get_chunk_from_ptr(arena_t *arena, void *ptr);
 bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size);
-ll_entry_t *arena_find_huge_mapping(arena_t *arena, void *huge_map);
-void arena_create_huge_mapping(arena_t *arena, size_t huge_size);
-void arena_delete_huge_mapping(arena_t *arena, void *huge_map);
+huge_chunk_t *arena_find_huge_mapping(arena_t *arena, void *huge_map);
+huge_chunk_t *arena_allocate_huge_mapping(arena_t *arena, size_t size);
+void arena_deallocate_huge_mapping(arena_t *arena, void *huge_map);
