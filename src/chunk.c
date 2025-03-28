@@ -182,10 +182,11 @@ void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned reg_size) {
           }
           set_tree_item(chunk->buddy_tree, neigh_idx, NODE_GUARD);
           mark_nodes_split_guard(chunk->buddy_tree, PARENT(neigh_idx));
+          chunk->free_mem -= (ctx->cur_size + CHUNK_LEAST_REGION_SIZE_BYTES);
         } else {
           set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED);
+          chunk->free_mem -= ctx->cur_size;
         }
-        chunk->free_mem -= ctx->cur_size;
         mark_reg_size(ctx, chunk, reg_size);
         coalesce_full_nodes(chunk->buddy_tree, ctx->idx);
         return (void *)ctx->ptr;
@@ -442,7 +443,7 @@ bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
   }
 
   unsigned neigh_idx = get_rightmost_idx(ctx.idx, ctx.depth_to_leaf) + 1;
-  if (neigh_idx < CHUNK_NO_NODES) {
+  if (neigh_idx <= CHUNK_NO_NODES) {
     neigh = get_tree_item(chunk->buddy_tree, neigh_idx);
     if (neigh == NODE_GUARD) {
       // That means the guard page was not used before

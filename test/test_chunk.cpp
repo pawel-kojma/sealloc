@@ -68,7 +68,7 @@ TEST_F(ChunkUtilsTest, ChunkSingleAllocation) {
   EXPECT_NE(alloc, nullptr);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 512), NODE_USED);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 513), NODE_GUARD);
-  EXPECT_EQ(chunk->free_mem, CHUNK_SIZE_BYTES - run_size_small);
+  EXPECT_EQ(chunk->free_mem, CHUNK_SIZE_BYTES - (run_size_small + CHUNK_LEAST_REGION_SIZE_BYTES));
 }
 
 TEST_F(ChunkUtilsTest, ChunkManyAllocations) {
@@ -262,10 +262,56 @@ TEST_F(ChunkUtilsTest, ChunkGetRunPointerNegative) {
 
 TEST_F(ChunkUtilsTest, ChunkIsFull) {
   unsigned chunks_to_alloc = CHUNK_NO_NODES_LAST_LAYER / 2;
+  chunk_init(chunk, heap);
   for (int i = 0; i < chunks_to_alloc; i++) {
-    chunk_allocate_run(chunk, run_size_small, 16);
+    EXPECT_NE(chunk_allocate_run(chunk, run_size_small, 16), nullptr);
   }
   EXPECT_TRUE(chunk_is_full(chunk));
+}
+
+TEST_F(ChunkUtilsTest, ChunkIsNotFull) {
+  unsigned chunks_to_alloc = (CHUNK_NO_NODES_LAST_LAYER / 2) - 1;
+  chunk_init(chunk, heap);
+  for (int i = 0; i < chunks_to_alloc; i++) {
+    EXPECT_NE(chunk_allocate_run(chunk, run_size_small, 16), nullptr);
+  }
+  EXPECT_FALSE(chunk_is_full(chunk));
+  EXPECT_EQ(chunk->free_mem, 2 * CHUNK_LEAST_REGION_SIZE_BYTES);
+  EXPECT_NE(chunk_allocate_run(chunk, run_size_small, 16), nullptr);
+  EXPECT_EQ(chunk->free_mem, 0);
+}
+
+TEST_F(ChunkUtilsTest, ChunkExhaustion) {
+  unsigned chunks_to_alloc = CHUNK_NO_NODES_LAST_LAYER / 2;
+  void *chunk_alloc[chunks_to_alloc];
+  chunk_init(chunk, heap);
+  void *ptr = heap;
+  for (int i = 0; i < chunks_to_alloc; i++) {
+    chunk_alloc[i] = chunk_allocate_run(chunk, run_size_small, 16);
+    EXPECT_EQ(chunk_alloc[i], ptr)
+        << "Failed to alloc " << i + 1 << "-th in first round (max "
+        << chunks_to_alloc << ")";
+    ptr = (void *)((uintptr_t)ptr + 2 * CHUNK_LEAST_REGION_SIZE_BYTES);
+  }
+  ASSERT_EQ(chunk->free_mem, 0);
+  unsigned free_mem = 0;
+  for (int i = 0; i < chunks_to_alloc; i++) {
+    EXPECT_FALSE(chunk_deallocate_run(chunk, chunk_alloc[i]));
+    free_mem += CHUNK_LEAST_REGION_SIZE_BYTES;
+    ASSERT_EQ(chunk->free_mem, free_mem)
+        << "Failed to free on alloc " << i + 1 << "/" << chunks_to_alloc;
+  }
+  for (int i = 0; i < chunks_to_alloc; i++) {
+    chunk_alloc[i] = chunk_allocate_run(chunk, run_size_small, 16);
+    EXPECT_NE(chunk_alloc[i], nullptr)
+        << "Failed to alloc " << i + 1 << "-th in second round (max "
+        << chunks_to_alloc << ")";
+  }
+  bool unmapped = false;
+  for (int i = 0; i < chunks_to_alloc; i++) {
+    unmapped = chunk_deallocate_run(chunk, chunk_alloc[i]);
+  }
+  EXPECT_TRUE(unmapped);
 }
 
 TEST_F(ChunkUtilsTest, ChunkDeathOnGuardPageWrite) {
@@ -273,8 +319,7 @@ TEST_F(ChunkUtilsTest, ChunkDeathOnGuardPageWrite) {
   chunk_init(chunk, heap);
   alloc = chunk_allocate_run(chunk, run_size_small, 16);
   ((int *)alloc)[run_size_small / sizeof(int) - 1] = 42;
-  EXPECT_DEATH(
-      { ((int *)alloc)[run_size_small / sizeof(int)] = 42; }, ".*");
+  EXPECT_DEATH({ ((int *)alloc)[run_size_small / sizeof(int)] = 42; }, ".*");
 }
 
 }  // namespace
