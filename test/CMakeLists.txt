@@ -10,22 +10,13 @@ list(APPEND test_libs
   sealloc
   test_cflags
 )
-
-add_executable(test_ia test_ia.cpp)
-add_executable(test_run test_run.cpp)
-add_executable(test_container_ll test_container_ll.cpp)
-add_executable(test_bin test_bin.cpp)
-add_executable(test_chunk test_chunk.cpp)
-target_link_libraries(test_ia ${test_libs})
-target_link_libraries(test_run ${test_libs})
-target_link_libraries(test_container_ll ${test_libs})
-target_link_libraries(test_bin ${test_libs})
-target_link_libraries(test_chunk ${test_libs})
-
+list(APPEND test_srcs
+    test_ia test_run test_container_ll test_bin test_chunk)
 include(GoogleTest)
-gtest_discover_tests(test_ia)
-gtest_discover_tests(test_run)
-gtest_discover_tests(test_container_ll)
-gtest_discover_tests(test_bin)
-gtest_discover_tests(test_chunk)
+
+foreach(test_src ${test_srcs})
+    add_executable(${test_src} "${test_src}.cpp")
+    target_link_libraries(${test_src} ${test_libs})
+    gtest_discover_tests(${test_src})
+endforeach()
 

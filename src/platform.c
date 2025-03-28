@@ -4,7 +4,9 @@
 #ifdef __linux__
 
 #include <errno.h>
+#include <fcntl.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 static platform_status_code_t get_error_from_errno(void) {
   switch (errno) {
@@ -55,6 +57,21 @@ platform_status_code_t platform_unguard(void *ptr, size_t len) {
     return PLATFORM_STATUS_OK;
   }
   return get_error_from_errno();
+}
+
+platform_status_code_t platform_get_random(uint32_t *buf) {
+  // Manual recommends /dev/urandom for fast random data
+  int fd = open("/dev/urandom", O_RDONLY);
+  if (fd < 0) {
+    return get_error_from_errno();
+  }
+  if (read(fd, buf, sizeof(uint32_t)) < 0) {
+    return get_error_from_errno();
+  }
+  if (close(fd) < 0) {
+    return get_error_from_errno();
+  }
+  return PLATFORM_STATUS_OK;
 }
 
 #endif
