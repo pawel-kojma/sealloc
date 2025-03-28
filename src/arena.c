@@ -161,7 +161,7 @@ huge_chunk_t *arena_find_huge_mapping(arena_t *arena, void *huge_map) {
   return CONTAINER_OF(ll_find(&arena->huge_mappings, huge_map), huge_chunk_t,
                       entry);
 }
-huge_chunk_t *arena_allocate_huge_mapping(arena_t *arena, size_t size) {
+void *arena_allocate_huge_mapping(arena_t *arena, size_t size) {
   platform_status_code_t code;
   void *huge_map;
   if ((code = platform_map(NULL, size, (void **)&huge_map)) !=
@@ -173,7 +173,7 @@ huge_chunk_t *arena_allocate_huge_mapping(arena_t *arena, size_t size) {
   chunk->entry.key = huge_map;
   chunk->len = size;
   ll_add(&arena->huge_mappings, &chunk->entry);
-  return chunk;
+  return huge_map;
 }
 void arena_deallocate_huge_mapping(arena_t *arena, void *huge_map) {
   platform_status_code_t code;
