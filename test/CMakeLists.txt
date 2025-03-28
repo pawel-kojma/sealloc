@@ -11,7 +11,7 @@ list(APPEND test_libs
   test_cflags
 )
 list(APPEND test_srcs
-    test_ia test_run test_container_ll test_bin test_chunk)
+    test_ia test_run test_container_ll test_bin test_chunk test_arena)
 include(GoogleTest)
 
 foreach(test_src ${test_srcs})

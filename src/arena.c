@@ -13,6 +13,7 @@ void arena_init(arena_t *arena) {
     se_error("Failed to get random value: %s", platform_strerror(code));
   }
   init_splitmix32(arena->secret);
+  internal_allocator_init();
   ll_init(&arena->chunk_list);
   ll_init(&arena->huge_mappings);
   arena->alloc_ptr = 0;
@@ -74,6 +75,7 @@ chunk_t *arena_get_chunk_from_ptr(arena_t *arena, void *ptr) {
   ptrdiff_t target = (ptrdiff_t)ptr;
   for (ll_entry_t *entry = arena->chunk_list.ll; entry != NULL;
        entry = entry->link.fd) {
+    se_debug("Trying entry entry=%p, entry->key=%p", (void *)entry, entry->key);
     if ((ptrdiff_t)entry->key <= target &&
         target < (ptrdiff_t)entry->key + CHUNK_SIZE_BYTES) {
       chunk = CONTAINER_OF(entry, chunk_t, entry);
@@ -92,18 +94,23 @@ static unsigned ctz(unsigned x) {
   return cnt;
 }
 
-bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size) {
+bin_t *arena_get_bin_by_reg_size(arena_t *arena, uint16_t reg_size) {
   unsigned skip_bins = 0;
+  bin_t *bin;
   // Assume reg_size is either small, medium or large class
   if (IS_SIZE_SMALL(reg_size)) {
-    return &arena->bins[reg_size / SIZE_CLASS_ALIGNMENT - 1];
+    bin = &arena->bins[reg_size / SIZE_CLASS_ALIGNMENT - 1];
+  } else if (IS_SIZE_MEDIUM(reg_size)) {
+    skip_bins = ARENA_NO_SMALL_BINS;
+    bin = &arena->bins[skip_bins + (reg_size / MEDIUM_CLASS_ALIGNMENT) - 1];
+  } else {
+    skip_bins += ARENA_NO_MEDIUM_BINS + ARENA_NO_SMALL_BINS;
+    bin = &arena->bins[skip_bins + ctz(reg_size / (2 * PAGE_SIZE))];
   }
-  skip_bins += ARENA_NO_SMALL_BINS;
-  if (IS_SIZE_MEDIUM(reg_size)) {
-    return &arena->bins[skip_bins + (reg_size / MEDIUM_CLASS_ALIGNMENT) - 1];
+  if (bin->reg_size == 0) {
+    bin_init(bin, reg_size);
   }
-  skip_bins += ARENA_NO_MEDIUM_BINS;
-  return &arena->bins[skip_bins + ctz(reg_size / (2 * PAGE_SIZE))];
+  return bin;
 }
 
 huge_chunk_t *arena_find_huge_mapping(arena_t *arena, void *huge_map) {
@@ -119,6 +126,7 @@ huge_chunk_t *arena_allocate_huge_mapping(arena_t *arena, size_t size) {
              platform_strerror(code));
   }
   huge_chunk_t *chunk = internal_alloc(sizeof(huge_chunk_t));
+  chunk->entry.key = huge_map;
   chunk->len = size;
   ll_add(&arena->huge_mappings, &chunk->entry);
   return chunk;
@@ -127,7 +135,8 @@ void arena_deallocate_huge_mapping(arena_t *arena, void *huge_map) {
   platform_status_code_t code;
   ll_entry_t *entry = ll_find(&arena->huge_mappings, huge_map);
   if (entry == NULL) {
-    se_error("Failed to find huge mapping (ptr : %p)", huge_map);
+    se_debug("Failed to find huge mapping (ptr : %p)", huge_map);
+    return;
   }
   huge_chunk_t *chunk = CONTAINER_OF(entry, huge_chunk_t, entry);
 
@@ -136,5 +145,6 @@ void arena_deallocate_huge_mapping(arena_t *arena, void *huge_map) {
     se_error("Failed to deallocate huge mapping (ptr : %p, size : %u): %s",
              chunk->entry.key, chunk->len, platform_strerror(code));
   }
+  ll_del(&arena->huge_mappings, &chunk->entry);
   internal_free((void *)chunk);
 }
