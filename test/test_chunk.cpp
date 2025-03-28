@@ -309,6 +309,7 @@ TEST_F(ChunkUtilsTest, ChunkExhaustion) {
   }
   bool unmapped = false;
   for (int i = 0; i < chunks_to_alloc; i++) {
+    EXPECT_FALSE(unmapped);
     unmapped = chunk_deallocate_run(chunk, chunk_alloc[i]);
   }
   EXPECT_TRUE(unmapped);
