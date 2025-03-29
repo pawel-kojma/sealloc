@@ -45,6 +45,8 @@ class RunUtilsTestSmall : public ::testing::Test {
   }
 };
 
+using RunUtilsTestSmallDeath = RunUtilsTestSmall;
+
 TEST_F(RunUtilsTestSmall, RunInit) {
   heap = malloc(1);
   run_init(run, bin, heap);
@@ -111,7 +113,7 @@ TEST_F(RunUtilsTestSmall, MemoryIntegrity) {
   }
 }
 
-TEST_F(RunUtilsTestSmall, DoubleFree) {
+TEST_F(RunUtilsTestSmallDeath, DoubleFree) {
   run_init(run, bin, heap);
   int elems = run->navail;
   void *chunks_dut[elems];
@@ -147,6 +149,8 @@ class RunUtilsTestMedium : public ::testing::Test {
                           BITS2BYTES_CEIL(bin->reg_mask_size_bits));
   }
 };
+
+using RunUtilsTestMediumDeath = RunUtilsTestMedium;
 
 TEST_F(RunUtilsTestMedium, RunInit) {
   heap = malloc(1);
@@ -213,7 +217,7 @@ TEST_F(RunUtilsTestMedium, MemoryIntegrity) {
   }
 }
 
-TEST_F(RunUtilsTestMedium, DoubleFree) {
+TEST_F(RunUtilsTestMediumDeath, DoubleFree) {
   run_init(run, bin, heap);
   int elems = run->navail;
   void *chunks_dut[elems];
@@ -249,6 +253,8 @@ class RunUtilsTestLarge : public ::testing::Test {
                           BITS2BYTES_CEIL(bin->reg_mask_size_bits));
   }
 };
+
+using RunUtilsTestLargeDeath = RunUtilsTestLarge;
 
 TEST_F(RunUtilsTestLarge, RunInit) {
   heap = malloc(1);
@@ -312,7 +318,7 @@ TEST_F(RunUtilsTestLarge, MemoryIntegrity) {
   }
 }
 
-TEST_F(RunUtilsTestLarge, DoubleFree) {
+TEST_F(RunUtilsTestLargeDeath, DoubleFree) {
   run_init(run, bin, heap);
   int elems = run->navail;
   void *chunks_dut[elems];
