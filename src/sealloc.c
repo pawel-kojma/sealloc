@@ -1,6 +1,7 @@
 #include <sealloc/arena.h>
 #include <sealloc/bin.h>
 #include <sealloc/chunk.h>
+#include <sealloc/internal_allocator.h>
 #include <sealloc/logging.h>
 #include <sealloc/run.h>
 #include <sealloc/utils.h>
@@ -27,7 +28,6 @@ void *sealloc_malloc(size_t size) {
     }
     return ptr;
   }
-  // TODO: implement something to allocate run from some chunk in the arena
   run = arena_allocate_run(&main_arena, bin);
   if (run == NULL) {
     // EOM
@@ -71,8 +71,9 @@ void sealloc_free(void *ptr) {
 
   if (run_is_freeable(run, bin)) {
     bin_delete_run(bin, run);
-    if (chunk_deallocate_run(chunk, run)) {
+    if (chunk_deallocate_run(chunk, run->entry.key)) {
       arena_deallocate_chunk(&main_arena, chunk);
     }
+    internal_free(run);
   }
 }
