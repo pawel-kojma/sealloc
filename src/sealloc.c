@@ -51,6 +51,13 @@ void sealloc_free(void *ptr) {
   chunk = arena_get_chunk_from_ptr(&main_arena, ptr);
   if (chunk == NULL) {
     // maybe a huge allocation
+    huge_chunk_t *huge_chunk;
+    huge_chunk = arena_find_huge_mapping(&main_arena, ptr);
+    if (huge_chunk == NULL) {
+      se_error("Invalid call to free()");
+    }
+    arena_deallocate_huge_mapping(&main_arena, huge_chunk->entry.key);
+    internal_free(huge_chunk);
   }
   chunk_get_run_ptr(chunk, ptr, &run_ptr, &run_size, &reg_size);
   if (run_ptr == NULL) {
