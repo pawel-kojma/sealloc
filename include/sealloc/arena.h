@@ -36,6 +36,7 @@ typedef struct arena_state {
 } arena_t;
 
 void arena_init(arena_t *arena);
+run_t *arena_allocate_run(arena_t *arena, bin_t *bin);
 chunk_t *arena_allocate_chunk(arena_t *arena);
 void arena_deallocate_chunk(arena_t *arena, chunk_t *chunk);
 chunk_t *arena_get_chunk_from_ptr(arena_t *arena, void *ptr);

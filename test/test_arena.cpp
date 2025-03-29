@@ -85,7 +85,8 @@ TEST_F(ArenaUtilsTest, ArenaGetBinByRegSize) {
   EXPECT_EQ(get_bin_idx(small), 0);
   EXPECT_EQ(get_bin_idx(medium), ARENA_NO_SMALL_BINS);
   EXPECT_EQ(get_bin_idx(large1), ARENA_NO_SMALL_BINS + ARENA_NO_MEDIUM_BINS);
-  EXPECT_EQ(get_bin_idx(large2), ARENA_NO_SMALL_BINS + ARENA_NO_MEDIUM_BINS + 1);
+  EXPECT_EQ(get_bin_idx(large2),
+            ARENA_NO_SMALL_BINS + ARENA_NO_MEDIUM_BINS + 1);
 }
 
 TEST_F(ArenaUtilsTest, ArenaAllocateHugeChunk) {
@@ -106,8 +107,16 @@ TEST_F(ArenaUtilsTest, ArenaFindHugeMapping) {
   huge_chunk_t *huge_chunk1, *huge_chunk2;
   huge_chunk1 = arena_allocate_huge_mapping(&arena, huge_chunk_size);
   huge_chunk2 = arena_allocate_huge_mapping(&arena, huge_chunk_size);
-  EXPECT_EQ(arena_find_huge_mapping(&arena, huge_chunk1->entry.key), huge_chunk1);
-  EXPECT_EQ(arena_find_huge_mapping(&arena, huge_chunk2->entry.key), huge_chunk2);
+  EXPECT_EQ(arena_find_huge_mapping(&arena, huge_chunk1->entry.key),
+            huge_chunk1);
+  EXPECT_EQ(arena_find_huge_mapping(&arena, huge_chunk2->entry.key),
+            huge_chunk2);
+}
+
+TEST_F(ArenaUtilsTest, ArenaAllocateRun) {
+  bin_t *bin = arena_get_bin_by_reg_size(&arena, SIZE_CLASS_ALIGNMENT);
+  run_t *run = arena_allocate_run(&arena, bin);
+  EXPECT_NE(run, nullptr);
 }
 
 }  // namespace
