@@ -5,7 +5,9 @@
 #include <sealloc/logging.h>
 #include <sealloc/platform_api.h>
 #include <sealloc/random.h>
+#include <sealloc/run.h>
 #include <sealloc/utils.h>
+#include <string.h>
 
 void arena_init(arena_t *arena) {
   platform_status_code_t code;
@@ -18,6 +20,48 @@ void arena_init(arena_t *arena) {
   ll_init(&arena->huge_mappings);
   arena->alloc_ptr = 0;
   arena->chunks_left = 0;
+  memset(arena->bins, 0, sizeof(bin_t) * ARENA_NO_BINS);
+}
+
+run_t *arena_allocate_run(arena_t *arena, bin_t *bin) {
+  chunk_t *chunk;
+  run_t *run;
+  void *run_ptr;
+  for (ll_entry_t *entry = arena->chunk_list.ll; entry != NULL;
+       entry = entry->link.fd) {
+    chunk = CONTAINER_OF(entry, chunk_t, entry);
+    run_ptr = chunk_allocate_run(chunk, bin->run_size_pages * PAGE_SIZE,
+                                 bin->reg_size);
+    if (run_ptr != NULL) {
+      // We just allocated a run
+      run = internal_alloc(sizeof(run_t));
+      if (run == NULL) {
+        // EOM
+        return NULL;
+      }
+      run_init(run, bin, run_ptr);
+      return run;
+    }
+  }
+  // No luck finding, allocate a new one
+  // Will also be addded to chunk list
+  chunk = arena_allocate_chunk(arena);
+  if (chunk == NULL) {
+    // EOM
+    return NULL;
+  }
+  run_ptr =
+      chunk_allocate_run(chunk, bin->run_size_pages * PAGE_SIZE, bin->reg_size);
+  if (run_ptr == NULL) {
+    se_error("Failed to allocate run from fresh chunk");
+  }
+  run = internal_alloc(sizeof(run_t));
+  if (run == NULL) {
+    // EOM
+    return NULL;
+  }
+  run_init(run, bin, run_ptr);
+  return run;
 }
 
 chunk_t *arena_allocate_chunk(arena_t *arena) {
@@ -96,7 +140,7 @@ static unsigned ctz(unsigned x) {
 
 bin_t *arena_get_bin_by_reg_size(arena_t *arena, uint16_t reg_size) {
   unsigned skip_bins = 0;
-  bin_t *bin;
+  bin_t *bin = NULL;
   // Assume reg_size is either small, medium or large class
   if (IS_SIZE_SMALL(reg_size)) {
     bin = &arena->bins[reg_size / SIZE_CLASS_ALIGNMENT - 1];
