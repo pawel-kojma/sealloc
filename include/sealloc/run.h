@@ -5,6 +5,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+
+#ifndef SEALLOC_RUN_H_
+#define SEALLOC_RUN_H_
+
 struct bin_state;
 
 typedef struct bin_state bin_t;
@@ -38,3 +42,5 @@ bool run_is_depleted(run_t *run);
 
 // Initialize run
 void run_init(run_t *run, bin_t *bin, void *heap);
+
+#endif /* SEALLOC_RUN_H_ */

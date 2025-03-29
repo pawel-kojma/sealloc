@@ -1,7 +1,7 @@
 /* Misc utils */
 
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef SEALLOC_UTILS_H_
+#define SEALLOC_UTILS_H_
 
 #define ALIGNUP_8(n) ((n + 7) & ~7)
 #define ALIGNUP_16(n) ((n + 15) & ~15)
@@ -16,4 +16,5 @@
 #define MAX_LARGE_SIZE 1048576 // 1MB
 #define CONTAINER_OF(ptr, type, member) \
   ((type *)((char *)ptr - offsetof(type, member)))
-#endif
+
+#endif /* SEALLOC_UTILS_H_ */

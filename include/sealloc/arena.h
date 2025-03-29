@@ -7,6 +7,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifndef SEALLOC_ARENA_H_
+#define SEALLOC_ARENA_H_
+
 struct chunk_state;
 typedef struct chunk_state chunk_t;
 
@@ -44,3 +47,5 @@ bin_t *arena_get_bin_by_reg_size(arena_t *arena, uint16_t reg_size);
 huge_chunk_t *arena_find_huge_mapping(arena_t *arena, void *huge_map);
 void *arena_allocate_huge_mapping(arena_t *arena, size_t size);
 void arena_deallocate_huge_mapping(arena_t *arena, void *huge_map);
+
+#endif /* SEALLOC_ARENA_H_ */

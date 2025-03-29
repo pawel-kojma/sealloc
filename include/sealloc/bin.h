@@ -5,6 +5,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifndef SEALLOC_BIN_H_
+#define SEALLOC_BIN_H_
+
 struct run_state;
 
 typedef struct run_state run_t;
@@ -30,3 +33,5 @@ void bin_retire_current_run(bin_t *bin);
 
 // Get run's metadata by its address
 run_t *bin_get_run_by_addr(bin_t *bin, void *run_ptr);
+
+#endif /* SEALLOC_BIN_H_ */

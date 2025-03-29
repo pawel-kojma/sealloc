@@ -6,8 +6,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#ifndef _CHUNK_H_
-#define _CHUNK_H_
+#ifndef SEALLOC_CHUNK_H_
+#define SEALLOC_CHUNK_H_
 
 struct run_state;
 
@@ -51,4 +51,4 @@ void chunk_init(chunk_t *chunk, void *heap);
 void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
                        unsigned *run_size, unsigned *reg_size);
 
-#endif /* _CHUNK_H_ */
+#endif /* SEALLOC_CHUNK_H_ */
