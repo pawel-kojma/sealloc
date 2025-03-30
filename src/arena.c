@@ -182,9 +182,21 @@ void *arena_allocate_huge_mapping(arena_t *arena, size_t len) {
 }
 void arena_deallocate_huge_mapping(arena_t *arena, void *map, size_t len) {
   platform_status_code_t code;
-
   if ((code = platform_unmap(map, len)) != PLATFORM_STATUS_OK) {
     se_error("Failed to deallocate huge mapping (ptr : %p, size : %u): %s", map,
              len, platform_strerror(code));
+  }
+}
+
+void arena_truncate_huge_mapping(arena_t *arena, huge_chunk_t *huge,
+                                 unsigned trunc_len_aligned) {
+  platform_status_code_t code;
+  size_t cur_size = ALIGNUP_PAGE(huge->len);
+  void *map = (void *)((uintptr_t)huge->entry.key + (cur_size - trunc_len_aligned));
+  if ((code = platform_unmap(map, trunc_len_aligned)) != PLATFORM_STATUS_OK) {
+    se_error(
+        "Failed to truncate huge mapping (ptr : %p, size : %u, truncate : %u): "
+        "%s",
+        huge->entry.key, huge->len, trunc_len_aligned, platform_strerror(code));
   }
 }

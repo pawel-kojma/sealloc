@@ -49,5 +49,6 @@ void *arena_allocate_huge_mapping(arena_t *arena, size_t len);
 void arena_deallocate_huge_mapping(arena_t *arena, void *map, size_t len);
 void arena_store_huge_meta(arena_t *arena, huge_chunk_t *huge);
 void arena_delete_huge_meta(arena_t *arena, huge_chunk_t *huge);
-void arena_truncate_huge_mapping(arena_t *arena, huge_chunk_t *huge);
+void arena_truncate_huge_mapping(arena_t *arena, huge_chunk_t *huge,
+                                 unsigned len_pages);
 #endif /* SEALLOC_ARENA_H_ */

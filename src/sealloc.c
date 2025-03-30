@@ -47,7 +47,6 @@ static void *sealloc_allocate_with_bin(bin_t *bin) {
 }
 
 void *sealloc_malloc(size_t size) {
-  void *ptr;
   se_debug("Allocating region of size %zu (aligned to %zu)", size,
            ALIGNUP_16(size));
   size = ALIGNUP_16(size);
@@ -57,7 +56,8 @@ void *sealloc_malloc(size_t size) {
     if (huge == NULL) return NULL;
     huge->len = ALIGNUP_PAGE(size);
     se_debug("Allocating huge chunk");
-    arena_allocate_huge_mapping(&main_arena, huge);
+    huge->entry.key = arena_allocate_huge_mapping(&main_arena, huge->len);
+    arena_store_huge_meta(&main_arena, huge);
     return huge->entry.key;
   }
   // Since size is at most large class, size_t will fit into uint16_t
@@ -133,6 +133,7 @@ void sealloc_free(void *ptr) {
   if (meta == METADATA_HUGE) {
     arena_deallocate_huge_mapping(&main_arena, huge->entry.key,
                                   ALIGNUP_PAGE(huge->len));
+    arena_delete_huge_meta(&main_arena, huge);
     internal_free(huge);
     return;
   }
@@ -149,7 +150,7 @@ void *sealloc_realloc(void *ptr, size_t size) {
   metadata_t meta;
   size_t size_palign = ALIGNUP_PAGE(size);
   if (ptr == NULL) {
-      se_debug("Pointer is NULL, fallback to malloc");
+    se_debug("Pointer is NULL, fallback to malloc");
     return sealloc_malloc(size);
   }
   meta = locate_metadata_for_ptr(ptr, &chunk, &run_old, &bin_old, &huge);
@@ -173,7 +174,7 @@ void *sealloc_realloc(void *ptr, size_t size) {
           "Truncating existing mapping by %u pages (new_size %zu < old_size "
           "%zu)",
           truncate_pages, size, huge->len);
-      arena_truncate_huge_mapping(&main_arena, huge);
+      arena_truncate_huge_mapping(&main_arena, huge, truncate_pages);
     }
     return huge->entry.key;
   }
@@ -188,6 +189,9 @@ void *sealloc_realloc(void *ptr, size_t size) {
    */
   run_validate_ptr(run_old, bin_old, ptr);
   bin_new = arena_get_bin_by_reg_size(&main_arena, size);
+  if (bin_new->reg_size == bin_old->reg_size) {
+    return ptr;
+  }
   void *dest = sealloc_allocate_with_bin(bin_new);
   if (dest == NULL) {
     se_debug("End of Memory");
@@ -195,13 +199,11 @@ void *sealloc_realloc(void *ptr, size_t size) {
   }
   if (bin_new->reg_size > bin_old->reg_size) {
     memcpy(dest, ptr, bin_old->reg_size);
-    sealloc_free_with_metadata(chunk, bin_old, run_old, ptr);
-    return dest;
   } else if (bin_new->reg_size < bin_old->reg_size) {
     memcpy(dest, ptr, bin_new->reg_size);
+  }
     sealloc_free_with_metadata(chunk, bin_old, run_old, ptr);
     return dest;
-  }
 }
 
 void *sealloc_calloc(size_t nmemb, size_t size) {

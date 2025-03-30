@@ -99,19 +99,21 @@ TEST_F(ArenaUtilsTest, ArenaDeallocateHugeChunk) {
   void *huge_chunk;
   huge_chunk = arena_allocate_huge_mapping(&arena, huge_chunk_size);
   EXPECT_NE(huge_chunk, nullptr);
-  arena_deallocate_huge_mapping(&arena, huge_chunk);
-  EXPECT_EQ(arena_find_huge_mapping(&arena, huge_chunk), nullptr);
+  arena_deallocate_huge_mapping(&arena, huge_chunk, huge_chunk_size);
 }
 
 TEST_F(ArenaUtilsTest, ArenaFindHugeMapping) {
-  void *huge_chunk1, *huge_chunk2;
-  huge_chunk_t *h1, *h2;
-  huge_chunk1 = arena_allocate_huge_mapping(&arena, huge_chunk_size);
-  huge_chunk2 = arena_allocate_huge_mapping(&arena, huge_chunk_size);
-  h1 = arena_find_huge_mapping(&arena, huge_chunk1);
-  h2 = arena_find_huge_mapping(&arena, huge_chunk2);
-  EXPECT_EQ(h1->entry.key, huge_chunk1);
-  EXPECT_EQ(h2->entry.key, huge_chunk2);
+  huge_chunk_t h1_expect, h2_expect, *h1, *h2;
+  h1_expect.entry.key = arena_allocate_huge_mapping(&arena, huge_chunk_size);
+  h1_expect.len = huge_chunk_size;
+  arena_store_huge_meta(&arena, &h1_expect);
+  h2_expect.entry.key = arena_allocate_huge_mapping(&arena, huge_chunk_size);
+  h2_expect.len = huge_chunk_size;
+  arena_store_huge_meta(&arena, &h2_expect);
+  h1 = arena_find_huge_mapping(&arena, h1_expect.entry.key);
+  h2 = arena_find_huge_mapping(&arena, h2_expect.entry.key);
+  EXPECT_EQ(h1, &h1_expect);
+  EXPECT_EQ(h2, &h2_expect);
 }
 
 TEST_F(ArenaUtilsTest, ArenaAllocateRun) {
