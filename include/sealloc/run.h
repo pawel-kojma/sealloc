@@ -30,6 +30,9 @@ typedef struct run_state {
 // Allocate region from run
 void *run_allocate(run_t *run, bin_t *bin);
 
+// Validate if ptr points to allocated region
+size_t run_validate_ptr(run_t *run, bin_t *bin, void *ptr);
+
 // Deallocate region from run
 void run_deallocate(run_t *run, bin_t *bin, void *ptr);
 

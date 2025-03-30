@@ -18,22 +18,8 @@ static arena_t main_arena;
 
 __attribute__((constructor)) void init_heap(void) { arena_init(&main_arena); }
 
-void *sealloc_malloc(size_t size) {
+static void *sealloc_allocate_with_bin(bin_t *bin) {
   void *ptr;
-  se_debug("Allocating region of size %zu (aligned to %zu)", size,
-           ALIGNUP_16(size));
-  size = ALIGNUP_16(size);
-  if (size >= MAX_LARGE_SIZE) {
-    huge_chunk_t *huge;
-    huge = internal_alloc(sizeof(huge_chunk_t));
-    if (huge == NULL) return NULL;
-    huge->len = ALIGN_PAGE(size);
-    se_debug("Allocating huge chunk");
-    arena_allocate_huge_mapping(&main_arena, huge);
-    return huge->entry.key;
-  }
-  // Since size is at most large class, size_t will fit into uint16_t
-  bin_t *bin = arena_get_bin_by_reg_size(&main_arena, size);
   run_t *run = bin->runcur;
   if (run != NULL) {
     se_debug("Allocating from bin for region sizes %u", bin->reg_size);
@@ -60,9 +46,28 @@ void *sealloc_malloc(size_t size) {
   return ptr;
 }
 
-metadata_t locate_metadata_for_ptr(void *ptr, chunk_t **chunk_ret,
-                                   run_t **run_ret, bin_t **bin_ret,
-                                   huge_chunk_t **huge_ret) {
+void *sealloc_malloc(size_t size) {
+  void *ptr;
+  se_debug("Allocating region of size %zu (aligned to %zu)", size,
+           ALIGNUP_16(size));
+  size = ALIGNUP_16(size);
+  if (size >= MAX_LARGE_SIZE) {
+    huge_chunk_t *huge;
+    huge = internal_alloc(sizeof(huge_chunk_t));
+    if (huge == NULL) return NULL;
+    huge->len = ALIGNUP_PAGE(size);
+    se_debug("Allocating huge chunk");
+    arena_allocate_huge_mapping(&main_arena, huge);
+    return huge->entry.key;
+  }
+  // Since size is at most large class, size_t will fit into uint16_t
+  bin_t *bin = arena_get_bin_by_reg_size(&main_arena, size);
+  return sealloc_allocate_with_bin(bin);
+}
+
+static metadata_t locate_metadata_for_ptr(void *ptr, chunk_t **chunk_ret,
+                                          run_t **run_ret, bin_t **bin_ret,
+                                          huge_chunk_t **huge_ret) {
   chunk_t *chunk;
   void *run_ptr = NULL;
   unsigned run_size = 0, reg_size = 0;
@@ -97,23 +102,8 @@ metadata_t locate_metadata_for_ptr(void *ptr, chunk_t **chunk_ret,
   return METADATA_REGULAR;
 }
 
-void sealloc_free(void *ptr) {
-  se_debug("Freeing a region at %p", ptr);
-  chunk_t *chunk;
-  run_t *run;
-  bin_t *bin;
-  huge_chunk_t *huge;
-  metadata_t meta;
-  if (ptr == NULL) return;
-  meta = locate_metadata_for_ptr(ptr, &chunk, &run, &bin, &huge);
-  if (meta == METADATA_INVALID) {
-    se_error("Invalid call to free()");
-  }
-  if (meta == METADATA_HUGE) {
-    arena_deallocate_huge_mapping(&main_arena, huge);
-    internal_free(huge);
-    return;
-  }
+static void sealloc_free_with_metadata(chunk_t *chunk, bin_t *bin, run_t *run,
+                                       void *ptr) {
   // Might fail because invalid region is being freed
   run_deallocate(run, bin, ptr);
 
@@ -128,16 +118,41 @@ void sealloc_free(void *ptr) {
   }
 }
 
-void *sealloc_realloc(void *ptr, size_t size) {
-  se_debug("Reallocating a region at %p of size %zu", ptr, size);
+void sealloc_free(void *ptr) {
+  se_debug("Freeing a region at %p", ptr);
   chunk_t *chunk;
   run_t *run;
   bin_t *bin;
   huge_chunk_t *huge;
   metadata_t meta;
-  size_t size_palign = ALIGNUP_PAGE(size);
-  if (ptr == NULL) return sealloc_malloc(size);
+  if (ptr == NULL) return;
   meta = locate_metadata_for_ptr(ptr, &chunk, &run, &bin, &huge);
+  if (meta == METADATA_INVALID) {
+    se_error("Invalid call to free()");
+  }
+  if (meta == METADATA_HUGE) {
+    arena_deallocate_huge_mapping(&main_arena, huge->entry.key,
+                                  ALIGNUP_PAGE(huge->len));
+    internal_free(huge);
+    return;
+  }
+
+  sealloc_free_with_metadata(chunk, bin, run, ptr);
+}
+
+void *sealloc_realloc(void *ptr, size_t size) {
+  se_debug("Reallocating a region at %p of size %zu", ptr, size);
+  chunk_t *chunk;
+  run_t *run_old;
+  bin_t *bin_old, *bin_new;
+  huge_chunk_t *huge;
+  metadata_t meta;
+  size_t size_palign = ALIGNUP_PAGE(size);
+  if (ptr == NULL) {
+      se_debug("Pointer is NULL, fallback to malloc");
+    return sealloc_malloc(size);
+  }
+  meta = locate_metadata_for_ptr(ptr, &chunk, &run_old, &bin_old, &huge);
   if (meta == METADATA_INVALID) {
     se_error("Invalid call to realloc()");
   }
@@ -163,4 +178,35 @@ void *sealloc_realloc(void *ptr, size_t size) {
     return huge->entry.key;
   }
   se_debug("Reallocating region of small/medium/large class");
+  /*
+   * size == old size -> zostawiamy jak jest
+   * size > old_size i size jest dalej w tym samym binie -> zostawiamy jak jest
+   * size > old_size i size jest w późniejszym binie -> zwalniamy region i
+   * alokujemy nowy size < old_size i size jest w tym samym binie -> zostawiamy
+   * jak jest size < old_size i size jest w wczesniejszym binie -> zwalniamy i
+   * alokujemy
+   */
+  run_validate_ptr(run_old, bin_old, ptr);
+  bin_new = arena_get_bin_by_reg_size(&main_arena, size);
+  void *dest = sealloc_allocate_with_bin(bin_new);
+  if (dest == NULL) {
+    se_debug("End of Memory");
+    return NULL;
+  }
+  if (bin_new->reg_size > bin_old->reg_size) {
+    memcpy(dest, ptr, bin_old->reg_size);
+    sealloc_free_with_metadata(chunk, bin_old, run_old, ptr);
+    return dest;
+  } else if (bin_new->reg_size < bin_old->reg_size) {
+    memcpy(dest, ptr, bin_new->reg_size);
+    sealloc_free_with_metadata(chunk, bin_old, run_old, ptr);
+    return dest;
+  }
+}
+
+void *sealloc_calloc(size_t nmemb, size_t size) {
+  // TODO: check for multiplication overflow
+  void *ptr = sealloc_malloc(nmemb * size);
+  memset(ptr, 0, nmemb * size);
+  return ptr;
 }
