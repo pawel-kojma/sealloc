@@ -26,7 +26,7 @@ typedef struct chunk_state chunk_t;
 
 typedef struct huge_chunk {
   ll_entry_t entry;
-  size_t len;
+  size_t len;  // Unaligned length of the mapping
 } huge_chunk_t;
 
 typedef struct arena_state {
@@ -45,7 +45,9 @@ void arena_deallocate_chunk(arena_t *arena, chunk_t *chunk);
 chunk_t *arena_get_chunk_from_ptr(arena_t *arena, void *ptr);
 bin_t *arena_get_bin_by_reg_size(arena_t *arena, uint16_t reg_size);
 huge_chunk_t *arena_find_huge_mapping(arena_t *arena, void *huge_map);
-void *arena_allocate_huge_mapping(arena_t *arena, size_t size);
-void arena_deallocate_huge_mapping(arena_t *arena, void *huge_map);
-
+void *arena_allocate_huge_mapping(arena_t *arena, size_t len);
+void arena_deallocate_huge_mapping(arena_t *arena, void *map, size_t len);
+void arena_store_huge_meta(arena_t *arena, huge_chunk_t *huge);
+void arena_delete_huge_meta(arena_t *arena, huge_chunk_t *huge);
+void arena_truncate_huge_mapping(arena_t *arena, huge_chunk_t *huge);
 #endif /* SEALLOC_ARENA_H_ */
