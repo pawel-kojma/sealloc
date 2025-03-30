@@ -202,8 +202,8 @@ void *sealloc_realloc(void *ptr, size_t size) {
   } else if (bin_new->reg_size < bin_old->reg_size) {
     memcpy(dest, ptr, bin_new->reg_size);
   }
-    sealloc_free_with_metadata(chunk, bin_old, run_old, ptr);
-    return dest;
+  sealloc_free_with_metadata(chunk, bin_old, run_old, ptr);
+  return dest;
 }
 
 void *sealloc_calloc(size_t nmemb, size_t size) {
