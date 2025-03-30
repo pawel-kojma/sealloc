@@ -25,7 +25,7 @@ typedef struct bin_state {
 // Initialize bin
 void bin_init(bin_t *bin, uint16_t reg_size);
 
-// Delete inactive run 
+// Delete inactive run
 void bin_delete_run(bin_t *bin, run_t *run);
 
 // Delete current run by putting on inactive list
