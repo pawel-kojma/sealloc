@@ -15,7 +15,8 @@ list(APPEND tests_e2e
             free_huge              
             free_invalid           
             free_regular           
-            malloc_huge            
+            malloc_huge
+            malloc_huge_multi
             malloc_memory_integrity
             malloc_multi           
             malloc_single          
