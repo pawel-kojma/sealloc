@@ -12,10 +12,16 @@ list(APPEND test_libs
 )
 
 list(APPEND tests_e2e 
-            malloc_huge
+            free_huge              
+            free_invalid           
+            free_regular           
+            malloc_huge            
             malloc_memory_integrity
-            malloc_multi
-            malloc_single
+            malloc_multi           
+            malloc_single          
+            realloc_huge           
+            realloc_invalid        
+            realloc_regular
 )
 list(APPEND test_srcs
     test_ia test_run test_container_ll test_bin test_chunk test_arena)
