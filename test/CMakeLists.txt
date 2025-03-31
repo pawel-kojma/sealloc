@@ -11,7 +11,12 @@ list(APPEND test_libs
   test_cflags
 )
 
-list(APPEND tests_e2e test_sealloc_1 test_sealloc_2)
+list(APPEND tests_e2e 
+            malloc_huge
+            malloc_memory_integrity
+            malloc_multi
+            malloc_single
+)
 list(APPEND test_srcs
     test_ia test_run test_container_ll test_bin test_chunk test_arena)
 include(GoogleTest)
@@ -24,6 +29,7 @@ endforeach()
 
 foreach(test_e2e ${tests_e2e})
     add_executable(${test_e2e} "./test_sealloc/${test_e2e}.cpp")
+    set_target_properties(${test_e2e} PROPERTIES OUTPUT_NAME "e2e_${test_e2e}")
     target_link_libraries(${test_e2e} ${test_libs})
     gtest_discover_tests(${test_e2e})
 endforeach()

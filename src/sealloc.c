@@ -190,6 +190,7 @@ void *sealloc_realloc(void *ptr, size_t size) {
   run_validate_ptr(run_old, bin_old, ptr);
   bin_new = arena_get_bin_by_reg_size(&main_arena, size);
   if (bin_new->reg_size == bin_old->reg_size) {
+    se_debug("New allocation is still in the same class");
     return ptr;
   }
   void *dest = sealloc_allocate_with_bin(bin_new);
