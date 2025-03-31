@@ -9,10 +9,3 @@ TEST(Sealloc, MallocHugeSingle) {
   void *reg = sealloc_malloc(huge_size);
   EXPECT_NE(reg, nullptr);
 }
-
-TEST(Sealloc, MallocHugeMulti) {
-  size_t huge_size = 2097152;  // 2MB
-  void *reg = sealloc_malloc(huge_size);
-  EXPECT_NE(reg, nullptr);
-}
-
