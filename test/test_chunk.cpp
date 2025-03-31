@@ -68,7 +68,9 @@ TEST_F(ChunkUtilsTest, ChunkSingleAllocation) {
   EXPECT_NE(alloc, nullptr);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 512), NODE_USED);
   EXPECT_EQ(get_tree_item(chunk->buddy_tree, 513), NODE_GUARD);
-  EXPECT_EQ(chunk->free_mem, CHUNK_SIZE_BYTES - (run_size_small + CHUNK_LEAST_REGION_SIZE_BYTES));
+  EXPECT_EQ(
+      chunk->free_mem,
+      CHUNK_SIZE_BYTES - (run_size_small + CHUNK_LEAST_REGION_SIZE_BYTES));
 }
 
 TEST_F(ChunkUtilsTest, ChunkManyAllocations) {

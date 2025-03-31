@@ -81,7 +81,7 @@ void *run_allocate(run_t *run, bin_t *bin) {
   return (void *)(heap + (run->current_idx * bin->reg_size));
 }
 
-static size_t run_validate_freeable(run_t *run, bin_t *bin, void *ptr) {
+size_t run_validate_ptr(run_t *run, bin_t *bin, void *ptr) {
   // Here, we trust that ptr is in range of current run
   ptrdiff_t rel_ptr = (uintptr_t)ptr - (uintptr_t)run->entry.key;
   size_t bitmap_idx = rel_ptr / bin->reg_size;
@@ -101,7 +101,7 @@ static size_t run_validate_freeable(run_t *run, bin_t *bin, void *ptr) {
 // Deallocate region from run
 void run_deallocate(run_t *run, bin_t *bin, void *ptr) {
   // Sanity check, if it passes we get region index in the bitmap
-  size_t bitmap_idx = run_validate_freeable(run, bin, ptr);
+  size_t bitmap_idx = run_validate_ptr(run, bin, ptr);
 
   // Mark as freed
   set_bitmap_item(run->reg_bitmap, bitmap_idx, STATE_ALLOC_FREE);

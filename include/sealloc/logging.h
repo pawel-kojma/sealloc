@@ -1,11 +1,11 @@
 /* Sealloc logging library */
 
-#ifndef LOGGING_H_
-#define LOGGING_H_
-
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifndef SEALLOC_LOGGING_H_
+#define SEALLOC_LOGGING_H_
 
 #ifdef LOGGING
 #define pr_fmt "%s:%d (%s) ", __FILE__, __LINE__, __func__
@@ -43,4 +43,4 @@
   }
 #endif
 
-#endif
+#endif /* SEALLOC_LOGGING_H_ */

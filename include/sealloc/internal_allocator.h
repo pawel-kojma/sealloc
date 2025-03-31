@@ -3,6 +3,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifndef SEALLOC_INTERNAL_ALLOCATOR_H_
+#define SEALLOC_INTERNAL_ALLOCATOR_H_
+
 /*
  * Least size chunk is 16 bytes
  * Entire buffer to partition is 8MB
@@ -37,3 +40,5 @@ void *internal_alloc(size_t);
 
 /* free chunk */
 void internal_free(void *);
+
+#endif /* SEALLOC_INTERNAL_ALLOCATOR_H_ */

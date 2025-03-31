@@ -161,34 +161,42 @@ huge_chunk_t *arena_find_huge_mapping(arena_t *arena, void *huge_map) {
   return CONTAINER_OF(ll_find(&arena->huge_mappings, huge_map), huge_chunk_t,
                       entry);
 }
-huge_chunk_t *arena_allocate_huge_mapping(arena_t *arena, size_t size) {
+
+void arena_store_huge_meta(arena_t *arena, huge_chunk_t *huge) {
+  ll_add(&arena->huge_mappings, &huge->entry);
+}
+
+void arena_delete_huge_meta(arena_t *arena, huge_chunk_t *huge) {
+  ll_del(&arena->huge_mappings, &huge->entry);
+}
+
+void *arena_allocate_huge_mapping(arena_t *arena, size_t len) {
   platform_status_code_t code;
   void *huge_map;
-  if ((code = platform_map(NULL, size, (void **)&huge_map)) !=
+  if ((code = platform_map(NULL, len, (void **)&huge_map)) !=
       PLATFORM_STATUS_OK) {
-    se_error("Failed to allocate huge mapping (size : %u): %s", size,
+    se_error("Failed to allocate huge mapping (size : %u): %s", len,
              platform_strerror(code));
   }
-  huge_chunk_t *chunk = internal_alloc(sizeof(huge_chunk_t));
-  chunk->entry.key = huge_map;
-  chunk->len = size;
-  ll_add(&arena->huge_mappings, &chunk->entry);
-  return chunk;
+  return huge_map;
 }
-void arena_deallocate_huge_mapping(arena_t *arena, void *huge_map) {
+void arena_deallocate_huge_mapping(arena_t *arena, void *map, size_t len) {
   platform_status_code_t code;
-  ll_entry_t *entry = ll_find(&arena->huge_mappings, huge_map);
-  if (entry == NULL) {
-    se_debug("Failed to find huge mapping (ptr : %p)", huge_map);
-    return;
+  if ((code = platform_unmap(map, len)) != PLATFORM_STATUS_OK) {
+    se_error("Failed to deallocate huge mapping (ptr : %p, size : %u): %s", map,
+             len, platform_strerror(code));
   }
-  huge_chunk_t *chunk = CONTAINER_OF(entry, huge_chunk_t, entry);
+}
 
-  if ((code = platform_unmap(chunk->entry.key, chunk->len)) !=
-      PLATFORM_STATUS_OK) {
-    se_error("Failed to deallocate huge mapping (ptr : %p, size : %u): %s",
-             chunk->entry.key, chunk->len, platform_strerror(code));
+void arena_truncate_huge_mapping(arena_t *arena, huge_chunk_t *huge,
+                                 unsigned trunc_len_aligned) {
+  platform_status_code_t code;
+  size_t cur_size = ALIGNUP_PAGE(huge->len);
+  void *map = (void *)((uintptr_t)huge->entry.key + (cur_size - trunc_len_aligned));
+  if ((code = platform_unmap(map, trunc_len_aligned)) != PLATFORM_STATUS_OK) {
+    se_error(
+        "Failed to truncate huge mapping (ptr : %p, size : %u, truncate : %u): "
+        "%s",
+        huge->entry.key, huge->len, trunc_len_aligned, platform_strerror(code));
   }
-  ll_del(&arena->huge_mappings, &chunk->entry);
-  internal_free((void *)chunk);
 }

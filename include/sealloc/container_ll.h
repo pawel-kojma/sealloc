@@ -1,7 +1,7 @@
 /* Linked lists container API for aggregating structures */
 
-#ifndef _CONTAINER_LL_H_
-#define _CONTAINER_LL_H_
+#ifndef SEALLOC_CONTAINER_LL_H_
+#define SEALLOC_CONTAINER_LL_H_
 
 struct ll_entry;
 struct ll_item;
@@ -27,4 +27,4 @@ void ll_add(ll_head_t *head, ll_entry_t *item);
 void ll_del(ll_head_t *head, ll_entry_t *item);
 ll_entry_t *ll_find(ll_head_t *head, void *key);
 
-#endif /* _CONTAINER_LL_H_ */
+#endif /* SEALLOC_CONTAINER_LL_H_ */

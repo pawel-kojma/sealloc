@@ -2,8 +2,8 @@
 
 #include <stdint.h>
 
-#ifndef GENERATOR_H
-#define GENERATOR_H
+#ifndef SEALLOC_GENERATOR_H_
+#define SEALLOC_GENERATOR_H_
 
 static unsigned GENERATORS_SMALL_LENGTHS[] = {
     256, 128, 64, 64, 32, 64, 72, 32, 24, 32, 22, 12, 24, 12, 16, 16, 8,   12,  12, 20, 8,  22, 10, 12, 8,  18, 6,  6,  16, 16, 8,  8,
@@ -104,4 +104,4 @@ static uint16_t GENERATORS_MEDIUM[4][4] = {
     {1},
 };
 
-#endif
+#endif /* SEALLOC_GENERATOR_H_ */
