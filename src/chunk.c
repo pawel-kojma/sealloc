@@ -3,6 +3,7 @@
 #include <sealloc/platform_api.h>
 #include <sealloc/run.h>
 #include <sealloc/utils.h>
+#include <sealloc/size_class.h>
 #include <string.h>
 
 #define RIGHT_CHILD(idx) (idx * 2 + 1)
@@ -155,7 +156,7 @@ void mark_reg_size(buddy_ctx_t *ctx, chunk_t *chunk, unsigned reg_size) {
   unsigned idx = ctx->idx - base;
   // Note that reg_size 4096 will eval to 0
   chunk->reg_size_small_medium[idx] =
-      (reg_size / SIZE_CLASS_ALIGNMENT) & UINT8_MAX;
+      (reg_size / SMALL_SIZE_CLASS_ALIGNMENT) & UINT8_MAX;
 }
 
 void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned reg_size) {
@@ -504,9 +505,9 @@ void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
   if (IS_LEAF(ctx.idx)) {
     compressed_reg_size = chunk->reg_size_small_medium[idx];
     if (compressed_reg_size == 0)
-      *reg_size = (UINT8_MAX + 1) * SIZE_CLASS_ALIGNMENT;
+      *reg_size = (UINT8_MAX + 1) * SMALL_SIZE_CLASS_ALIGNMENT;
     else
-      *reg_size = compressed_reg_size * SIZE_CLASS_ALIGNMENT;
+      *reg_size = compressed_reg_size * SMALL_SIZE_CLASS_ALIGNMENT;
   }
 }
 

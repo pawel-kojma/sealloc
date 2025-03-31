@@ -2,6 +2,7 @@
 
 extern "C" {
 #include <sealloc.h>
+#include <sealloc/size_class.h>
 #include <sealloc/utils.h>
 }
 
@@ -19,10 +20,10 @@ TEST(Sealloc, MultiAllocationMedium) {
   unsigned chunks = 512;
   void *reg[chunks];
   for (int i = 0; i < chunks; i++) {
-    reg[i] = sealloc_malloc(MEDIUM_CLASS_ALIGNMENT);
+    reg[i] = sealloc_malloc(MEDIUM_SIZE_CLASS_ALIGNMENT);
     EXPECT_NE(reg[i], nullptr);
   }
-  reg[0] = sealloc_malloc(MEDIUM_CLASS_ALIGNMENT);
+  reg[0] = sealloc_malloc(MEDIUM_SIZE_CLASS_ALIGNMENT);
 }
 
 TEST(Sealloc, MultiAllocationLarge) {

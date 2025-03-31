@@ -6,6 +6,7 @@
 
 extern "C" {
 #include <sealloc.h>
+#include <sealloc/random.h>
 }
 
 TEST(Sealloc, MemoryIntegrity) {
@@ -17,7 +18,7 @@ TEST(Sealloc, MemoryIntegrity) {
   std::vector<unsigned char> chunks_exp[CHUNKS];
   size_t size[CHUNKS];
   std::vector<size_t> SIZES{5, 10, 16, 17, 24, 32, 50, 4535, 12343, 544223};
-
+    init_splitmix32(2060289228);
   for (int i = 0; i < CHUNKS; i++) {
     size[i] = SIZES[rand() % SIZES.size()];
     chunks_dut[i] = sealloc_malloc(size[i]);

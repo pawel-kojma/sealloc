@@ -3,6 +3,7 @@
 extern "C" {
 #include <sealloc.h>
 #include <sealloc/utils.h>
+#include <sealloc/size_class.h>
 }
 
 namespace {
@@ -37,7 +38,7 @@ TEST_F(ReallocRegular, SmallTruncated) {
 }
 
 TEST_F(ReallocRegular, MediumSameSize) {
-  size_t size = MEDIUM_CLASS_ALIGNMENT;
+  size_t size = MEDIUM_SIZE_CLASS_ALIGNMENT;
   reg = sealloc_malloc(size);
   ASSERT_NE(reg, nullptr);
   reg_realloc = sealloc_realloc(reg, size);
@@ -46,7 +47,7 @@ TEST_F(ReallocRegular, MediumSameSize) {
 }
 
 TEST_F(ReallocRegular, MediumExpanded) {
-  size_t size = MEDIUM_CLASS_ALIGNMENT;
+  size_t size = MEDIUM_SIZE_CLASS_ALIGNMENT;
   reg = sealloc_malloc(size);
   ASSERT_NE(reg, nullptr);
   reg_realloc = sealloc_realloc(reg, size + 1);
@@ -55,7 +56,7 @@ TEST_F(ReallocRegular, MediumExpanded) {
 }
 
 TEST_F(ReallocRegular, MediumTruncated) {
-  size_t size = MEDIUM_CLASS_ALIGNMENT;
+  size_t size = MEDIUM_SIZE_CLASS_ALIGNMENT;
   reg = sealloc_malloc(size);
   ASSERT_NE(reg, nullptr);
   reg_realloc = sealloc_realloc(reg, 48);

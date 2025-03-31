@@ -6,6 +6,7 @@
 #include <sealloc/platform_api.h>
 #include <sealloc/random.h>
 #include <sealloc/run.h>
+#include <sealloc/size_class.h>
 #include <sealloc/utils.h>
 #include <string.h>
 
@@ -34,7 +35,8 @@ run_t *arena_allocate_run(arena_t *arena, bin_t *bin) {
                                  bin->reg_size);
     if (run_ptr != NULL) {
       // We just allocated a run
-      run = internal_alloc(sizeof(run_t));
+      run = internal_alloc(sizeof(run_t) +
+                           BITS2BYTES_CEIL(bin->reg_mask_size_bits));
       if (run == NULL) {
         // EOM
         return NULL;
@@ -55,7 +57,8 @@ run_t *arena_allocate_run(arena_t *arena, bin_t *bin) {
   if (run_ptr == NULL) {
     se_error("Failed to allocate run from fresh chunk");
   }
-  run = internal_alloc(sizeof(run_t));
+  run =
+      internal_alloc(sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
   if (run == NULL) {
     // EOM
     return NULL;
@@ -129,27 +132,18 @@ chunk_t *arena_get_chunk_from_ptr(arena_t *arena, void *ptr) {
   return chunk;
 }
 
-static unsigned ctz(unsigned x) {
-  unsigned cnt = 0;
-  while (x > 1) {
-    cnt++;
-    x >>= 1;
-  }
-  return cnt;
-}
-
-bin_t *arena_get_bin_by_reg_size(arena_t *arena, uint16_t reg_size) {
+bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size) {
   unsigned skip_bins = 0;
   bin_t *bin = NULL;
   // Assume reg_size is either small, medium or large class
   if (IS_SIZE_SMALL(reg_size)) {
-    bin = &arena->bins[reg_size / SIZE_CLASS_ALIGNMENT - 1];
+    bin = &arena->bins[SIZE_TO_IDX_SMALL(reg_size)];
   } else if (IS_SIZE_MEDIUM(reg_size)) {
-    skip_bins = ARENA_NO_SMALL_BINS;
-    bin = &arena->bins[skip_bins + (reg_size / MEDIUM_CLASS_ALIGNMENT) - 1];
+    skip_bins = NO_SMALL_SIZE_CLASSES;
+    bin = &arena->bins[skip_bins + SIZE_TO_IDX_MEDIUM(reg_size)];
   } else {
-    skip_bins += ARENA_NO_MEDIUM_BINS + ARENA_NO_SMALL_BINS;
-    bin = &arena->bins[skip_bins + ctz(reg_size / (2 * PAGE_SIZE))];
+    skip_bins += NO_SMALL_SIZE_CLASSES + NO_MEDIUM_SIZE_CLASSES;
+    bin = &arena->bins[skip_bins + size_to_idx_large(reg_size)];
   }
   if (bin->reg_size == 0) {
     bin_init(bin, reg_size);
@@ -192,7 +186,8 @@ void arena_truncate_huge_mapping(arena_t *arena, huge_chunk_t *huge,
                                  unsigned trunc_len_aligned) {
   platform_status_code_t code;
   size_t cur_size = ALIGNUP_PAGE(huge->len);
-  void *map = (void *)((uintptr_t)huge->entry.key + (cur_size - trunc_len_aligned));
+  void *map =
+      (void *)((uintptr_t)huge->entry.key + (cur_size - trunc_len_aligned));
   if ((code = platform_unmap(map, trunc_len_aligned)) != PLATFORM_STATUS_OK) {
     se_error(
         "Failed to truncate huge mapping (ptr : %p, size : %u, truncate : %u): "

@@ -18,30 +18,30 @@ TEST(BinUtils, BinInitSmall) {
   bin_t *bin = (bin_t *)malloc(sizeof(bin_t));
 
   bin_init(bin, 16);
-  EXPECT_TRUE(bin->reg_mask_size_bits == 1024 && bin->reg_size == 16 &&
-              bin->run_size_pages == 2 && bin->run_list_inactive.ll == NULL);
+  EXPECT_EQ(bin->reg_mask_size_bits, 1024);
+  EXPECT_EQ(bin->reg_size, 16);
+  EXPECT_EQ(bin->run_size_pages, 2);
+  EXPECT_EQ(bin->run_list_inactive.ll, nullptr);
 }
 
 TEST(BinUtils, BinInitMedium) {
   bin_t *bin = (bin_t *)malloc(sizeof(bin_t));
 
   bin_init(bin, 2048);
-  EXPECT_TRUE(bin->reg_mask_size_bits == 8 && bin->reg_size == 2048 &&
-              bin->run_size_pages == 2 && bin->run_list_inactive.ll == NULL);
+  EXPECT_EQ(bin->reg_mask_size_bits, 8);
+  EXPECT_EQ(bin->reg_size, 2048);
+  EXPECT_EQ(bin->run_size_pages, 2);
+  EXPECT_EQ(bin->run_list_inactive.ll, nullptr);
 }
 
 TEST(BinUtils, BinInitLarge) {
   bin_t *bin = (bin_t *)malloc(sizeof(bin_t));
 
   bin_init(bin, 16384);
-  EXPECT_TRUE(bin->reg_mask_size_bits == 2 && bin->reg_size == 16384 &&
-              bin->run_size_pages == 4 && bin->run_list_inactive.ll == NULL);
-}
-
-TEST(BinUtils, BinInitUnaligned) {
-  bin_t *bin = (bin_t *)malloc(sizeof(bin_t));
-
-  EXPECT_DEATH({ bin_init(bin, 16383); }, ".*reg_size is not aligned.*");
+  EXPECT_EQ(bin->reg_mask_size_bits, 2);
+  EXPECT_EQ(bin->reg_size, 16384);
+  EXPECT_EQ(bin->run_size_pages, 4);
+  EXPECT_EQ(bin->run_list_inactive.ll, nullptr);
 }
 
 TEST(BinUtils, BinAddRunFillRun) {

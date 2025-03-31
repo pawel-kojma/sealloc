@@ -3,6 +3,7 @@
 #include <sealloc/logging.h>
 #include <sealloc/random.h>
 #include <sealloc/run.h>
+#include <sealloc/size_class.h>
 #include <sealloc/utils.h>
 #include <stdbool.h>
 #include <string.h>
@@ -33,11 +34,11 @@ void run_init(run_t *run, bin_t *bin, void *heap) {
 
   // Choose a generator
   if (IS_SIZE_SMALL(bin->reg_size)) {
-    gen_idx = bin->reg_size / 16 - 1;
+    gen_idx = bin->reg_size / SMALL_SIZE_CLASS_ALIGNMENT - 1;
     run->gen = GENERATORS_SMALL[gen_idx][splitmix32() %
                                          GENERATORS_SMALL_LENGTHS[gen_idx]];
   } else if (IS_SIZE_MEDIUM(bin->reg_size)) {
-    gen_idx = bin->reg_size / 1024 - 1;
+    gen_idx = bin->reg_size / MEDIUM_SIZE_CLASS_ALIGNMENT - 1;
     run->gen = GENERATORS_MEDIUM[gen_idx][splitmix32() %
                                           GENERATORS_MEDIUM_LENGTHS[gen_idx]];
   } else {
@@ -77,7 +78,8 @@ void *run_allocate(run_t *run, bin_t *bin) {
 
   // Decrese amount of free regions
   run->navail--;
-
+  se_debug("Allocating region at current_idx %u, next is %u", run->current_idx,
+           (run->gen + run->current_idx) % elems);
   return (void *)(heap + (run->current_idx * bin->reg_size));
 }
 

@@ -76,6 +76,7 @@ platform_status_code_t platform_get_random(uint32_t *buf) {
   if (close(fd) < 0) {
     return get_error_from_errno();
   }
+  se_debug("Got random value : %u", *buf);
   return PLATFORM_STATUS_OK;
 }
 
