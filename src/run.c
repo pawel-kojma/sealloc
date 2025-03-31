@@ -78,7 +78,8 @@ void *run_allocate(run_t *run, bin_t *bin) {
 
   // Decrese amount of free regions
   run->navail--;
-
+  se_debug("Allocating region at current_idx %u, next is %u", run->current_idx,
+           (run->gen + run->current_idx) % elems);
   return (void *)(heap + (run->current_idx * bin->reg_size));
 }
 

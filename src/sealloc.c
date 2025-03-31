@@ -4,6 +4,7 @@
 #include <sealloc/internal_allocator.h>
 #include <sealloc/logging.h>
 #include <sealloc/run.h>
+#include <sealloc/size_class.h>
 #include <sealloc/utils.h>
 #include <string.h>
 
@@ -47,10 +48,8 @@ static void *sealloc_allocate_with_bin(bin_t *bin) {
 }
 
 void *sealloc_malloc(size_t size) {
-  se_debug("Allocating region of size %zu (aligned to %zu)", size,
-           ALIGNUP_16(size));
-  size = ALIGNUP_16(size);
-  if (size >= LARGE_SIZE_MAX_REGION ) {
+  size_t aligned_size;
+  if (size >= LARGE_SIZE_MAX_REGION) {
     huge_chunk_t *huge;
     huge = internal_alloc(sizeof(huge_chunk_t));
     if (huge == NULL) return NULL;
@@ -60,8 +59,18 @@ void *sealloc_malloc(size_t size) {
     arena_store_huge_meta(&main_arena, huge);
     return huge->entry.key;
   }
-  // Since size is at most large class, size_t will fit into uint16_t
-  bin_t *bin = arena_get_bin_by_reg_size(&main_arena, size);
+
+  if (IS_SIZE_SMALL(size)) {
+    aligned_size = ALIGNUP_SMALL_SIZE(size);
+  } else if (IS_SIZE_MEDIUM(size)) {
+    aligned_size = ALIGNUP_MEDIUM_SIZE(size);
+  } else {
+    aligned_size = alignup_large_size(size);
+  }
+
+  se_debug("Allocating region of size %zu (aligned to %zu)", size,
+           aligned_size);
+  bin_t *bin = arena_get_bin_by_reg_size(&main_arena, aligned_size);
   return sealloc_allocate_with_bin(bin);
 }
 

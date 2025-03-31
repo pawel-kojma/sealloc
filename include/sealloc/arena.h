@@ -37,7 +37,7 @@ run_t *arena_allocate_run(arena_t *arena, bin_t *bin);
 chunk_t *arena_allocate_chunk(arena_t *arena);
 void arena_deallocate_chunk(arena_t *arena, chunk_t *chunk);
 chunk_t *arena_get_chunk_from_ptr(arena_t *arena, void *ptr);
-bin_t *arena_get_bin_by_reg_size(arena_t *arena, uint16_t reg_size);
+bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size);
 huge_chunk_t *arena_find_huge_mapping(arena_t *arena, void *huge_map);
 void *arena_allocate_huge_mapping(arena_t *arena, size_t len);
 void arena_deallocate_huge_mapping(arena_t *arena, void *map, size_t len);

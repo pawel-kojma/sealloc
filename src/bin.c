@@ -6,7 +6,7 @@
 #include <sealloc/size_class.h>
 #include <sealloc/utils.h>
 
-void bin_init(bin_t *bin, uint16_t reg_size) {
+void bin_init(bin_t *bin, unsigned reg_size) {
   unsigned reg_size_aligned;
   ll_init(&bin->run_list_inactive);
   if (IS_SIZE_SMALL(reg_size)) {

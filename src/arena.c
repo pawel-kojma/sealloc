@@ -35,7 +35,8 @@ run_t *arena_allocate_run(arena_t *arena, bin_t *bin) {
                                  bin->reg_size);
     if (run_ptr != NULL) {
       // We just allocated a run
-      run = internal_alloc(sizeof(run_t));
+      run = internal_alloc(sizeof(run_t) +
+                           BITS2BYTES_CEIL(bin->reg_mask_size_bits));
       if (run == NULL) {
         // EOM
         return NULL;
@@ -56,7 +57,8 @@ run_t *arena_allocate_run(arena_t *arena, bin_t *bin) {
   if (run_ptr == NULL) {
     se_error("Failed to allocate run from fresh chunk");
   }
-  run = internal_alloc(sizeof(run_t));
+  run =
+      internal_alloc(sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
   if (run == NULL) {
     // EOM
     return NULL;
@@ -130,7 +132,7 @@ chunk_t *arena_get_chunk_from_ptr(arena_t *arena, void *ptr) {
   return chunk;
 }
 
-bin_t *arena_get_bin_by_reg_size(arena_t *arena, uint16_t reg_size) {
+bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size) {
   unsigned skip_bins = 0;
   bin_t *bin = NULL;
   // Assume reg_size is either small, medium or large class
