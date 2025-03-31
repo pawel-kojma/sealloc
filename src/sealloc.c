@@ -50,7 +50,7 @@ void *sealloc_malloc(size_t size) {
   se_debug("Allocating region of size %zu (aligned to %zu)", size,
            ALIGNUP_16(size));
   size = ALIGNUP_16(size);
-  if (size >= MAX_LARGE_SIZE) {
+  if (size >= LARGE_SIZE_MAX_REGION ) {
     huge_chunk_t *huge;
     huge = internal_alloc(sizeof(huge_chunk_t));
     if (huge == NULL) return NULL;

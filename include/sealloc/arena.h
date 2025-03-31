@@ -3,6 +3,7 @@
 #include <sealloc/bin.h>
 #include <sealloc/container_ll.h>
 #include <sealloc/utils.h>
+#include <sealloc/size_class.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -13,15 +14,8 @@
 struct chunk_state;
 typedef struct chunk_state chunk_t;
 
-// Each bin describes different size class
-// Small - len(16, ..., 16*i, ..., 512) = 32
-// Medium - len(1KB, 2KB, 4KB) = 3
-// Large - len(8KB, ..., 8KB * (2 ** (i-1)), 1MB) = 8
-#define ARENA_NO_SMALL_BINS 32
-#define ARENA_NO_MEDIUM_BINS 3
-#define ARENA_NO_LARGE_BINS 8
 #define ARENA_NO_BINS \
-  (ARENA_NO_SMALL_BINS + ARENA_NO_MEDIUM_BINS + ARENA_NO_LARGE_BINS)
+  (NO_SMALL_SIZE_CLASSES  + NO_MEDIUM_SIZE_CLASSES + NO_LARGE_SIZE_CLASSES)
 #define CHUNKS_PER_MAPPING 4
 
 typedef struct huge_chunk {

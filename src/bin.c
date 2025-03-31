@@ -3,20 +3,24 @@
 #include <sealloc/logging.h>
 #include <sealloc/random.h>
 #include <sealloc/run.h>
+#include <sealloc/size_class.h>
 #include <sealloc/utils.h>
 
 void bin_init(bin_t *bin, uint16_t reg_size) {
-  if (!IS_ALIGNED(reg_size, SIZE_CLASS_ALIGNMENT)) {
-    se_error("reg_size is not aligned");
-  }
+  unsigned reg_size_aligned;
   ll_init(&bin->run_list_inactive);
-  bin->reg_size = reg_size;
-  if (IS_SIZE_SMALL(reg_size) || IS_SIZE_MEDIUM(reg_size)) {
+  if (IS_SIZE_SMALL(reg_size)) {
+    reg_size_aligned = ALIGNUP_SMALL_SIZE(reg_size);
+    bin->run_size_pages = 2;
+  } else if (IS_SIZE_MEDIUM(reg_size)) {
+    reg_size_aligned = ALIGNUP_MEDIUM_SIZE(reg_size);
     bin->run_size_pages = 2;
   } else {
     // Assuming large size class
-    bin->run_size_pages = reg_size / PAGE_SIZE;
+    reg_size_aligned = alignup_large_size(reg_size);
+    bin->run_size_pages = reg_size_aligned / PAGE_SIZE;
   }
+  bin->reg_size = reg_size_aligned;
   bin->reg_mask_size_bits = ((bin->run_size_pages * PAGE_SIZE) / reg_size) * 2;
   bin->run_list_inactive_cnt = 0;
 }

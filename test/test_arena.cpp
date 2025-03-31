@@ -5,6 +5,8 @@
 extern "C" {
 #include <sealloc/arena.h>
 #include <sealloc/chunk.h>
+#include <sealloc/utils.h>
+#include <sealloc/size_class.h>
 }
 
 TEST(ArenaUtils, ArenaInit) {
@@ -78,15 +80,15 @@ TEST_F(ArenaUtilsTest, ArenaGetChunkFromPtr) {
 
 TEST_F(ArenaUtilsTest, ArenaGetBinByRegSize) {
   bin_t *small, *medium, *large1, *large2;
-  small = arena_get_bin_by_reg_size(&arena, SIZE_CLASS_ALIGNMENT);
-  medium = arena_get_bin_by_reg_size(&arena, MEDIUM_CLASS_ALIGNMENT);
+  small = arena_get_bin_by_reg_size(&arena, SMALL_SIZE_CLASS_ALIGNMENT);
+  medium = arena_get_bin_by_reg_size(&arena, MEDIUM_SIZE_CLASS_ALIGNMENT);
   large1 = arena_get_bin_by_reg_size(&arena, 2 * PAGE_SIZE);
   large2 = arena_get_bin_by_reg_size(&arena, 4 * PAGE_SIZE);
   EXPECT_EQ(get_bin_idx(small), 0);
-  EXPECT_EQ(get_bin_idx(medium), ARENA_NO_SMALL_BINS);
-  EXPECT_EQ(get_bin_idx(large1), ARENA_NO_SMALL_BINS + ARENA_NO_MEDIUM_BINS);
+  EXPECT_EQ(get_bin_idx(medium), NO_SMALL_SIZE_CLASSES);
+  EXPECT_EQ(get_bin_idx(large1), NO_SMALL_SIZE_CLASSES + NO_MEDIUM_SIZE_CLASSES);
   EXPECT_EQ(get_bin_idx(large2),
-            ARENA_NO_SMALL_BINS + ARENA_NO_MEDIUM_BINS + 1);
+            NO_SMALL_SIZE_CLASSES + NO_MEDIUM_SIZE_CLASSES + 1);
 }
 
 TEST_F(ArenaUtilsTest, ArenaAllocateHugeChunk) {
@@ -117,7 +119,7 @@ TEST_F(ArenaUtilsTest, ArenaFindHugeMapping) {
 }
 
 TEST_F(ArenaUtilsTest, ArenaAllocateRun) {
-  bin_t *bin = arena_get_bin_by_reg_size(&arena, SIZE_CLASS_ALIGNMENT);
+  bin_t *bin = arena_get_bin_by_reg_size(&arena, SMALL_SIZE_CLASS_ALIGNMENT);
   run_t *run = arena_allocate_run(&arena, bin);
   EXPECT_NE(run, nullptr);
 }
