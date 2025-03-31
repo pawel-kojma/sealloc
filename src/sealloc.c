@@ -37,6 +37,7 @@ static void *sealloc_allocate_with_bin(bin_t *bin) {
     se_debug("End of memory");
     return NULL;
   }
+  se_debug("Got run (run_ptr : %p)", run->entry.key);
   bin->runcur = run;
   se_debug("Allocating from fresh run");
   ptr = run_allocate(run, bin);
@@ -49,6 +50,7 @@ static void *sealloc_allocate_with_bin(bin_t *bin) {
 
 void *sealloc_malloc(size_t size) {
   size_t aligned_size;
+  if (size == 0) return NULL;
   if (size >= LARGE_SIZE_MAX_REGION) {
     huge_chunk_t *huge;
     huge = internal_alloc(sizeof(huge_chunk_t));
@@ -59,12 +61,13 @@ void *sealloc_malloc(size_t size) {
     arena_store_huge_meta(&main_arena, huge);
     return huge->entry.key;
   }
-
+  // TODO: handle all cases of size, eg. size == 0 , size == 1 etc..
   if (IS_SIZE_SMALL(size)) {
     aligned_size = ALIGNUP_SMALL_SIZE(size);
   } else if (IS_SIZE_MEDIUM(size)) {
     aligned_size = ALIGNUP_MEDIUM_SIZE(size);
   } else {
+    // TODO: Bug if size == 5 then aligned is 8192
     aligned_size = alignup_large_size(size);
   }
 
@@ -98,6 +101,7 @@ static metadata_t locate_metadata_for_ptr(void *ptr, chunk_t **chunk_ret,
   if (run_ptr == NULL) {
     return METADATA_INVALID;
   }
+  se_debug("Found run (run_ptr : %p)", run_ptr);
   if (reg_size > 0) {
     se_debug("Getting bin for small/medium class");
     *bin_ret = arena_get_bin_by_reg_size(&main_arena, reg_size);
@@ -106,7 +110,7 @@ static metadata_t locate_metadata_for_ptr(void *ptr, chunk_t **chunk_ret,
     *bin_ret = arena_get_bin_by_reg_size(&main_arena, run_size);
   }
   *run_ret = bin_get_run_by_addr(*bin_ret, run_ptr);
-  se_debug("Found run medatada at %p (reg_size : %u, run_size_pages %u)",
+  se_debug("Found run metadata at %p (reg_size : %u, run_size_pages %u)",
            (void *)*run_ret, (*bin_ret)->reg_size, (*bin_ret)->run_size_pages);
   return METADATA_REGULAR;
 }

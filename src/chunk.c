@@ -502,6 +502,8 @@ void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
   unsigned base = (CHUNK_NO_NODES + 1) / 2;
   unsigned idx = ctx.idx - base;
   uint8_t compressed_reg_size;
+
+  // WRONG: large size of size 8192 can also be a leaf, in this case array element is set to 0xff, hence 0xff * 16 = 4080 and we get a segfault
   if (IS_LEAF(ctx.idx)) {
     compressed_reg_size = chunk->reg_size_small_medium[idx];
     if (compressed_reg_size == 0)
