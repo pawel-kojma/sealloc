@@ -510,7 +510,8 @@ void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
         *reg_size = (UINT8_MAX + 1) * SMALL_SIZE_CLASS_ALIGNMENT;
       else
         *reg_size = compressed_reg_size * SMALL_SIZE_CLASS_ALIGNMENT;
-    }
+    } else
+      *reg_size = 0;
   } else
     *reg_size = 0;
 }
