@@ -503,14 +503,16 @@ void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
   unsigned idx = ctx.idx - base;
   uint8_t compressed_reg_size;
 
-  if (chunk->reg_size_small_medium[idx] != REG_MARK_BAD_VALUE) {
-    compressed_reg_size = chunk->reg_size_small_medium[idx];
-    if (compressed_reg_size == 0)
-      *reg_size = (UINT8_MAX + 1) * SMALL_SIZE_CLASS_ALIGNMENT;
-    else
-      *reg_size = compressed_reg_size * SMALL_SIZE_CLASS_ALIGNMENT;
-  }
-  else *reg_size = 0;
+  if (IS_LEAF(ctx.idx)) {
+    if (chunk->reg_size_small_medium[idx] != REG_MARK_BAD_VALUE) {
+      compressed_reg_size = chunk->reg_size_small_medium[idx];
+      if (compressed_reg_size == 0)
+        *reg_size = (UINT8_MAX + 1) * SMALL_SIZE_CLASS_ALIGNMENT;
+      else
+        *reg_size = compressed_reg_size * SMALL_SIZE_CLASS_ALIGNMENT;
+    }
+  } else
+    *reg_size = 0;
 }
 
 bool chunk_is_empty(chunk_t *chunk) {
