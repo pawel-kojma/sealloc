@@ -142,7 +142,7 @@ bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size) {
     skip_bins = NO_SMALL_SIZE_CLASSES;
     bin = &arena->bins[skip_bins + SIZE_TO_IDX_MEDIUM(reg_size)];
   } else {
-    skip_bins += NO_SMALL_SIZE_CLASSES + NO_MEDIUM_SIZE_CLASSES;
+    skip_bins = NO_SMALL_SIZE_CLASSES + NO_MEDIUM_SIZE_CLASSES;
     bin = &arena->bins[skip_bins + size_to_idx_large(reg_size)];
   }
   if (bin->reg_size == 0) {
