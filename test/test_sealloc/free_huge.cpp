@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 extern "C" {
-#include <sealloc.h>
+#include <sealloc/sealloc.h>
 }
 
 TEST(Sealloc, FreeHuge) {

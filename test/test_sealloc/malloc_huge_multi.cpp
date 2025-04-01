@@ -3,7 +3,7 @@
 #include <random>
 
 extern "C" {
-#include <sealloc.h>
+#include <sealloc/sealloc.h>
 #include <sealloc/size_class.h>
 #include <sealloc/arena.h>
 }

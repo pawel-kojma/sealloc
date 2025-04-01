@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 extern "C" {
-#include <sealloc.h>
+#include <sealloc/sealloc.h>
 #include <sealloc/arena.h>
 #include <sealloc/size_class.h>
 #include <sealloc/utils.h>

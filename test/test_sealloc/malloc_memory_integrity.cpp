@@ -5,7 +5,7 @@
 #include <random>
 
 extern "C" {
-#include <sealloc.h>
+#include <sealloc/sealloc.h>
 #include <sealloc/random.h>
 #include <sealloc/arena.h>
 }
