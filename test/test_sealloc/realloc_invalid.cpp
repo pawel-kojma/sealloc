@@ -1,26 +1,35 @@
 #include <gtest/gtest.h>
 
 extern "C" {
-#include <sealloc.h>
+#include <sealloc/sealloc.h>
+#include <sealloc/arena.h>
 }
 
 TEST(ReallocInvalid, InvalidRegion) {
+  arena_t arena;
+  arena_init(&arena);
   ASSERT_DEATH(
-      { void *reg = sealloc_realloc((void *)42, 16); },
+      { void *reg = sealloc_realloc(&arena, (void *)42, 16); },
       ".*Invalid call to realloc().*");
 }
 
 TEST(ReallocInvalid, FreedRegion) {
-  void *reg = sealloc_malloc(16);
-  sealloc_free(reg);
+  arena_t arena;
+  arena_init(&arena);
+  void *reg = sealloc_malloc(&arena, 16);
+  sealloc_free(&arena, reg);
   ASSERT_DEATH(
-      { void *reg1 = sealloc_realloc(reg, 32); },
+      { void *reg1 = sealloc_realloc(&arena, reg, 32); },
       ".*Invalid call to realloc().*");
 }
 
 TEST(ReallocInvalid, UnallocatedRegion) {
-  void *reg = sealloc_malloc(48);
+  arena_t arena;
+  arena_init(&arena);
+  void *reg = sealloc_malloc(&arena, 48);
   ASSERT_DEATH(
-      { void *reg1 = sealloc_realloc((void *)((uintptr_t)reg + 48), 32); },
+      {
+        void *reg1 = sealloc_realloc(&arena, (void *)((uintptr_t)reg + 48), 32);
+      },
       ".*Invalid call to realloc().*");
 }

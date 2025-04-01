@@ -20,6 +20,9 @@ list(APPEND tests_e2e
             malloc_memory_integrity
             malloc_multi           
             malloc_single          
+            realloc_invalid
+            realloc_regular
+            realloc_huge
 )
 list(APPEND test_srcs
     test_ia test_run test_container_ll test_bin test_chunk test_arena test_size_class)
