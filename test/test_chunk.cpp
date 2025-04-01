@@ -110,6 +110,18 @@ TEST_F(ChunkUtilsTest, ChunkRegSizeArrayUpdate) {
   EXPECT_EQ(chunk->reg_size_small_medium[5], 0xff);
 }
 
+TEST_F(ChunkUtilsTest, ChunkRegSizeArrayLargeHandling) {
+  chunk_init(chunk, heap);
+  // Allocate smallest large size, which will be a leaf node
+  void *run_ptr = nullptr, *alloc = chunk_allocate_run(chunk, run_size_small, 8192);
+  unsigned run_size, reg_size;
+
+  chunk_get_run_ptr(chunk, alloc, &run_ptr, &run_size, &reg_size);
+  EXPECT_EQ(alloc, run_ptr);
+  EXPECT_EQ(run_size, run_size_small);
+  EXPECT_EQ(reg_size, 0);
+}
+
 TEST_F(ChunkUtilsTest, ChunkSingleDeallocate) {
   void *alloc;
   chunk_init(chunk, heap);

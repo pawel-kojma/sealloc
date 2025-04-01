@@ -86,7 +86,7 @@ TEST_F(RunUtilsTestSmall, RunDeallocate) {
   EXPECT_FALSE(run_is_freeable(run, bin));
   EXPECT_TRUE(run_is_depleted(run));
   for (int i = 0; i < elems; i++) {
-    run_deallocate(run, bin, chunks[i]);
+    EXPECT_TRUE(run_deallocate(run, bin, chunks[i]));
   }
   EXPECT_TRUE(run_is_freeable(run, bin));
 }
@@ -121,12 +121,8 @@ TEST_F(RunUtilsTestSmallDeath, DoubleFree) {
     chunks_dut[i] = run_allocate(run, bin);
   }
   EXPECT_TRUE(run_is_depleted(run));
-  ASSERT_DEATH(
-      {
-        run_deallocate(run, bin, chunks_dut[13243 % elems]);
-        run_deallocate(run, bin, chunks_dut[13243 % elems]);
-      },
-      ".* Provided ptr not freeable .*");
+  EXPECT_TRUE(run_deallocate(run, bin, chunks_dut[13243 % elems]));
+  EXPECT_FALSE(run_deallocate(run, bin, chunks_dut[13243 % elems]));
 }
 
 }  // namespace
@@ -191,7 +187,7 @@ TEST_F(RunUtilsTestMedium, RunDeallocate) {
   EXPECT_FALSE(run_is_freeable(run, bin));
   EXPECT_TRUE(run_is_depleted(run));
   for (int i = 0; i < elems; i++) {
-    run_deallocate(run, bin, chunks[i]);
+    EXPECT_TRUE(run_deallocate(run, bin, chunks[i]));
   }
   EXPECT_TRUE(run_is_freeable(run, bin));
 }
@@ -225,12 +221,8 @@ TEST_F(RunUtilsTestMediumDeath, DoubleFree) {
     chunks_dut[i] = run_allocate(run, bin);
   }
   EXPECT_TRUE(run_is_depleted(run));
-  ASSERT_DEATH(
-      {
-        run_deallocate(run, bin, chunks_dut[13243 % elems]);
-        run_deallocate(run, bin, chunks_dut[13243 % elems]);
-      },
-      ".* Provided ptr not freeable .*");
+  EXPECT_TRUE(run_deallocate(run, bin, chunks_dut[13243 % elems]));
+  EXPECT_FALSE(run_deallocate(run, bin, chunks_dut[13243 % elems]));
 }
 
 }  // namespace
@@ -292,7 +284,7 @@ TEST_F(RunUtilsTestLarge, RunDeallocate) {
   EXPECT_FALSE(run_is_freeable(run, bin));
   EXPECT_TRUE(run_is_depleted(run));
   for (int i = 0; i < elems; i++) {
-    run_deallocate(run, bin, chunks[i]);
+    EXPECT_TRUE(run_deallocate(run, bin, chunks[i]));
   }
   EXPECT_TRUE(run_is_freeable(run, bin));
 }
@@ -326,12 +318,8 @@ TEST_F(RunUtilsTestLargeDeath, DoubleFree) {
     chunks_dut[i] = run_allocate(run, bin);
   }
   EXPECT_TRUE(run_is_depleted(run));
-  ASSERT_DEATH(
-      {
-        run_deallocate(run, bin, chunks_dut[13243 % elems]);
-        run_deallocate(run, bin, chunks_dut[13243 % elems]);
-      },
-      ".* Provided ptr not freeable .*");
+  EXPECT_TRUE(run_deallocate(run, bin, chunks_dut[13243 % elems]));
+  EXPECT_FALSE(run_deallocate(run, bin, chunks_dut[13243 % elems]));
 }
 
 }  // namespace

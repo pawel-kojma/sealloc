@@ -94,20 +94,24 @@ size_t run_validate_ptr(run_t *run, bin_t *bin, void *ptr) {
 
   // Check for double free
   if (get_bitmap_item(run->reg_bitmap, bitmap_idx) != STATE_ALLOC) {
-    se_error("Provided ptr not freeable (ptr=%p)", ptr);
+    // se_error("Provided ptr not freeable (ptr=%p)", ptr);
+    return SIZE_MAX;
   }
 
   return bitmap_idx;
 }
 
 // Deallocate region from run
-void run_deallocate(run_t *run, bin_t *bin, void *ptr) {
+bool run_deallocate(run_t *run, bin_t *bin, void *ptr) {
   // Sanity check, if it passes we get region index in the bitmap
   size_t bitmap_idx = run_validate_ptr(run, bin, ptr);
+  if(bitmap_idx == SIZE_MAX)
+      return false;
 
   // Mark as freed
   set_bitmap_item(run->reg_bitmap, bitmap_idx, STATE_ALLOC_FREE);
   run->nfreed++;
+  return true;
 }
 
 bool run_is_depleted(run_t *run) { return run->navail == 0; }

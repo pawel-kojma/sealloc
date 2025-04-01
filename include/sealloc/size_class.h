@@ -19,8 +19,7 @@
 #define MEDIUM_SIZE_MAX_REGION PAGE_SIZE
 #define LARGE_SIZE_MIN_REGION (2 * PAGE_SIZE)
 #define LARGE_SIZE_MAX_REGION 1048576  // 1MB
-#define IS_SIZE_SMALL(size) \
-  (SMALL_SIZE_MIN_REGION <= (size) && (size) <= SMALL_SIZE_MAX_REGION)
+#define IS_SIZE_SMALL(size) (1 <= (size) && (size) <= SMALL_SIZE_MAX_REGION)
 #define IS_SIZE_MEDIUM(size) \
   (MEDIUM_SIZE_MIN_REGION <= (size) && (size) <= MEDIUM_SIZE_MAX_REGION)
 #define IS_SIZE_LARGE(size) \

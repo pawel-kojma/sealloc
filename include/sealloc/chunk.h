@@ -28,6 +28,8 @@ typedef struct run_state run_t;
 #define CHUNK_BUDDY_TREE_SIZE_BYTES \
   ((((CHUNK_BUDDY_TREE_SIZE_BITS) + 7) & ~7) / 8)
 
+#define REG_MARK_BAD_VALUE 0xFF
+
 typedef struct chunk_state {
   ll_entry_t entry;
   unsigned free_mem;
