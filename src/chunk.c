@@ -2,8 +2,8 @@
 #include <sealloc/logging.h>
 #include <sealloc/platform_api.h>
 #include <sealloc/run.h>
-#include <sealloc/utils.h>
 #include <sealloc/size_class.h>
+#include <sealloc/utils.h>
 #include <string.h>
 
 #define RIGHT_CHILD(idx) (idx * 2 + 1)
@@ -118,7 +118,7 @@ static inline unsigned get_leftmost_idx(unsigned idx, unsigned depth) {
 
 void chunk_init(chunk_t *chunk, void *heap) {
   chunk->entry.key = heap;
-  memset(chunk->reg_size_small_medium, 0xff,
+  memset(chunk->reg_size_small_medium, REG_MARK_BAD_VALUE,
          sizeof(chunk->reg_size_small_medium));
   chunk->buddy_tree[0] = (uint8_t)NODE_FREE;
   chunk->free_mem = CHUNK_SIZE_BYTES;
@@ -503,14 +503,14 @@ void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
   unsigned idx = ctx.idx - base;
   uint8_t compressed_reg_size;
 
-  // WRONG: large size of size 8192 can also be a leaf, in this case array element is set to 0xff, hence 0xff * 16 = 4080 and we get a segfault
-  if (IS_LEAF(ctx.idx)) {
+  if (chunk->reg_size_small_medium[idx] != REG_MARK_BAD_VALUE) {
     compressed_reg_size = chunk->reg_size_small_medium[idx];
     if (compressed_reg_size == 0)
       *reg_size = (UINT8_MAX + 1) * SMALL_SIZE_CLASS_ALIGNMENT;
     else
       *reg_size = compressed_reg_size * SMALL_SIZE_CLASS_ALIGNMENT;
   }
+  else *reg_size = 0;
 }
 
 bool chunk_is_empty(chunk_t *chunk) {
