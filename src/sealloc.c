@@ -117,8 +117,9 @@ static metadata_t locate_metadata_for_ptr(void *ptr, chunk_t **chunk_ret,
 
 static void sealloc_free_with_metadata(chunk_t *chunk, bin_t *bin, run_t *run,
                                        void *ptr) {
-  // Might fail because invalid region is being freed
-  run_deallocate(run, bin, ptr);
+  if(!run_deallocate(run, bin, ptr)){
+      se_error("Invalid call to free()");
+  }
 
   if (run_is_freeable(run, bin)) {
     se_debug("Run is freeable, deleting");
@@ -200,7 +201,9 @@ void *sealloc_realloc(void *ptr, size_t size) {
    * jak jest size < old_size i size jest w wczesniejszym binie -> zwalniamy i
    * alokujemy
    */
-  run_validate_ptr(run_old, bin_old, ptr);
+  if (run_validate_ptr(run_old, bin_old, ptr) == SIZE_MAX) {
+    se_error("Invalid call to realloc()");
+  }
   bin_new = arena_get_bin_by_reg_size(&main_arena, size);
   if (bin_new->reg_size == bin_old->reg_size) {
     se_debug("New allocation is still in the same class");

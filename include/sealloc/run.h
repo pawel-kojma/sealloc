@@ -34,7 +34,7 @@ void *run_allocate(run_t *run, bin_t *bin);
 size_t run_validate_ptr(run_t *run, bin_t *bin, void *ptr);
 
 // Deallocate region from run
-void run_deallocate(run_t *run, bin_t *bin, void *ptr);
+bool run_deallocate(run_t *run, bin_t *bin, void *ptr);
 
 // Returns true if run is fully deallocated and can be collected
 bool run_is_freeable(run_t *run, bin_t *bin);
