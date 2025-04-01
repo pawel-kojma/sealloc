@@ -2,10 +2,13 @@
 
 extern "C" {
 #include <sealloc.h>
+#include <sealloc/arena.h>
 }
 
-TEST(Sealloc, MallocHugeSingle) {
+TEST(MallocApiTest, MallocHugeSingle) {
+  arena_t arena;
+  arena_init(&arena);
   size_t huge_size = 2097152;  // 2MB
-  void *reg = sealloc_malloc(huge_size);
+  void *reg = sealloc_malloc(&arena, huge_size);
   EXPECT_NE(reg, nullptr);
 }
