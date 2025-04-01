@@ -1,10 +1,13 @@
 #include <gtest/gtest.h>
 
 extern "C" {
-#include <sealloc.h>
+#include <sealloc/arena.h>
+#include <sealloc/sealloc.h>
 }
 
-TEST(Sealloc, FreeRegular) {
+TEST(MallocApiTest, FreeRegular) {
+  arena_t arena;
+  arena_init(&arena);
   constexpr unsigned CHUNKS = 100;
   void *a, *b, *full;
   void *chunks[CHUNKS];
@@ -16,8 +19,8 @@ TEST(Sealloc, FreeRegular) {
   for (int i = 0; i < CHUNKS; i++) {
     size = SIZES[rand() % SIZES.size()];
     nalloc++;
-    std::cerr << "======== Allocation nr " << nalloc<< " =========\n";
-    chunks[i] = sealloc_malloc(size);
+    std::cerr << "======== Allocation nr " << nalloc << " =========\n";
+    chunks[i] = sealloc_malloc(&arena, size);
     EXPECT_NE(chunks[i], nullptr);
   }
   int nfree = 0;
@@ -25,7 +28,7 @@ TEST(Sealloc, FreeRegular) {
     if (rand() % 2 == 0) {
       nfree++;
       std::cerr << "======== Free nr " << nfree << " =========\n";
-      sealloc_free(chunks[i]);
+      sealloc_free(&arena, chunks[i]);
     }
   }
 }
