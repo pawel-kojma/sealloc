@@ -24,6 +24,7 @@ list(APPEND tests_e2e
             realloc_regular
             realloc_huge
             realloc_multi
+            calloc
 )
 list(APPEND test_srcs
     test_ia test_run test_container_ll test_bin test_chunk test_arena test_size_class)
