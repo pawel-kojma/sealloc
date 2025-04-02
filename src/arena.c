@@ -165,6 +165,7 @@ void arena_delete_huge_meta(arena_t *arena, huge_chunk_t *huge) {
 }
 
 void *arena_allocate_huge_mapping(arena_t *arena, size_t len) {
+  (void)arena;
   platform_status_code_t code;
   void *huge_map;
   if ((code = platform_map(NULL, len, (void **)&huge_map)) !=
@@ -175,6 +176,7 @@ void *arena_allocate_huge_mapping(arena_t *arena, size_t len) {
   return huge_map;
 }
 void arena_deallocate_huge_mapping(arena_t *arena, void *map, size_t len) {
+  (void)arena;
   platform_status_code_t code;
   if ((code = platform_unmap(map, len)) != PLATFORM_STATUS_OK) {
     se_error("Failed to deallocate huge mapping (ptr : %p, size : %u): %s", map,

@@ -279,14 +279,14 @@ void *internal_alloc(size_t size) {
 // Free the chunk pointed by ptr
 void internal_free(void *ptr) {
   size_t idx = 1, cur_size = INTERNAL_ALLOC_CHUNK_SIZE_BYTES;
-  ptrdiff_t ptr_cur, ptr_dest = (ptrdiff_t)ptr;
+  uintptr_t ptr_cur, ptr_dest = (uintptr_t)ptr;
   ia_node_t state;
   struct internal_allocator_data *root = NULL;
 
   // Find mapping that contains the ptr
   for (root = internal_alloc_mappings_root; root != NULL; root = root->fd) {
-    if ((ptrdiff_t)&root->memory <= ptr_dest &&
-        ptr_dest <= (ptrdiff_t)root->memory + sizeof(root->memory))
+    if ((uintptr_t)&root->memory <= ptr_dest &&
+        ptr_dest <= (uintptr_t)root->memory + sizeof(root->memory))
       break;
   }
 
@@ -295,7 +295,7 @@ void internal_free(void *ptr) {
     se_error("root == NULL");
   }
 
-  ptr_cur = (ptrdiff_t)&root->memory;
+  ptr_cur = (uintptr_t)&root->memory;
   state = get_tree_item(root->buddy_tree, idx);
 
   // First, we have to find the right node

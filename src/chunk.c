@@ -192,7 +192,8 @@ void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned reg_size) {
         coalesce_full_nodes(chunk->buddy_tree, ctx->idx);
         return (void *)ctx->ptr;
       }
-      // fallthrough if neighbor node is not free or guarded.
+      buddy_state_go_up(ctx);
+      break;
     case NODE_GUARD:
     case NODE_USED:
     case NODE_DEPLETED:

@@ -12,7 +12,7 @@ endif()
 
 target_include_directories(sealloc PUBLIC "${PROJECT_SOURCE_DIR}/include")
 target_compile_options(sealloc PRIVATE
-    $<${gcc_like_c}:-Wall -Werror -pedantic -Wformat=0>
+    $<${gcc_like_c}:-Wall -Werror -Wextra -pedantic -Wformat=0>
     ${EXTRA_COMPILE_OPTIONS}
 )
 target_compile_definitions(sealloc PRIVATE "$<$<BOOL:${enable_logging}>:LOGGING>")
