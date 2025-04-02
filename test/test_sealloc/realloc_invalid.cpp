@@ -5,7 +5,7 @@ extern "C" {
 #include <sealloc/arena.h>
 }
 
-TEST(ReallocInvalid, InvalidRegion) {
+TEST(MallocApiTest, ReallocInvalidRegion) {
   arena_t arena;
   arena_init(&arena);
   ASSERT_DEATH(
@@ -13,7 +13,7 @@ TEST(ReallocInvalid, InvalidRegion) {
       ".*Invalid call to realloc().*");
 }
 
-TEST(ReallocInvalid, FreedRegion) {
+TEST(MallocApiTest, ReallocFreedRegion) {
   arena_t arena;
   arena_init(&arena);
   void *reg = sealloc_malloc(&arena, 16);
@@ -23,7 +23,7 @@ TEST(ReallocInvalid, FreedRegion) {
       ".*Invalid call to realloc().*");
 }
 
-TEST(ReallocInvalid, UnallocatedRegion) {
+TEST(MallocApiTest, ReallocUnallocatedRegion) {
   arena_t arena;
   arena_init(&arena);
   void *reg = sealloc_malloc(&arena, 48);

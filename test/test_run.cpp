@@ -38,7 +38,7 @@ class RunUtilsTestSmall : public ::testing::Test {
     ll_init(&bin->run_list_inactive);
     bin->run_list_inactive_cnt = 0;
     bin->reg_size = 16;
-    bin->run_size_pages = 1;
+    bin->run_size_pages = 2;
     bin->reg_mask_size_bits = (PAGE_SIZE / bin->reg_size) * 2;
     run = (run_t *)malloc(sizeof(run_t) +
                           BITS2BYTES_CEIL(bin->reg_mask_size_bits));
@@ -92,7 +92,6 @@ TEST_F(RunUtilsTestSmall, RunDeallocate) {
 }
 
 TEST_F(RunUtilsTestSmall, MemoryIntegrity) {
-  random_bytes_engine engine{1};
   run_init(run, bin, heap);
 
   int elems = run->navail;
@@ -100,11 +99,10 @@ TEST_F(RunUtilsTestSmall, MemoryIntegrity) {
   std::vector<unsigned char> chunks_exp[elems];
   for (int i = 0; i < elems; i++) {
     chunks_dut[i] = run_allocate(run, bin);
-    chunks_exp[i].reserve(bin->reg_size);
-    std::generate(chunks_exp[i].begin(), chunks_exp[i].end(), std::ref(engine));
+    chunks_exp[i].resize(bin->reg_size);
+    std::fill(chunks_exp[i].begin(), chunks_exp[i].end(), (i + 1) % 256);
     std::memcpy(chunks_dut[i], chunks_exp[i].data(), bin->reg_size);
   }
-
   for (int i = 0; i < elems; i++) {
     EXPECT_PRED3([](const void *a, const void *b,
                     size_t s) { return std::memcmp(a, b, s) == 0; },
@@ -139,7 +137,7 @@ class RunUtilsTestMedium : public ::testing::Test {
     ll_init(&bin->run_list_inactive);
     bin->run_list_inactive_cnt = 0;
     bin->reg_size = 1024;
-    bin->run_size_pages = 1;
+    bin->run_size_pages = 2;
     bin->reg_mask_size_bits = (PAGE_SIZE / bin->reg_size) * 2;
     run = (run_t *)malloc(sizeof(run_t) +
                           BITS2BYTES_CEIL(bin->reg_mask_size_bits));
@@ -193,15 +191,14 @@ TEST_F(RunUtilsTestMedium, RunDeallocate) {
 }
 
 TEST_F(RunUtilsTestMedium, MemoryIntegrity) {
-  random_bytes_engine engine{1};
   run_init(run, bin, heap);
   int elems = run->navail;
   void *chunks_dut[elems];
   std::vector<unsigned char> chunks_exp[elems];
   for (int i = 0; i < elems; i++) {
     chunks_dut[i] = run_allocate(run, bin);
-    chunks_exp[i].reserve(bin->reg_size);
-    std::generate(chunks_exp[i].begin(), chunks_exp[i].end(), std::ref(engine));
+    chunks_exp[i].resize(bin->reg_size);
+    std::fill(chunks_exp[i].begin(), chunks_exp[i].end(), (i + 1) % 256);
     std::memcpy(chunks_dut[i], chunks_exp[i].data(), bin->reg_size);
   }
 
@@ -290,15 +287,14 @@ TEST_F(RunUtilsTestLarge, RunDeallocate) {
 }
 
 TEST_F(RunUtilsTestLarge, MemoryIntegrity) {
-  random_bytes_engine engine{1};
   run_init(run, bin, heap);
   int elems = run->navail;
   void *chunks_dut[elems];
   std::vector<unsigned char> chunks_exp[elems];
   for (int i = 0; i < elems; i++) {
     chunks_dut[i] = run_allocate(run, bin);
-    chunks_exp[i].reserve(bin->reg_size);
-    std::generate(chunks_exp[i].begin(), chunks_exp[i].end(), std::ref(engine));
+    chunks_exp[i].resize(bin->reg_size);
+    std::fill(chunks_exp[i].begin(), chunks_exp[i].end(), (i + 1) % 256);
     std::memcpy(chunks_dut[i], chunks_exp[i].data(), bin->reg_size);
   }
 
