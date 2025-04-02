@@ -27,7 +27,7 @@ TEST(SizeClass, Medium) {
       2 * MEDIUM_SIZE_CLASS_ALIGNMENT);
 }
 
-TEST(SizeClass, Large) {
+TEST(SizeClass, LargeAlignUp) {
   EXPECT_TRUE(IS_SIZE_LARGE(LARGE_SIZE_MIN_REGION));
   EXPECT_TRUE(IS_SIZE_LARGE(LARGE_SIZE_MAX_REGION));
 
@@ -38,5 +38,14 @@ TEST(SizeClass, Large) {
   for (unsigned i = 1; i <= NO_LARGE_SIZE_CLASSES; i <<= 1) {
     next = LARGE_SIZE_MIN_REGION * i;
     EXPECT_EQ(alignup_large_size(next - 42), next);
+  }
+}
+
+TEST(SizeClass, LargeSizeToIdx) {
+  unsigned next, v = 1;
+  for (unsigned i = 0; i < NO_LARGE_SIZE_CLASSES; i++) {
+    next = LARGE_SIZE_MIN_REGION * v;
+    v <<= 1;
+    EXPECT_EQ(size_to_idx_large(next), i);
   }
 }

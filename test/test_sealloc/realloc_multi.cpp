@@ -5,14 +5,15 @@ extern "C" {
 #include <sealloc/sealloc.h>
 }
 
-TEST(MallocApiTest, FreeRegular) {
+TEST(MallocApiTest, ReallocRegularMulti) {
   arena_t arena;
   arena_init(&arena);
   constexpr unsigned CHUNKS = 100;
   void *a, *b, *full;
   void *chunks[CHUNKS];
   size_t size;
-  std::vector<size_t> SIZES{5, 10, 16, 17, 24, 32, 50, 4535, 12343, 544223};
+  std::vector<size_t> SIZES{5,  10,   16,    17,     24,     32,
+                            50, 4535, 12343, 544223, 1343433};
 
   std::srand(123);
   int nalloc = 0;
@@ -23,12 +24,14 @@ TEST(MallocApiTest, FreeRegular) {
     chunks[i] = sealloc_malloc(&arena, size);
     EXPECT_NE(chunks[i], nullptr);
   }
-  int nfree = 0;
+  int nrealloc = 0;
   for (int i = 0; i < CHUNKS; i++) {
     if (rand() % 2 == 0) {
-      nfree++;
-      std::cerr << "======== Free nr " << nfree << " =========\n";
-      sealloc_free(&arena, chunks[i]);
+      size = SIZES[rand() % SIZES.size()];
+      nrealloc++;
+      std::cerr << "======== Reallocation nr " << nrealloc << " =========\n";
+      chunks[i] = sealloc_realloc(&arena, chunks[i], size);
+      EXPECT_NE(chunks[i], nullptr);
     }
   }
 }

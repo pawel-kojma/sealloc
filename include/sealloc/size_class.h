@@ -24,7 +24,7 @@
   (MEDIUM_SIZE_MIN_REGION <= (size) && (size) <= MEDIUM_SIZE_MAX_REGION)
 #define IS_SIZE_LARGE(size) \
   (LARGE_SIZE_MIN_REGION <= (size) && (size) <= LARGE_SIZE_MAX_REGION)
-
+#define IS_SIZE_HUGE(size) ((size) > LARGE_SIZE_MAX_REGION)
 #define ALIGNUP_SMALL_SIZE(n) \
   (((n) + (SMALL_SIZE_CLASS_ALIGNMENT - 1)) & ~(SMALL_SIZE_CLASS_ALIGNMENT - 1))
 #define ALIGNUP_MEDIUM_SIZE(n)                 \

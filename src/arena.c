@@ -142,7 +142,7 @@ bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size) {
     skip_bins = NO_SMALL_SIZE_CLASSES;
     bin = &arena->bins[skip_bins + SIZE_TO_IDX_MEDIUM(reg_size)];
   } else {
-    skip_bins += NO_SMALL_SIZE_CLASSES + NO_MEDIUM_SIZE_CLASSES;
+    skip_bins = NO_SMALL_SIZE_CLASSES + NO_MEDIUM_SIZE_CLASSES;
     bin = &arena->bins[skip_bins + size_to_idx_large(reg_size)];
   }
   if (bin->reg_size == 0) {
@@ -179,19 +179,5 @@ void arena_deallocate_huge_mapping(arena_t *arena, void *map, size_t len) {
   if ((code = platform_unmap(map, len)) != PLATFORM_STATUS_OK) {
     se_error("Failed to deallocate huge mapping (ptr : %p, size : %u): %s", map,
              len, platform_strerror(code));
-  }
-}
-
-void arena_truncate_huge_mapping(arena_t *arena, huge_chunk_t *huge,
-                                 unsigned trunc_len_aligned) {
-  platform_status_code_t code;
-  size_t cur_size = ALIGNUP_PAGE(huge->len);
-  void *map =
-      (void *)((uintptr_t)huge->entry.key + (cur_size - trunc_len_aligned));
-  if ((code = platform_unmap(map, trunc_len_aligned)) != PLATFORM_STATUS_OK) {
-    se_error(
-        "Failed to truncate huge mapping (ptr : %p, size : %u, truncate : %u): "
-        "%s",
-        huge->entry.key, huge->len, trunc_len_aligned, platform_strerror(code));
   }
 }

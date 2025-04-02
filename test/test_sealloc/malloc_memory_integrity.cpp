@@ -5,11 +5,14 @@
 #include <random>
 
 extern "C" {
-#include <sealloc.h>
+#include <sealloc/sealloc.h>
 #include <sealloc/random.h>
+#include <sealloc/arena.h>
 }
 
-TEST(Sealloc, MemoryIntegrity) {
+TEST(MallocApiTest, MemoryIntegrity) {
+  arena_t arena;
+  arena_init(&arena);
   constexpr unsigned CHUNKS = 10000;
   void *a, *b, *full;
   void *chunks_dut[CHUNKS];
@@ -18,10 +21,10 @@ TEST(Sealloc, MemoryIntegrity) {
   std::vector<unsigned char> chunks_exp[CHUNKS];
   size_t size[CHUNKS];
   std::vector<size_t> SIZES{5, 10, 16, 17, 24, 32, 50, 4535, 12343, 544223};
-    init_splitmix32(2060289228);
+  init_splitmix32(2060289228);
   for (int i = 0; i < CHUNKS; i++) {
     size[i] = SIZES[rand() % SIZES.size()];
-    chunks_dut[i] = sealloc_malloc(size[i]);
+    chunks_dut[i] = sealloc_malloc(&arena, size[i]);
     chunks_exp[i].reserve(size[i]);
     std::generate(chunks_exp[i].begin(), chunks_exp[i].end(), std::ref(engine));
     std::memcpy(chunks_dut[i], chunks_exp[i].data(), size[i]);

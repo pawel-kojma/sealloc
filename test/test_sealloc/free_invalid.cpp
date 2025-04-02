@@ -1,12 +1,15 @@
 #include <gtest/gtest.h>
 
 extern "C" {
-#include <sealloc.h>
+#include <sealloc/arena.h>
+#include <sealloc/sealloc.h>
 }
 
-TEST(Sealloc, FreeInvalid) {
-  void *reg = sealloc_malloc(16);
+TEST(MallocApiTest, FreeInvalid) {
+  arena_t arena;
+  arena_init(&arena);
+  void *reg = sealloc_malloc(&arena, 16);
   ASSERT_NE(reg, nullptr);
-  sealloc_free(reg);
-  EXPECT_DEATH({ sealloc_free(reg); }, ".*Invalid call to free().*");
+  sealloc_free(&arena, reg);
+  EXPECT_DEATH({ sealloc_free(&arena, reg); }, ".*Invalid call to free().*");
 }
