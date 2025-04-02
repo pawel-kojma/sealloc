@@ -5,9 +5,30 @@ add_library(test_cflags INTERFACE)
 target_compile_features(test_cflags INTERFACE cxx_std_20)
 target_compile_options(test_cflags INTERFACE $<${gcc_like_c}:-O0 -ggdb>)
 
+list(APPEND sealloc_internal_srcs
+    sealloc.c
+    platform.c
+    chunk.c
+    bin.c
+    internal_allocator.c
+    random.c
+    run.c
+    container_ll.c
+    arena.c
+    size_class.c)
+list(TRANSFORM sealloc_internal_srcs PREPEND "${PROJECT_SOURCE_DIR}/src/")
+
+add_library(sealloc_internal SHARED ${sealloc_internal_srcs})
+target_include_directories(sealloc_internal PUBLIC "${PROJECT_SOURCE_DIR}/include/internal/")
+target_compile_options(sealloc_internal PRIVATE
+    $<${gcc_like_c}:-Wall -Werror -Wextra -pedantic -Wformat=0>
+    ${EXTRA_COMPILE_OPTIONS}
+)
+target_compile_definitions(sealloc_internal PRIVATE LOGGING)
+
 list(APPEND test_libs 
   GTest::gtest_main
-  sealloc
+  sealloc_internal
   test_cflags
 )
 

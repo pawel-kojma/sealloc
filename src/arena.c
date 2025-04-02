@@ -19,6 +19,7 @@ void arena_init(arena_t *arena) {
   internal_allocator_init();
   ll_init(&arena->chunk_list);
   ll_init(&arena->huge_mappings);
+  arena->is_initialized = 1;
   arena->alloc_ptr = 0;
   arena->chunks_left = 0;
   memset(arena->bins, 0, sizeof(bin_t) * ARENA_NO_BINS);

@@ -24,6 +24,7 @@ typedef struct huge_chunk {
 } huge_chunk_t;
 
 typedef struct arena_state {
+  int is_initialized;
   uint32_t secret;       // PRNG seed
   ll_head_t chunk_list;  // Chunk pointers
   uintptr_t alloc_ptr;
