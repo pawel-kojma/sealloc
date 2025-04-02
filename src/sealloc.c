@@ -268,7 +268,7 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
 }
 
 void *sealloc_calloc(arena_t *arena, size_t nmemb, size_t size) {
-  // TODO: check for multiplication overflow
+  if (nmemb == 0 || size == 0) return NULL;
   void *ptr = sealloc_malloc(arena, nmemb * size);
   memset(ptr, 0, nmemb * size);
   return ptr;
