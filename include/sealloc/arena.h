@@ -2,8 +2,8 @@
 
 #include <sealloc/bin.h>
 #include <sealloc/container_ll.h>
-#include <sealloc/utils.h>
 #include <sealloc/size_class.h>
+#include <sealloc/utils.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -15,7 +15,7 @@ struct chunk_state;
 typedef struct chunk_state chunk_t;
 
 #define ARENA_NO_BINS \
-  (NO_SMALL_SIZE_CLASSES  + NO_MEDIUM_SIZE_CLASSES + NO_LARGE_SIZE_CLASSES)
+  (NO_SMALL_SIZE_CLASSES + NO_MEDIUM_SIZE_CLASSES + NO_LARGE_SIZE_CLASSES)
 #define CHUNKS_PER_MAPPING 4
 
 typedef struct huge_chunk {
@@ -43,6 +43,4 @@ void *arena_allocate_huge_mapping(arena_t *arena, size_t len);
 void arena_deallocate_huge_mapping(arena_t *arena, void *map, size_t len);
 void arena_store_huge_meta(arena_t *arena, huge_chunk_t *huge);
 void arena_delete_huge_meta(arena_t *arena, huge_chunk_t *huge);
-void arena_truncate_huge_mapping(arena_t *arena, huge_chunk_t *huge,
-                                 unsigned len_pages);
 #endif /* SEALLOC_ARENA_H_ */

@@ -57,6 +57,7 @@ TEST_F(ReallocHuge, HugeTruncate) {
 }
 
 TEST_F(ReallocHuge, HugeSameSize) {
+  GTEST_SKIP() << "For now this optimization is not enabled";
   reg = sealloc_malloc(&arena, huge_size);
   ASSERT_NE(reg, nullptr);
   reg_realloc = sealloc_realloc(&arena, reg, huge_size - 1);
