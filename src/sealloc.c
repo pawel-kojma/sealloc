@@ -64,7 +64,7 @@ void *sealloc_malloc(arena_t *arena, size_t size) {
 
   // TODO: there is a subtle bug, where largest large size is allocated as huge,
   // make test case
-  if (size >= LARGE_SIZE_MAX_REGION) {
+  if (IS_SIZE_HUGE(size)) {
     huge_chunk_t *huge;
     huge = internal_alloc(sizeof(huge_chunk_t));
     if (huge == NULL) return NULL;
