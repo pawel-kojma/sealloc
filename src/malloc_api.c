@@ -1,5 +1,5 @@
-#include <sealloc/arena.h>
-#include <sealloc/sealloc.h>
+#include "sealloc/arena.h"
+#include "sealloc/sealloc.h"
 #include <sealloc_api.h>
 #include <stddef.h>
 

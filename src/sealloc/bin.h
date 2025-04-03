@@ -1,12 +1,12 @@
 /* Bin management API */
 
-#include <sealloc/container_ll.h>
+#ifndef SEALLOC_BIN_H_
+#define SEALLOC_BIN_H_
+
+#include "container_ll.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
-#ifndef SEALLOC_BIN_H_
-#define SEALLOC_BIN_H_
 
 struct run_state;
 

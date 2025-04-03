@@ -1,10 +1,10 @@
-#include <sealloc/bin.h>
-#include <sealloc/generator.h>
-#include <sealloc/logging.h>
-#include <sealloc/random.h>
-#include <sealloc/run.h>
-#include <sealloc/size_class.h>
-#include <sealloc/utils.h>
+#include "sealloc/bin.h"
+#include "sealloc/generator.h"
+#include "sealloc/logging.h"
+#include "sealloc/random.h"
+#include "sealloc/run.h"
+#include "sealloc/size_class.h"
+#include "sealloc/utils.h"
 #include <stdbool.h>
 #include <string.h>
 

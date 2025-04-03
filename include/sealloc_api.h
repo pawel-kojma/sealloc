@@ -1,7 +1,7 @@
 #ifndef SEALLOC_API_H_
 #define SEALLOC_API_H_
 
-#include "export.h"
+#include <sealloc/sealloc_export.h>
 #include <stddef.h>
 
 SEALLOC_EXPORT void *malloc(size_t size);

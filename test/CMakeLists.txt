@@ -19,7 +19,7 @@ list(APPEND sealloc_internal_srcs
 list(TRANSFORM sealloc_internal_srcs PREPEND "${PROJECT_SOURCE_DIR}/src/")
 
 add_library(sealloc_internal SHARED ${sealloc_internal_srcs})
-target_include_directories(sealloc_internal PUBLIC "${PROJECT_SOURCE_DIR}/include/internal/")
+target_include_directories(sealloc_internal PUBLIC "${PROJECT_SOURCE_DIR}/src")
 target_compile_options(sealloc_internal PRIVATE
     $<${gcc_like_c}:-Wall -Werror -Wextra -pedantic -Wformat=0>
     ${EXTRA_COMPILE_OPTIONS}
@@ -32,7 +32,7 @@ list(APPEND test_libs
   test_cflags
 )
 
-list(APPEND tests_e2e 
+list(APPEND tests_integration 
             free_huge              
             free_invalid           
             free_regular           
@@ -53,14 +53,15 @@ include(GoogleTest)
 
 foreach(test_src ${test_srcs})
     add_executable(${test_src} "${test_src}.cpp")
+    set_target_properties(${test_src} PROPERTIES OUTPUT_NAME "ut_${test_src}")
     target_link_libraries(${test_src} ${test_libs})
     gtest_discover_tests(${test_src})
 endforeach()
 
-foreach(test_e2e ${tests_e2e})
-    add_executable(${test_e2e} "./test_sealloc/${test_e2e}.cpp")
-    set_target_properties(${test_e2e} PROPERTIES OUTPUT_NAME "e2e_${test_e2e}")
-    target_link_libraries(${test_e2e} ${test_libs})
-    gtest_discover_tests(${test_e2e})
+foreach(test_integration ${tests_integration})
+    add_executable(${test_integration} "./test_sealloc/${test_integration}.cpp")
+    set_target_properties(${test_integration} PROPERTIES OUTPUT_NAME "integration_${test_integration}")
+    target_link_libraries(${test_integration} ${test_libs})
+    gtest_discover_tests(${test_integration})
 endforeach()
 

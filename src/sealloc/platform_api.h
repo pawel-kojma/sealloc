@@ -1,12 +1,13 @@
 /* API for system specific functions */
 
-#include <sealloc/logging.h>
-#include <stdarg.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #ifndef SEALLOC_PLATFORM_API_H_
 #define SEALLOC_PLATFORM_API_H_
+
+#include "logging.h"
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdint.h>
 
 typedef enum status_code {
   PLATFORM_STATUS_ERR_UNKNOWN,

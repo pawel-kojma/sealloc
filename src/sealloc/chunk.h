@@ -1,14 +1,14 @@
 /* chunk utils API */
 
-#include <sealloc/container_ll.h>
-#include <sealloc/utils.h>
+#ifndef SEALLOC_CHUNK_H_
+#define SEALLOC_CHUNK_H_
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
-#ifndef SEALLOC_CHUNK_H_
-#define SEALLOC_CHUNK_H_
-
+#include "container_ll.h"
+#include "utils.h"
 struct run_state;
 
 typedef struct run_state run_t;

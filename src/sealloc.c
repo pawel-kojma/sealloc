@@ -1,11 +1,11 @@
-#include <sealloc/arena.h>
-#include <sealloc/bin.h>
-#include <sealloc/chunk.h>
-#include <sealloc/internal_allocator.h>
-#include <sealloc/logging.h>
-#include <sealloc/run.h>
-#include <sealloc/size_class.h>
-#include <sealloc/utils.h>
+#include "sealloc/arena.h"
+#include "sealloc/bin.h"
+#include "sealloc/chunk.h"
+#include "sealloc/internal_allocator.h"
+#include "sealloc/logging.h"
+#include "sealloc/run.h"
+#include "sealloc/size_class.h"
+#include "sealloc/utils.h"
 #include <string.h>
 
 typedef enum metadata_type {

@@ -9,28 +9,31 @@ elseif(BuildType MATCHES "Debug")
     set(enable_logging 1)
 endif()
 
+add_library(sealloc)
 
-add_library(sealloc SHARED
-    malloc_api.c
-    sealloc.c
-    platform.c
-    chunk.c
-    bin.c
-    internal_allocator.c
-    random.c
-    run.c
-    container_ll.c
-    arena.c
-    size_class.c
+target_sources(sealloc
+    PRIVATE malloc_api.c sealloc.c platform.c chunk.c bin.c internal_allocator.c random.c run.c container_ll.c arena.c size_class.c
 )
-target_include_directories(sealloc PRIVATE "${PROJECT_SOURCE_DIR}/include/internal")
-target_include_directories(sealloc PUBLIC "${PROJECT_SOURCE_DIR}/include/api")
-target_compile_options(sealloc PRIVATE
-    $<${gcc_like_c}:-Wall -Werror -Wextra -pedantic -Wformat=0>
-    ${EXTRA_COMPILE_OPTIONS}
+target_include_directories(sealloc
+    PRIVATE "src/"
+    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)
+target_compile_options(sealloc
+    PRIVATE $<${gcc_like_c}:-Wall -Werror -Wextra -pedantic -Wformat=0> ${EXTRA_COMPILE_OPTIONS}
 )
 target_compile_definitions(sealloc PRIVATE "$<$<BOOL:${enable_logging}>:LOGGING>")
-set_target_properties(sealloc PROPERTIES C_VISIBILITY_PRESET hidden)
 
 include(GenerateExportHeader)
-generate_export_header(sealloc EXPORT_FILE_NAME "${PROJECT_SOURCE_DIR}/include/api/export.h")
+set_property(
+    TARGET sealloc
+    PROPERTY C_VISIBILITY_PRESET "hidden"
+)
+set_property(
+    TARGET sealloc
+    PROPERTY VISIBILITY_INLINES_HIDDEN TRUE
+)
+generate_export_header(sealloc
+    EXPORT_FILE_NAME "export/sealloc/sealloc_export.h")
+target_include_directories(
+    sealloc
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/export/>
+)

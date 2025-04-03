@@ -1,9 +1,10 @@
 // Main library header file
-#include <sealloc/arena.h>
-#include <stddef.h>
 
 #ifndef SEALLOC_H_
 #define SEALLOC_H_
+
+#include "arena.h"
+#include <stddef.h>
 
 void *sealloc_malloc(arena_t *arena, size_t size);
 void sealloc_free(arena_t *arena, void *ptr);

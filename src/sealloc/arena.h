@@ -1,15 +1,16 @@
 /* arena utils API */
 
-#include <sealloc/bin.h>
-#include <sealloc/container_ll.h>
-#include <sealloc/size_class.h>
-#include <sealloc/utils.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #ifndef SEALLOC_ARENA_H_
 #define SEALLOC_ARENA_H_
+
+#include "bin.h"
+#include "container_ll.h"
+#include "size_class.h"
+#include "utils.h"
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 struct chunk_state;
 typedef struct chunk_state chunk_t;

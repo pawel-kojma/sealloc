@@ -1,11 +1,10 @@
 /* Internal allocator used for storing metadata */
 
-#include <stddef.h>
-#include <stdint.h>
-
 #ifndef SEALLOC_INTERNAL_ALLOCATOR_H_
 #define SEALLOC_INTERNAL_ALLOCATOR_H_
 
+#include <stddef.h>
+#include <stdint.h>
 /*
  * Least size chunk is 16 bytes
  * Entire buffer to partition is 8MB

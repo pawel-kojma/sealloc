@@ -1,10 +1,10 @@
 /* Size class utilities */
 
-#include <sealloc/utils.h>
 
 #ifndef SEALLOC_SIZE_CLASS_H_
 #define SEALLOC_SIZE_CLASS_H_
 
+#include "utils.h"
 // Small - len(16, ..., 16*i, ..., 512) = 32
 // Medium - len(1KB, 2KB, 4KB) = 3
 // Large - len(8KB, ..., 8KB * (2 ** (i-1)), 1MB) = 8

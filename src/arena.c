@@ -1,13 +1,13 @@
-#include <sealloc/arena.h>
-#include <sealloc/chunk.h>
-#include <sealloc/container_ll.h>
-#include <sealloc/internal_allocator.h>
-#include <sealloc/logging.h>
-#include <sealloc/platform_api.h>
-#include <sealloc/random.h>
-#include <sealloc/run.h>
-#include <sealloc/size_class.h>
-#include <sealloc/utils.h>
+#include "sealloc/arena.h"
+#include "sealloc/chunk.h"
+#include "sealloc/container_ll.h"
+#include "sealloc/internal_allocator.h"
+#include "sealloc/logging.h"
+#include "sealloc/platform_api.h"
+#include "sealloc/random.h"
+#include "sealloc/run.h"
+#include "sealloc/size_class.h"
+#include "sealloc/utils.h"
 #include <string.h>
 
 void arena_init(arena_t *arena) {

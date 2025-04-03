@@ -1,4 +1,4 @@
-#include <sealloc/size_class.h>
+#include "sealloc/size_class.h"
 
 static inline unsigned ceil_div(unsigned a, unsigned b) {
   return (a / b) + (a % b == 0 ? 0 : 1);
