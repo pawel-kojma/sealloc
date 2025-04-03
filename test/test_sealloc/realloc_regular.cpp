@@ -42,7 +42,7 @@ TEST_F(MallocApiTest, ReallocSmallTruncated) {
 }
 
 TEST_F(MallocApiTest, ReallocMediumSameSize) {
-  size_t size = MEDIUM_SIZE_CLASS_ALIGNMENT;
+  size_t size = MEDIUM_SIZE_MIN_REGION;
   reg = sealloc_malloc(&arena, size);
   ASSERT_NE(reg, nullptr);
   reg_realloc = sealloc_realloc(&arena, reg, size);
@@ -51,7 +51,7 @@ TEST_F(MallocApiTest, ReallocMediumSameSize) {
 }
 
 TEST_F(MallocApiTest, ReallocMediumExpanded) {
-  size_t size = MEDIUM_SIZE_CLASS_ALIGNMENT;
+  size_t size = MEDIUM_SIZE_MIN_REGION;
   reg = sealloc_malloc(&arena, size);
   ASSERT_NE(reg, nullptr);
   reg_realloc = sealloc_realloc(&arena, reg, size + 1);
@@ -60,7 +60,7 @@ TEST_F(MallocApiTest, ReallocMediumExpanded) {
 }
 
 TEST_F(MallocApiTest, ReallocMediumTruncated) {
-  size_t size = MEDIUM_SIZE_CLASS_ALIGNMENT;
+  size_t size = MEDIUM_SIZE_MIN_REGION;
   reg = sealloc_malloc(&arena, size);
   ASSERT_NE(reg, nullptr);
   reg_realloc = sealloc_realloc(&arena, reg, 48);
@@ -69,7 +69,7 @@ TEST_F(MallocApiTest, ReallocMediumTruncated) {
 }
 
 TEST_F(MallocApiTest, ReallocLargeSameSize) {
-  size_t size = 8192;
+  size_t size = LARGE_SIZE_MIN_REGION;
   reg = sealloc_malloc(&arena, size);
   ASSERT_NE(reg, nullptr);
   reg_realloc = sealloc_realloc(&arena, reg, size);
@@ -78,7 +78,7 @@ TEST_F(MallocApiTest, ReallocLargeSameSize) {
 }
 
 TEST_F(MallocApiTest, ReallocLargeExpanded) {
-  size_t size = 8192;
+  size_t size = LARGE_SIZE_MIN_REGION;
   reg = sealloc_malloc(&arena, size);
   ASSERT_NE(reg, nullptr);
   reg_realloc = sealloc_realloc(&arena, reg, size + 1);
@@ -87,7 +87,7 @@ TEST_F(MallocApiTest, ReallocLargeExpanded) {
 }
 
 TEST_F(MallocApiTest, ReallocLargeTruncated) {
-  size_t size = 8192;
+  size_t size = LARGE_SIZE_MIN_REGION;
   reg = sealloc_malloc(&arena, size);
   ASSERT_NE(reg, nullptr);
   reg_realloc = sealloc_realloc(&arena, reg, 48);

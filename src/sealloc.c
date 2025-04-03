@@ -62,8 +62,6 @@ void *sealloc_malloc(arena_t *arena, size_t size) {
   size_t aligned_size;
   if (size == 0) return NULL;
 
-  // TODO: there is a subtle bug, where largest large size is allocated as huge,
-  // make test case
   if (IS_SIZE_HUGE(size)) {
     huge_chunk_t *huge;
     huge = internal_alloc(sizeof(huge_chunk_t));
@@ -78,7 +76,7 @@ void *sealloc_malloc(arena_t *arena, size_t size) {
   if (IS_SIZE_SMALL(size)) {
     aligned_size = ALIGNUP_SMALL_SIZE(size);
   } else if (IS_SIZE_MEDIUM(size)) {
-    aligned_size = ALIGNUP_MEDIUM_SIZE(size);
+    aligned_size = alignup_medium_size(size);
   } else {
     aligned_size = alignup_large_size(size);
   }
@@ -239,7 +237,7 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
   if (IS_SIZE_SMALL(new_size)) {
     new_size_aligned = ALIGNUP_SMALL_SIZE(new_size);
   } else if (IS_SIZE_MEDIUM(new_size)) {
-    new_size_aligned = ALIGNUP_MEDIUM_SIZE(new_size);
+    new_size_aligned = alignup_medium_size(new_size);
   } else {
     new_size_aligned = alignup_large_size(new_size);
   }

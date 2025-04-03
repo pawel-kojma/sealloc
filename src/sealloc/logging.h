@@ -1,6 +1,5 @@
 /* Sealloc logging library */
 
-
 #ifndef SEALLOC_LOGGING_H_
 #define SEALLOC_LOGGING_H_
 

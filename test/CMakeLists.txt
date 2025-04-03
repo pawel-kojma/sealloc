@@ -2,7 +2,8 @@ enable_testing()
 
 set(gcc_like_c "$<COMPILE_LANG_AND_ID:C,ARMClang,AppleClang,Clang,GNU,LCC>")
 add_library(test_cflags INTERFACE)
-target_compile_features(test_cflags INTERFACE cxx_std_20)
+add_library(test_cxxflags INTERFACE)
+target_compile_features(test_cxxflags INTERFACE cxx_std_20)
 target_compile_options(test_cflags INTERFACE $<${gcc_like_c}:-O0 -ggdb>)
 
 list(APPEND sealloc_internal_srcs
@@ -20,16 +21,17 @@ list(TRANSFORM sealloc_internal_srcs PREPEND "${PROJECT_SOURCE_DIR}/src/")
 
 add_library(sealloc_internal SHARED ${sealloc_internal_srcs})
 target_include_directories(sealloc_internal PUBLIC "${PROJECT_SOURCE_DIR}/src")
+target_link_libraries(sealloc_internal test_cflags)
 target_compile_options(sealloc_internal PRIVATE
     $<${gcc_like_c}:-Wall -Werror -Wextra -pedantic -Wformat=0>
     ${EXTRA_COMPILE_OPTIONS}
 )
-target_compile_definitions(sealloc_internal PRIVATE LOGGING)
+target_compile_definitions(sealloc PRIVATE "$<$<BOOL:${enable_logging}>:LOGGING>")
 
 list(APPEND test_libs 
   GTest::gtest_main
   sealloc_internal
-  test_cflags
+  test_cxxflags
 )
 
 list(APPEND tests_integration 
@@ -46,6 +48,7 @@ list(APPEND tests_integration
             realloc_huge
             realloc_multi
             calloc
+            fuzz_api
 )
 list(APPEND test_srcs
     test_ia test_run test_container_ll test_bin test_chunk test_arena test_size_class)

@@ -1,7 +1,5 @@
 #include "sealloc/bin.h"
 #include "sealloc/container_ll.h"
-#include "sealloc/logging.h"
-#include "sealloc/random.h"
 #include "sealloc/run.h"
 #include "sealloc/size_class.h"
 #include "sealloc/utils.h"
@@ -13,7 +11,7 @@ void bin_init(bin_t *bin, unsigned reg_size) {
     reg_size_aligned = ALIGNUP_SMALL_SIZE(reg_size);
     bin->run_size_pages = 2;
   } else if (IS_SIZE_MEDIUM(reg_size)) {
-    reg_size_aligned = ALIGNUP_MEDIUM_SIZE(reg_size);
+    reg_size_aligned = alignup_medium_size(reg_size);
     bin->run_size_pages = 2;
   } else {
     // Assuming large size class

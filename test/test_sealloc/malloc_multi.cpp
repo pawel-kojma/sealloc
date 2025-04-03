@@ -37,17 +37,17 @@ TEST(MallocApiTest, MultiAllocationMedium) {
   for (int i = 0; i < chunks - 1; i++) {
     reg = sealloc_malloc(&arena, MEDIUM_SIZE_MIN_REGION);
     EXPECT_NE(reg, nullptr);
-    EXPECT_NE(arena.bins[base + SIZE_TO_IDX_MEDIUM(MEDIUM_SIZE_MIN_REGION)].runcur,
+    EXPECT_NE(arena.bins[base + size_to_idx_medium(MEDIUM_SIZE_MIN_REGION)].runcur,
               nullptr);
   }
 
   reg = sealloc_malloc(&arena, MEDIUM_SIZE_MIN_REGION);
   EXPECT_NE(reg, nullptr);
-  EXPECT_EQ(arena.bins[base + SIZE_TO_IDX_MEDIUM(MEDIUM_SIZE_MIN_REGION)].runcur,
+  EXPECT_EQ(arena.bins[base + size_to_idx_medium(MEDIUM_SIZE_MIN_REGION)].runcur,
             nullptr);
 
   reg = sealloc_malloc(&arena, MEDIUM_SIZE_MIN_REGION);
-  EXPECT_NE(arena.bins[base + SIZE_TO_IDX_MEDIUM(MEDIUM_SIZE_MIN_REGION)].runcur,
+  EXPECT_NE(arena.bins[base + size_to_idx_medium(MEDIUM_SIZE_MIN_REGION)].runcur,
             nullptr);
 }
 

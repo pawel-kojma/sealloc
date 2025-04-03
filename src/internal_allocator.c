@@ -4,8 +4,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <sys/mman.h>
 #include <unistd.h>
 
 #define RIGHT_CHILD(idx) (idx * 2 + 1)

@@ -80,8 +80,8 @@ TEST_F(ArenaUtilsTest, ArenaGetChunkFromPtr) {
 
 TEST_F(ArenaUtilsTest, ArenaGetBinByRegSize) {
   bin_t *small, *medium, *large1, *large2;
-  small = arena_get_bin_by_reg_size(&arena, SMALL_SIZE_CLASS_ALIGNMENT);
-  medium = arena_get_bin_by_reg_size(&arena, MEDIUM_SIZE_CLASS_ALIGNMENT);
+  small = arena_get_bin_by_reg_size(&arena, SMALL_SIZE_MIN_REGION);
+  medium = arena_get_bin_by_reg_size(&arena, MEDIUM_SIZE_MIN_REGION);
   large1 = arena_get_bin_by_reg_size(&arena, 2 * PAGE_SIZE);
   large2 = arena_get_bin_by_reg_size(&arena, 4 * PAGE_SIZE);
   EXPECT_EQ(get_bin_idx(small), 0);

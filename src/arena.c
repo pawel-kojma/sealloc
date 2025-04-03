@@ -138,11 +138,14 @@ bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size) {
   bin_t *bin = NULL;
   // Assume reg_size is either small, medium or large class
   if (IS_SIZE_SMALL(reg_size)) {
+      // 0 .. 31 
     bin = &arena->bins[SIZE_TO_IDX_SMALL(reg_size)];
   } else if (IS_SIZE_MEDIUM(reg_size)) {
+      // 32 .. 34
     skip_bins = NO_SMALL_SIZE_CLASSES;
-    bin = &arena->bins[skip_bins + SIZE_TO_IDX_MEDIUM(reg_size)];
+    bin = &arena->bins[skip_bins + size_to_idx_medium(reg_size)];
   } else {
+      // 35 ... 43
     skip_bins = NO_SMALL_SIZE_CLASSES + NO_MEDIUM_SIZE_CLASSES;
     bin = &arena->bins[skip_bins + size_to_idx_large(reg_size)];
   }

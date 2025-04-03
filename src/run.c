@@ -34,11 +34,11 @@ void run_init(run_t *run, bin_t *bin, void *heap) {
 
   // Choose a generator
   if (IS_SIZE_SMALL(bin->reg_size)) {
-    gen_idx = bin->reg_size / SMALL_SIZE_CLASS_ALIGNMENT - 1;
+    gen_idx = SIZE_TO_IDX_SMALL(bin->reg_size);
     run->gen = GENERATORS_SMALL[gen_idx][splitmix32() %
                                          GENERATORS_SMALL_LENGTHS[gen_idx]];
   } else if (IS_SIZE_MEDIUM(bin->reg_size)) {
-    gen_idx = bin->reg_size / MEDIUM_SIZE_CLASS_ALIGNMENT - 1;
+    gen_idx = size_to_idx_medium(bin->reg_size);
     run->gen = GENERATORS_MEDIUM[gen_idx][splitmix32() %
                                           GENERATORS_MEDIUM_LENGTHS[gen_idx]];
   } else {

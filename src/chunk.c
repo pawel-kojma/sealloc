@@ -1,9 +1,7 @@
 #include "sealloc/chunk.h"
 #include "sealloc/logging.h"
 #include "sealloc/platform_api.h"
-#include "sealloc/run.h"
 #include "sealloc/size_class.h"
-#include "sealloc/utils.h"
 #include <string.h>
 
 #define RIGHT_CHILD(idx) (idx * 2 + 1)
