@@ -1,5 +1,6 @@
 #include "sealloc/arena.h"
 
+#include <assert.h>
 #include <string.h>
 
 #include "sealloc/chunk.h"
@@ -28,6 +29,9 @@ void arena_init(arena_t *arena) {
 }
 
 run_t *arena_allocate_run(arena_t *arena, bin_t *bin) {
+  assert(arena->is_initialized == 1);
+  assert(bin->reg_size != 0);
+
   chunk_t *chunk;
   run_t *run;
   void *run_ptr;
@@ -40,10 +44,6 @@ run_t *arena_allocate_run(arena_t *arena, bin_t *bin) {
       // We just allocated a run
       run = internal_alloc(sizeof(run_t) +
                            BITS2BYTES_CEIL(bin->reg_mask_size_bits));
-      if (run == NULL) {
-        // EOM
-        return NULL;
-      }
       run_init(run, bin, run_ptr);
       return run;
     }
@@ -51,36 +51,29 @@ run_t *arena_allocate_run(arena_t *arena, bin_t *bin) {
   // No luck finding, allocate a new one
   // Will also be addded to chunk list
   chunk = arena_allocate_chunk(arena);
-  if (chunk == NULL) {
-    // EOM
-    return NULL;
-  }
   run_ptr =
       chunk_allocate_run(chunk, bin->run_size_pages * PAGE_SIZE, bin->reg_size);
-  if (run_ptr == NULL) {
-    se_error("Failed to allocate run from fresh chunk");
-  }
+  assert(run_ptr != NULL && "Failed to allocate run from fresh chunk");
+
   run =
       internal_alloc(sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
-  if (run == NULL) {
-    // EOM
-    return NULL;
-  }
   run_init(run, bin, run_ptr);
   return run;
 }
 
 chunk_t *arena_allocate_chunk(arena_t *arena) {
+  assert(arena->is_initialized == 1);
+
+  // arena->alloc_ptr == 0 <=> arena->chunks_left == 0
+  assert(!(arena->alloc_ptr == 0) || (arena->chunks_left == 0));
+  assert((arena->alloc_ptr == 0) || !(arena->chunks_left == 0));
+
   chunk_t *chunk_meta = internal_alloc(sizeof(chunk_t));
   platform_status_code_t code;
   size_t map_len = CHUNKS_PER_MAPPING * (CHUNK_SIZE_BYTES + PAGE_SIZE);
-  if (chunk_meta == NULL) {
-    // End of memory;
-    return NULL;
-  }
 
   // get more memory if needed
-  if (arena->alloc_ptr == 0 || arena->chunks_left == 0) {
+  if (arena->alloc_ptr == 0) {
     if ((code = platform_map(NULL, map_len, (void **)&arena->alloc_ptr)) !=
         PLATFORM_STATUS_OK) {
       se_error("Failed to allocate mapping (size : %u): %s", map_len,
@@ -103,6 +96,9 @@ chunk_t *arena_allocate_chunk(arena_t *arena) {
 }
 
 void arena_deallocate_chunk(arena_t *arena, chunk_t *chunk) {
+  assert(arena->is_initialized == 1);
+  assert(chunk_is_unmapped(chunk));
+
   platform_status_code_t code;
 
   // Unmap guard page
@@ -120,14 +116,18 @@ void arena_deallocate_chunk(arena_t *arena, chunk_t *chunk) {
 }
 
 chunk_t *arena_get_chunk_from_ptr(const arena_t *arena, const void *const ptr) {
+  assert(arena->is_initialized == 1);
+
   chunk_t *chunk = NULL;
   ptrdiff_t target = (ptrdiff_t)ptr;
   for (ll_entry_t *entry = arena->chunk_list.ll; entry != NULL;
        entry = entry->link.fd) {
     se_debug("Trying entry entry=%p, entry->key=%p", (void *)entry, entry->key);
+    assert(IS_ALIGNED((ptrdiff_t)entry->key, PAGE_SIZE));
     if ((ptrdiff_t)entry->key <= target &&
-        target < (ptrdiff_t)entry->key + CHUNK_SIZE_BYTES) {
+        target < ((ptrdiff_t)entry->key + CHUNK_SIZE_BYTES)) {
       chunk = CONTAINER_OF(entry, chunk_t, entry);
+      assert(chunk->entry.key == entry->key);
       break;
     }
   }
@@ -135,41 +135,61 @@ chunk_t *arena_get_chunk_from_ptr(const arena_t *arena, const void *const ptr) {
 }
 
 bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size) {
+  assert(arena->is_initialized == 1);
+  assert(reg_size >= 1);
+  assert(reg_size <= LARGE_SIZE_MAX_REGION);
+
   unsigned skip_bins = 0;
   bin_t *bin = NULL;
   // Assume reg_size is either small, medium or large class
   if (IS_SIZE_SMALL(reg_size)) {
     // 0 .. 31
+    assert(ALIGNUP_SMALL_SIZE(reg_size) == reg_size);
     bin = &arena->bins[SIZE_TO_IDX_SMALL(reg_size)];
   } else if (IS_SIZE_MEDIUM(reg_size)) {
     // 32 .. 34
+    assert(alignup_medium_size(reg_size) == reg_size);
     skip_bins = NO_SMALL_SIZE_CLASSES;
     bin = &arena->bins[skip_bins + size_to_idx_medium(reg_size)];
   } else {
     // 35 ... 43
+    assert(alignup_large_size(reg_size) == reg_size);
     skip_bins = NO_SMALL_SIZE_CLASSES + NO_MEDIUM_SIZE_CLASSES;
     bin = &arena->bins[skip_bins + size_to_idx_large(reg_size)];
   }
   if (bin->reg_size == 0) {
     bin_init(bin, reg_size);
   }
+  assert(bin->reg_size == reg_size);
   return bin;
 }
 
-huge_chunk_t *arena_find_huge_mapping(arena_t *arena, void *huge_map) {
-  return CONTAINER_OF(ll_find(&arena->huge_mappings, huge_map), huge_chunk_t,
-                      entry);
+huge_chunk_t *arena_find_huge_mapping(const arena_t *arena,
+                                      const void *const huge_map) {
+  assert(arena->is_initialized == 1);
+  huge_chunk_t *huge = CONTAINER_OF(ll_find(&arena->huge_mappings, huge_map),
+                                    huge_chunk_t, entry);
+  assert(huge->entry.key == huge_map);
+  return huge;
 }
 
 void arena_store_huge_meta(arena_t *arena, huge_chunk_t *huge) {
+  assert(arena->is_initialized == 1);
+  assert(IS_ALIGNED(huge->len, PAGE_SIZE));
+  assert(huge->entry.key != NULL);
   ll_add(&arena->huge_mappings, &huge->entry);
 }
 
 void arena_delete_huge_meta(arena_t *arena, huge_chunk_t *huge) {
+  assert(arena->is_initialized == 1);
+  assert(IS_ALIGNED(huge->len, PAGE_SIZE));
+  assert(huge->entry.key != NULL);
   ll_del(&arena->huge_mappings, &huge->entry);
 }
 
 void *arena_allocate_huge_mapping(arena_t *arena, size_t len) {
+  assert(IS_ALIGNED(len, PAGE_SIZE));
+  assert(arena->is_initialized == 1);
   (void)arena;
   platform_status_code_t code;
   void *huge_map;
@@ -180,7 +200,10 @@ void *arena_allocate_huge_mapping(arena_t *arena, size_t len) {
   }
   return huge_map;
 }
+
 void arena_deallocate_huge_mapping(arena_t *arena, void *map, size_t len) {
+  assert(IS_ALIGNED(len, PAGE_SIZE));
+  assert(arena->is_initialized == 1);
   (void)arena;
   platform_status_code_t code;
   if ((code = platform_unmap(map, len)) != PLATFORM_STATUS_OK) {

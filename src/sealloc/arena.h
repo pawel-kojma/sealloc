@@ -67,7 +67,8 @@ typedef struct arena_state arena_t;
 /*!
  * @brief Initializes an uninitialized arena structure.
  *
- * @param[in] arena Pointer to the allocated arena structure.
+ * @param[in,out] arena Pointer to the allocated arena structure.
+ * @sideeffect Terminates if random value for seed couldn't be acquired.
  */
 void arena_init(arena_t *arena);
 
@@ -93,6 +94,7 @@ run_t *arena_allocate_run(arena_t *arena, bin_t *bin);
  * @param[in,out] arena Pointer to the allocated arena structure
  * @return NULL if EOM or pointer to initialized chunk metadata.
  * @pre arena is initialized
+ * @sideeffect fails if chunk could not be allocated
  */
 chunk_t *arena_allocate_chunk(arena_t *arena);
 
@@ -107,6 +109,7 @@ chunk_t *arena_allocate_chunk(arena_t *arena);
  * @param[in,out] chunk Pointer to the fully unmapped chunk metadata.
  * @pre arena is initialized
  * @pre chunk is fully unmapped
+ * @sideeffect fails if guard page could not be unmapped
  */
 void arena_deallocate_chunk(arena_t *arena, chunk_t *chunk);
 
@@ -133,13 +136,14 @@ chunk_t *arena_get_chunk_from_ptr(const arena_t *arena, const void *const ptr);
  * It deallocates chunk metadata and a guard page after the chunk mapping.
  * It assumes that the chunk is fully unmapped.
  *
- * @param[in] arena Pointer to the allocated arena structure
+ * @param[in, out] arena Pointer to the allocated arena structure
  * @param[in] reg_size Region size which identifies which bin to return
  * @return Pointer to bin metadata for reg_size
  * @pre 1 <= reg_size <= LARGE_SIZE_MAX_REGION
+ * @pre reg_size is initialied to size in its class
  * @pre arena is initialized
  */
-bin_t *arena_get_bin_by_reg_size(const arena_t *arena, unsigned reg_size);
+bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size);
 
 /*!
  * @brief Finds huge allocation
@@ -164,6 +168,7 @@ huge_chunk_t *arena_find_huge_mapping(const arena_t *arena,
  * @return Pointer to huge allocation mapping.
  * @pre len is page aligned
  * @pre arena is initialized
+ * @sideeffect fails if mapping could not be allocated
  */
 void *arena_allocate_huge_mapping(arena_t *arena, size_t len);
 
@@ -175,6 +180,7 @@ void *arena_allocate_huge_mapping(arena_t *arena, size_t len);
  * @param[in] len size of requested allocation, page aligned.
  * @pre len is page aligned
  * @pre arena is initialized
+ * @sideeffect fails if mapping could not be deallocated 
  */
 void arena_deallocate_huge_mapping(arena_t *arena, void *const huge_map,
                                    size_t len);
