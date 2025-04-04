@@ -18,7 +18,7 @@ typedef struct TestStructItem {
 
 TEST(ContainerLL, AddFind) {
   head_t h;
-  test_t t;
+  test_t t = {0};
   t.a = 4;
   t.b = 8;
   t.entry.key = (void *)42;
@@ -31,7 +31,7 @@ TEST(ContainerLL, AddFind) {
 
 TEST(ContainerLL, AddFind2) {
   head_t h;
-  test_t t1, t2, t3;
+  test_t t1 = {0}, t2 = {0}, t3 = {0};
   t1.entry.key = (void *)42;
   t2.entry.key = (void *)41;
   t3.entry.key = (void *)43;
@@ -43,7 +43,7 @@ TEST(ContainerLL, AddFind2) {
 
 TEST(ContainerLL, AddDel) {
   head_t h;
-  test_t t1, t2, t3, t4;
+  test_t t1 = {0}, t2 = {0}, t3 = {0}, t4 = {0};
   t1.entry.key = (void *)42;
   t2.entry.key = (void *)41;
   t3.entry.key = (void *)43;

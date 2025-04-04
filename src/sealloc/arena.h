@@ -154,7 +154,7 @@ bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size);
  * @param[in] arena Pointer to the allocated arena structure
  * @param[in] huge_map Pointer to possibly a huge allocation assigned to this
  * arena
- * @return Pointer to huge allocation metadata.
+ * @return Pointer to huge allocation metadata or NULL if one was not found.
  * @pre arena is initialized
  */
 huge_chunk_t *arena_find_huge_mapping(const arena_t *arena,

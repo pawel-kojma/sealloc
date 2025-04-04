@@ -120,6 +120,8 @@ static inline unsigned get_leftmost_idx(unsigned idx, unsigned depth) {
 void chunk_init(chunk_t *chunk, void *heap) {
   assert(heap != NULL);
   chunk->entry.key = heap;
+  chunk->entry.link.fd = NULL;
+  chunk->entry.link.bk = NULL;
   memset(chunk->reg_size_small_medium, REG_MARK_BAD_VALUE,
          sizeof(chunk->reg_size_small_medium));
   set_tree_item(chunk->buddy_tree, 1, NODE_FREE);
@@ -260,13 +262,14 @@ void *visit_regular_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned run_size) {
 
           set_tree_item(chunk->buddy_tree, neigh_idx, NODE_GUARD);
           mark_nodes_split_guard(chunk->buddy_tree, PARENT(neigh_idx));
+          chunk->free_mem -= (ctx->cur_size + CHUNK_LEAST_REGION_SIZE_BYTES);
         } else {
           set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED);
           set_tree_item(chunk->buddy_tree,
                         get_leftmost_idx(ctx->idx, ctx->depth_to_leaf),
                         NODE_USED);
+          chunk->free_mem -= ctx->cur_size;
         }
-        chunk->free_mem -= ctx->cur_size;
         coalesce_full_nodes(chunk->buddy_tree, ctx->idx);
         return (void *)ctx->ptr;
       } else {

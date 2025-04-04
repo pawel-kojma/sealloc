@@ -67,6 +67,6 @@ void ll_del(ll_head_t *head, ll_entry_t *item);
  * @param[in,out] item item to add
  * @return entry that satisfies entry.key == key
  */
-ll_entry_t *ll_find(ll_head_t *head, const void *key);
+ll_entry_t *ll_find(const ll_head_t *head, const void *key);
 
 #endif /* SEALLOC_CONTAINER_LL_H_ */

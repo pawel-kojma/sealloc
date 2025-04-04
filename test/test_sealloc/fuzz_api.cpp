@@ -7,7 +7,7 @@ extern "C" {
 #include <sealloc/size_class.h>
 }
 
-constexpr unsigned MAXCHUNKS = 50;
+constexpr unsigned MAXCHUNKS = 1000;
 constexpr unsigned MAXROUNDS = 1000000;
 
 class MallocApiTest : public testing::Test {
@@ -41,7 +41,7 @@ class MallocApiTest : public testing::Test {
     }
     // all medium sizes
     for (int i = MEDIUM_SIZE_MIN_REGION; i <= MEDIUM_SIZE_MAX_REGION;
-         i += alignup_medium_size(i+1)) {
+         i += alignup_medium_size(i + 1)) {
       SIZES.push_back(i - 1);
       SIZES.push_back(i);
       SIZES.push_back(i + 1);

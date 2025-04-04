@@ -29,6 +29,8 @@ static void set_bitmap_item(uint8_t *mem, size_t idx, bstate_t state) {
 void run_init(run_t *run, bin_t *bin, void *heap) {
   unsigned gen_idx;
   run->entry.key = heap;
+  run->entry.link.fd = NULL;
+  run->entry.link.bk = NULL;
   run->navail = bin->reg_mask_size_bits / 2;
   run->nfreed = 0;
 

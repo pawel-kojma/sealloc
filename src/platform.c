@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stddef.h>
 
 #include "sealloc/logging.h"
@@ -36,6 +37,7 @@ const char *platform_strerror(platform_status_code_t code) {
 }
 
 platform_status_code_t platform_map(void *hint, size_t len, void **result) {
+  assert(len > 0);
   se_debug("Mapping (hint : %p, len : %zu, result : %p)", hint, len, result);
   void *map = mmap(hint, len, PROT_READ | PROT_WRITE,
                    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -44,6 +46,7 @@ platform_status_code_t platform_map(void *hint, size_t len, void **result) {
   return PLATFORM_STATUS_OK;
 }
 platform_status_code_t platform_unmap(void *ptr, size_t len) {
+  assert(len > 0);
   se_debug("Unmapping (ptr : %p, len : %zu)", ptr, len);
   if (munmap(ptr, len) == 0) {
     return PLATFORM_STATUS_OK;
@@ -51,6 +54,7 @@ platform_status_code_t platform_unmap(void *ptr, size_t len) {
   return get_error_from_errno();
 }
 platform_status_code_t platform_guard(void *ptr, size_t len) {
+  assert(len > 0);
   se_debug("Guarding (ptr : %p, len : %zu)", ptr, len);
   if (mprotect(ptr, len, PROT_NONE) == 0) {
     return PLATFORM_STATUS_OK;
@@ -58,6 +62,7 @@ platform_status_code_t platform_guard(void *ptr, size_t len) {
   return get_error_from_errno();
 }
 platform_status_code_t platform_unguard(void *ptr, size_t len) {
+  assert(len > 0);
   se_debug("Unguarding (ptr : %p, len : %zu)", ptr, len);
   if (mprotect(ptr, len, PROT_READ | PROT_WRITE) == 0) {
     return PLATFORM_STATUS_OK;

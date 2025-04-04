@@ -15,8 +15,7 @@ ptrdiff_t pmask(void *ptr) {
 
 TEST(InternalAllocatorTest, BasicAllocations) {
   void *a, *b, *c, *d;
-  int r = internal_allocator_init();
-  EXPECT_EQ(r, 0) << "Initialization failed" << std::endl;
+  internal_allocator_init();
   a = internal_alloc(16);
   b = internal_alloc(16);
   EXPECT_NE(a, nullptr);
@@ -31,8 +30,7 @@ TEST(InternalAllocatorTest, BasicAllocations) {
 
 TEST(InternalAllocatorTest, MappingAllocation) {
   void *a, *b, *full;
-  int r = internal_allocator_init();
-  EXPECT_EQ(r, 0) << "Initialization failed" << std::endl;
+  internal_allocator_init();
 
   full = internal_alloc(INTERNAL_ALLOC_CHUNK_SIZE_BYTES);
   a = internal_alloc(16);
@@ -48,8 +46,7 @@ TEST(InternalAllocatorTest, RandomizedAllocationCrashTest) {
   size_t size;
   std::vector<size_t> SIZES{5, 10, 16, 17, 24, 32, 50, 4535, 12343, 544223};
 
-  int r = internal_allocator_init();
-  EXPECT_EQ(r, 0) << "Initialization failed" << std::endl;
+  internal_allocator_init();
   std::srand(123);
   for (int i = 0; i < CHUNKS; i++) {
     size = SIZES[rand() % SIZES.size()];
@@ -60,7 +57,6 @@ TEST(InternalAllocatorTest, RandomizedAllocationCrashTest) {
       internal_free(chunks[i]);
     }
   }
-  std::cout << "Success\n";
 }
 
 TEST(InternalAllocatorTest, MemoryIntegrity) {
@@ -72,8 +68,7 @@ TEST(InternalAllocatorTest, MemoryIntegrity) {
   std::vector<unsigned char> chunks_exp[CHUNKS];
   size_t size[CHUNKS];
   std::vector<size_t> SIZES{5, 10, 16, 17, 24, 32, 50, 4535, 12343, 544223};
-  int r = internal_allocator_init();
-  EXPECT_EQ(r, 0) << "Initialization failed" << std::endl;
+  internal_allocator_init();
 
   for (int i = 0; i < CHUNKS; i++) {
     size[i] = SIZES[rand() % SIZES.size()];

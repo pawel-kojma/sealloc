@@ -10,7 +10,7 @@ extern "C" {
 
 TEST(ChunkUtils, ChunkInit) {
   chunk_t chunk;
-  void *heap = nullptr;
+  void *heap = (void *)1;
   chunk_init(&chunk, heap);
 }
 
@@ -113,8 +113,9 @@ TEST_F(ChunkUtilsTest, ChunkRegSizeArrayUpdate) {
 TEST_F(ChunkUtilsTest, ChunkRegSizeArrayLargeHandling) {
   chunk_init(chunk, heap);
   // Allocate smallest large size, which will be a leaf node
-  void *run_ptr = nullptr, *alloc = chunk_allocate_run(chunk, run_size_small, 8192);
-  unsigned run_size, reg_size;
+  void *run_ptr = nullptr,
+       *alloc = chunk_allocate_run(chunk, run_size_small, 8192);
+  unsigned run_size = 0, reg_size = 0;
 
   chunk_get_run_ptr(chunk, alloc, &run_ptr, &run_size, &reg_size);
   EXPECT_EQ(alloc, run_ptr);
@@ -250,8 +251,8 @@ TEST_F(ChunkUtilsTest, ChunkLeafNodeInfoUsage) {
 }
 
 TEST_F(ChunkUtilsTest, ChunkGetRunPointerPositive) {
-  void *expected_run_ptr, *run_ptr;
-  unsigned reg_size, run_size;
+  void *expected_run_ptr, *run_ptr = nullptr;
+  unsigned reg_size = 0, run_size = 0;
   run_ptr = NULL;
   chunk_init(chunk, heap);
   expected_run_ptr = chunk_allocate_run(chunk, run_size_small, 48);
@@ -264,8 +265,8 @@ TEST_F(ChunkUtilsTest, ChunkGetRunPointerPositive) {
 }
 
 TEST_F(ChunkUtilsTest, ChunkGetRunPointerNegative) {
-  void *alloc, *run_ptr;
-  unsigned reg_size, run_size;
+  void *alloc, *run_ptr = 0;
+  unsigned reg_size = 0, run_size = 0;
   run_ptr = NULL;
   chunk_init(chunk, heap);
   alloc = chunk_allocate_run(chunk, run_size_small, 48);
@@ -327,6 +328,7 @@ TEST_F(ChunkUtilsTest, ChunkExhaustion) {
     unmapped = chunk_deallocate_run(chunk, chunk_alloc[i]);
   }
   EXPECT_TRUE(unmapped);
+  EXPECT_TRUE(chunk_is_unmapped(chunk));
 }
 
 TEST_F(ChunkUtilsTest, ChunkDeathOnGuardPageWrite) {

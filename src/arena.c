@@ -92,6 +92,7 @@ chunk_t *arena_allocate_chunk(arena_t *arena) {
   ll_add(&arena->chunk_list, &chunk_meta->entry);
   arena->alloc_ptr += (CHUNK_SIZE_BYTES + PAGE_SIZE);
   arena->chunks_left--;
+  if (arena->chunks_left == 0) arena->alloc_ptr = 0;
   return chunk_meta;
 }
 
@@ -167,8 +168,9 @@ bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size) {
 huge_chunk_t *arena_find_huge_mapping(const arena_t *arena,
                                       const void *const huge_map) {
   assert(arena->is_initialized == 1);
-  huge_chunk_t *huge = CONTAINER_OF(ll_find(&arena->huge_mappings, huge_map),
-                                    huge_chunk_t, entry);
+  ll_entry_t *entry = ll_find(&arena->huge_mappings, huge_map);
+  if (entry == NULL) return NULL;
+  huge_chunk_t *huge = CONTAINER_OF(entry, huge_chunk_t, entry);
   assert(huge->entry.key == huge_map);
   return huge;
 }
