@@ -1,5 +1,7 @@
-#include "sealloc/platform_api.h"
 #include <stddef.h>
+
+#include "sealloc/logging.h"
+#include "sealloc/platform_api.h"
 
 #ifdef __linux__
 
@@ -19,7 +21,7 @@ static platform_status_code_t get_error_from_errno(void) {
   }
 }
 
-char *platform_strerror(platform_status_code_t code) {
+const char *platform_strerror(platform_status_code_t code) {
   switch (code) {
     case PLATFORM_STATUS_ERR_INVAL:
       return "Invalid arguments passed to function";

@@ -52,7 +52,7 @@ typedef struct run_state run_t;
 #define REG_MARK_BAD_VALUE 0xFF
 
 /*!
- * @brief Holds metadata of chunks.
+ * @brief Describes chunk metadata.
  */
 struct chunk_state {
   ll_entry_t

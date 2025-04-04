@@ -50,7 +50,7 @@ static int morecore(void) {
 }
 
 // Initialize internal allocator with fresh mapping
-int internal_allocator_init(void) {
+void internal_allocator_init(void) {
   platform_status_code_t code;
   if ((code = platform_map(NULL, sizeof(struct internal_allocator_data),
                            (void **)&internal_alloc_mappings_root)) !=
@@ -62,7 +62,6 @@ int internal_allocator_init(void) {
   internal_alloc_mappings_root->buddy_tree[0] = (uint8_t)NODE_FREE;
   internal_alloc_mappings_root->free_mem =
       sizeof(internal_alloc_mappings_root->memory);
-  return 0;
 }
 
 // Get tree node type at given index
