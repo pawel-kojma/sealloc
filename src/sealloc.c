@@ -1,12 +1,14 @@
-#include <sealloc/arena.h>
-#include <sealloc/bin.h>
-#include <sealloc/chunk.h>
-#include <sealloc/internal_allocator.h>
-#include <sealloc/logging.h>
-#include <sealloc/run.h>
-#include <sealloc/size_class.h>
-#include <sealloc/utils.h>
+#include <assert.h>
 #include <string.h>
+
+#include "sealloc/arena.h"
+#include "sealloc/bin.h"
+#include "sealloc/chunk.h"
+#include "sealloc/internal_allocator.h"
+#include "sealloc/logging.h"
+#include "sealloc/run.h"
+#include "sealloc/size_class.h"
+#include "sealloc/utils.h"
 
 typedef enum metadata_type {
   METADATA_INVALID,
@@ -49,6 +51,8 @@ static huge_chunk_t *sealloc_allocate_huge(arena_t *arena,
   huge = internal_alloc(sizeof(huge_chunk_t));
   if (huge == NULL) return NULL;
   huge->len = aligned_size;
+  huge->entry.link.fd = NULL;
+  huge->entry.link.bk = NULL;
   se_debug("Allocating huge chunk");
   huge->entry.key = arena_allocate_huge_mapping(arena, huge->len);
   if (huge->entry.key == NULL) {
@@ -62,23 +66,16 @@ void *sealloc_malloc(arena_t *arena, size_t size) {
   size_t aligned_size;
   if (size == 0) return NULL;
 
-  // TODO: there is a subtle bug, where largest large size is allocated as huge,
-  // make test case
   if (IS_SIZE_HUGE(size)) {
-    huge_chunk_t *huge;
-    huge = internal_alloc(sizeof(huge_chunk_t));
+    huge_chunk_t *huge = sealloc_allocate_huge(arena, ALIGNUP_PAGE(size));
     if (huge == NULL) return NULL;
-    huge->len = ALIGNUP_PAGE(size);
-    se_debug("Allocating huge chunk");
-    huge->entry.key = arena_allocate_huge_mapping(arena, huge->len);
-    arena_store_huge_meta(arena, huge);
     return huge->entry.key;
   }
 
   if (IS_SIZE_SMALL(size)) {
     aligned_size = ALIGNUP_SMALL_SIZE(size);
   } else if (IS_SIZE_MEDIUM(size)) {
-    aligned_size = ALIGNUP_MEDIUM_SIZE(size);
+    aligned_size = alignup_medium_size(size);
   } else {
     aligned_size = alignup_large_size(size);
   }
@@ -155,6 +152,7 @@ void sealloc_free(arena_t *arena, void *ptr) {
   if (ptr == NULL) return;
   meta = locate_metadata_for_ptr(arena, ptr, &chunk, &run, &bin, &huge);
   if (meta == METADATA_INVALID) {
+    assert(false);
     se_error("Invalid call to free()");
   }
   if (meta == METADATA_HUGE) {
@@ -184,6 +182,8 @@ static void *realloc_huge(arena_t *arena, huge_chunk_t *huge, size_t new_size) {
     arena_delete_huge_meta(arena, huge);
     huge->entry.key = new_map;
     huge->len = new_size;
+    huge->entry.link.bk = NULL;
+    huge->entry.link.fd = NULL;
     arena_store_huge_meta(arena, huge);
     return huge->entry.key;
   }
@@ -201,7 +201,7 @@ static void *realloc_huge(arena_t *arena, huge_chunk_t *huge, size_t new_size) {
 }
 
 void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
-  se_debug("Reallocating a region at %p of size %zu", old_ptr, new_size);
+  se_debug("Reallocating a region at %p to size %zu", old_ptr, new_size);
   chunk_t *chunk;
   run_t *run_old;
   bin_t *bin_old, *bin_new;
@@ -239,7 +239,7 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
   if (IS_SIZE_SMALL(new_size)) {
     new_size_aligned = ALIGNUP_SMALL_SIZE(new_size);
   } else if (IS_SIZE_MEDIUM(new_size)) {
-    new_size_aligned = ALIGNUP_MEDIUM_SIZE(new_size);
+    new_size_aligned = alignup_medium_size(new_size);
   } else {
     new_size_aligned = alignup_large_size(new_size);
   }

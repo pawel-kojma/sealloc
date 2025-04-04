@@ -6,7 +6,7 @@
 #define PAGE_SIZE 4096
 #define ALIGNUP_8(n) ((n + 7) & ~7)
 #define ALIGNUP_16(n) ((n + 15) & ~15)
-#define ALIGNUP_PAGE(n) ((n + PAGE_SIZE) & ~PAGE_SIZE)
+#define ALIGNUP_PAGE(n) ((n + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1))
 #define BITS2BYTES_CEIL(bits) (ALIGNUP_8(bits) / 8)
 
 #define IS_ALIGNED(X, Y) (((X) % (Y)) == 0)

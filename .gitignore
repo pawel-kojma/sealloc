@@ -54,3 +54,6 @@ compile_commands.json
 .gdb_history
 build/
 Testing/
+include/api/export.h
+html/
+latex/

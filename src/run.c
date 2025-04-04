@@ -1,10 +1,10 @@
-#include <sealloc/bin.h>
-#include <sealloc/generator.h>
-#include <sealloc/logging.h>
-#include <sealloc/random.h>
-#include <sealloc/run.h>
-#include <sealloc/size_class.h>
-#include <sealloc/utils.h>
+#include "sealloc/bin.h"
+#include "sealloc/generator.h"
+#include "sealloc/logging.h"
+#include "sealloc/random.h"
+#include "sealloc/run.h"
+#include "sealloc/size_class.h"
+#include "sealloc/utils.h"
 #include <stdbool.h>
 #include <string.h>
 
@@ -29,16 +29,18 @@ static void set_bitmap_item(uint8_t *mem, size_t idx, bstate_t state) {
 void run_init(run_t *run, bin_t *bin, void *heap) {
   unsigned gen_idx;
   run->entry.key = heap;
+  run->entry.link.fd = NULL;
+  run->entry.link.bk = NULL;
   run->navail = bin->reg_mask_size_bits / 2;
   run->nfreed = 0;
 
   // Choose a generator
   if (IS_SIZE_SMALL(bin->reg_size)) {
-    gen_idx = bin->reg_size / SMALL_SIZE_CLASS_ALIGNMENT - 1;
+    gen_idx = SIZE_TO_IDX_SMALL(bin->reg_size);
     run->gen = GENERATORS_SMALL[gen_idx][splitmix32() %
                                          GENERATORS_SMALL_LENGTHS[gen_idx]];
   } else if (IS_SIZE_MEDIUM(bin->reg_size)) {
-    gen_idx = bin->reg_size / MEDIUM_SIZE_CLASS_ALIGNMENT - 1;
+    gen_idx = size_to_idx_medium(bin->reg_size);
     run->gen = GENERATORS_MEDIUM[gen_idx][splitmix32() %
                                           GENERATORS_MEDIUM_LENGTHS[gen_idx]];
   } else {

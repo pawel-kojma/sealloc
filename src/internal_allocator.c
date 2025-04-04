@@ -1,11 +1,9 @@
-#include <sealloc/internal_allocator.h>
-#include <sealloc/logging.h>
-#include <sealloc/platform_api.h>
+#include "sealloc/internal_allocator.h"
+#include "sealloc/logging.h"
+#include "sealloc/platform_api.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <sys/mman.h>
 #include <unistd.h>
 
 #define RIGHT_CHILD(idx) (idx * 2 + 1)
@@ -52,7 +50,7 @@ static int morecore(void) {
 }
 
 // Initialize internal allocator with fresh mapping
-int internal_allocator_init(void) {
+void internal_allocator_init(void) {
   platform_status_code_t code;
   if ((code = platform_map(NULL, sizeof(struct internal_allocator_data),
                            (void **)&internal_alloc_mappings_root)) !=
@@ -64,7 +62,6 @@ int internal_allocator_init(void) {
   internal_alloc_mappings_root->buddy_tree[0] = (uint8_t)NODE_FREE;
   internal_alloc_mappings_root->free_mem =
       sizeof(internal_alloc_mappings_root->memory);
-  return 0;
 }
 
 // Get tree node type at given index
@@ -279,14 +276,14 @@ void *internal_alloc(size_t size) {
 // Free the chunk pointed by ptr
 void internal_free(void *ptr) {
   size_t idx = 1, cur_size = INTERNAL_ALLOC_CHUNK_SIZE_BYTES;
-  ptrdiff_t ptr_cur, ptr_dest = (ptrdiff_t)ptr;
+  uintptr_t ptr_cur, ptr_dest = (uintptr_t)ptr;
   ia_node_t state;
   struct internal_allocator_data *root = NULL;
 
   // Find mapping that contains the ptr
   for (root = internal_alloc_mappings_root; root != NULL; root = root->fd) {
-    if ((ptrdiff_t)&root->memory <= ptr_dest &&
-        ptr_dest <= (ptrdiff_t)root->memory + sizeof(root->memory))
+    if ((uintptr_t)&root->memory <= ptr_dest &&
+        ptr_dest <= (uintptr_t)root->memory + sizeof(root->memory))
       break;
   }
 
@@ -295,7 +292,7 @@ void internal_free(void *ptr) {
     se_error("root == NULL");
   }
 
-  ptr_cur = (ptrdiff_t)&root->memory;
+  ptr_cur = (uintptr_t)&root->memory;
   state = get_tree_item(root->buddy_tree, idx);
 
   // First, we have to find the right node

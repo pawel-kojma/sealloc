@@ -1,10 +1,10 @@
 /* Random number generator API */
 
-#include <stdint.h>
 
 #ifndef SEALLOC_RANDOM_H_
 #define SEALLOC_RANDOM_H_
 
+#include <stdint.h>
 /* Initialize random number generator */
 void init_splitmix32(uint32_t seed);
 

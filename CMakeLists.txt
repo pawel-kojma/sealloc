@@ -7,11 +7,12 @@ set(CMAKE_C_STANDARD_REQUIRED True)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 
 option(BuildType "Type of the build (Release, Debug)" Release)
+option(Tests "Build tests (ON/OFF)" "OFF")
 
 # Build sources
 add_subdirectory(./src)
 
-if(test MATCHES "ON")
+if(Tests MATCHES "ON")
     # Install GoogleTest
     include(FetchContent)
     FetchContent_Declare(

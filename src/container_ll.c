@@ -1,8 +1,17 @@
-#include <sealloc/container_ll.h>
+#include "sealloc/container_ll.h"
+
+#include <assert.h>
 #include <stddef.h>
+
+#include "sealloc/logging.h"
 
 void ll_init(ll_head_t *head) { head->ll = NULL; }
 void ll_add(ll_head_t *head, ll_entry_t *item) {
+  se_debug("fd: %p, bk: %p", item->link.fd, item->link.bk);
+  assert(item->link.fd == NULL);
+  assert(item->link.bk == NULL);
+  assert(ll_find(head, item->key) == NULL);
+
   if (head->ll == NULL) {
     head->ll = item;
     item->link.fd = NULL;
@@ -16,6 +25,8 @@ void ll_add(ll_head_t *head, ll_entry_t *item) {
   }
 }
 void ll_del(ll_head_t *head, ll_entry_t *item) {
+  assert(ll_find(head, item->key) == item);
+
   if (head->ll == item) {
     if (head->ll->link.fd == NULL)
       head->ll = NULL;
@@ -27,7 +38,7 @@ void ll_del(ll_head_t *head, ll_entry_t *item) {
   if (item->link.fd != NULL) item->link.fd->link.bk = item->link.bk;
   if (item->link.bk != NULL) item->link.bk->link.fd = item->link.fd;
 }
-ll_entry_t *ll_find(ll_head_t *head, void *key) {
+ll_entry_t *ll_find(const ll_head_t *head, const void *key) {
   ll_entry_t *res = head->ll;
   for (; res != NULL; res = res->link.fd) {
     if (res->key == key) {

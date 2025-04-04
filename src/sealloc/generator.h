@@ -1,10 +1,10 @@
 /* Generators for runs */
 
-#include <stdint.h>
 
 #ifndef SEALLOC_GENERATOR_H_
 #define SEALLOC_GENERATOR_H_
 
+#include <stdint.h>
 static unsigned GENERATORS_SMALL_LENGTHS[] = {
     256, 128, 64, 64, 32, 64, 72, 32, 24, 32, 22, 12, 24, 12, 16, 16, 8,   12,  12, 20, 8,  22, 10, 12, 8,  18, 6,  6,  16, 16, 8,  8,
 };

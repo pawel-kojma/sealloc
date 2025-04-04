@@ -1,10 +1,11 @@
-#include <sealloc/chunk.h>
-#include <sealloc/logging.h>
-#include <sealloc/platform_api.h>
-#include <sealloc/run.h>
-#include <sealloc/size_class.h>
-#include <sealloc/utils.h>
+#include "sealloc/chunk.h"
+
+#include <assert.h>
 #include <string.h>
+
+#include "sealloc/logging.h"
+#include "sealloc/platform_api.h"
+#include "sealloc/size_class.h"
 
 #define RIGHT_CHILD(idx) (idx * 2 + 1)
 #define LEFT_CHILD(idx) (idx * 2)
@@ -117,10 +118,13 @@ static inline unsigned get_leftmost_idx(unsigned idx, unsigned depth) {
 }
 
 void chunk_init(chunk_t *chunk, void *heap) {
+  assert(heap != NULL);
   chunk->entry.key = heap;
+  chunk->entry.link.fd = NULL;
+  chunk->entry.link.bk = NULL;
   memset(chunk->reg_size_small_medium, REG_MARK_BAD_VALUE,
          sizeof(chunk->reg_size_small_medium));
-  chunk->buddy_tree[0] = (uint8_t)NODE_FREE;
+  set_tree_item(chunk->buddy_tree, 1, NODE_FREE);
   chunk->free_mem = CHUNK_SIZE_BYTES;
   memset(&chunk->buddy_tree, 0, sizeof(chunk->buddy_tree));
 }
@@ -192,7 +196,8 @@ void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned reg_size) {
         coalesce_full_nodes(chunk->buddy_tree, ctx->idx);
         return (void *)ctx->ptr;
       }
-      // fallthrough if neighbor node is not free or guarded.
+      buddy_state_go_up(ctx);
+      break;
     case NODE_GUARD:
     case NODE_USED:
     case NODE_DEPLETED:
@@ -257,13 +262,14 @@ void *visit_regular_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned run_size) {
 
           set_tree_item(chunk->buddy_tree, neigh_idx, NODE_GUARD);
           mark_nodes_split_guard(chunk->buddy_tree, PARENT(neigh_idx));
+          chunk->free_mem -= (ctx->cur_size + CHUNK_LEAST_REGION_SIZE_BYTES);
         } else {
           set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED);
           set_tree_item(chunk->buddy_tree,
                         get_leftmost_idx(ctx->idx, ctx->depth_to_leaf),
                         NODE_USED);
+          chunk->free_mem -= ctx->cur_size;
         }
-        chunk->free_mem -= ctx->cur_size;
         coalesce_full_nodes(chunk->buddy_tree, ctx->idx);
         return (void *)ctx->ptr;
       } else {
@@ -288,6 +294,10 @@ void *visit_regular_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned run_size) {
 }
 
 void *chunk_allocate_run(chunk_t *chunk, unsigned run_size, unsigned reg_size) {
+  assert(CHUNK_LEAST_REGION_SIZE_BYTES <= run_size);
+  assert(run_size <= CHUNK_SIZE_BYTES);
+  assert(is_size_aligned(reg_size));
+
   void *ptr;
   buddy_ctx_t ctx = {
       .idx = 1,
@@ -474,6 +484,10 @@ bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
 // Fills run data based of ptr
 void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
                        unsigned *run_size, unsigned *reg_size) {
+  assert(*run_ptr == NULL);
+  assert(*run_size == 0);
+  assert(*reg_size == 0);
+
   uintptr_t ptr_dest = (uintptr_t)ptr;
   chunk_node_t node;
   buddy_ctx_t ctx = {
@@ -510,13 +524,11 @@ void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
         *reg_size = (UINT8_MAX + 1) * SMALL_SIZE_CLASS_ALIGNMENT;
       else
         *reg_size = compressed_reg_size * SMALL_SIZE_CLASS_ALIGNMENT;
-    } else
-      *reg_size = 0;
-  } else
-    *reg_size = 0;
+    }
+  }
 }
 
-bool chunk_is_empty(chunk_t *chunk) {
-  return chunk->free_mem == CHUNK_SIZE_BYTES;
+bool chunk_is_unmapped(chunk_t *chunk) {
+  return get_tree_item(chunk->buddy_tree, 1) == NODE_UNMAPPED;
 }
 bool chunk_is_full(chunk_t *chunk) { return chunk->free_mem == 0; }
