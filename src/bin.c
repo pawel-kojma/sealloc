@@ -10,17 +10,15 @@
 void bin_init(bin_t *bin, unsigned reg_size) {
   assert(reg_size >= 1);
   assert(reg_size <= LARGE_SIZE_MAX_REGION);
+  assert(is_size_aligned(reg_size));
 
   ll_init(&bin->run_list_inactive);
   if (IS_SIZE_SMALL(reg_size)) {
-    assert(ALIGNUP_SMALL_SIZE(reg_size) == reg_size);
     bin->run_size_pages = 2;
   } else if (IS_SIZE_MEDIUM(reg_size)) {
-    assert(alignup_medium_size(reg_size) == reg_size);
     bin->run_size_pages = 2;
   } else {
     // Assuming large size class
-    assert(alignup_large_size(reg_size) == reg_size);
     bin->run_size_pages = reg_size / PAGE_SIZE;
   }
   bin->reg_size = reg_size;

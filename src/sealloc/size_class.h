@@ -4,6 +4,8 @@
 #define SEALLOC_SIZE_CLASS_H_
 
 #include "utils.h"
+#include <stdbool.h>
+
 // Small - len(16, ..., 16*i, ..., 512) = 32
 // Medium - len(1KB, 2KB, 4KB) = 3
 // Large - len(8KB, ..., 8KB * (2 ** (i-1)), 1MB) = 8
@@ -33,4 +35,5 @@ unsigned size_to_idx_large(unsigned n);
 
 unsigned alignup_medium_size(unsigned n);
 unsigned size_to_idx_medium(unsigned n);
+bool is_size_aligned(unsigned size);
 #endif /* SEALLOC_SIZE_CLASS_H_ */

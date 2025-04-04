@@ -1,5 +1,7 @@
 #include "sealloc/size_class.h"
 
+#include <stdbool.h>
+
 static inline unsigned ceil_div(unsigned a, unsigned b) {
   return (a / b) + (a % b == 0 ? 0 : 1);
 }
@@ -43,4 +45,13 @@ unsigned alignup_medium_size(unsigned n) {
 
 unsigned size_to_idx_medium(unsigned n) {
   return ctz(n / MEDIUM_SIZE_MIN_REGION);
+}
+
+bool is_size_aligned(unsigned size) {
+  if (IS_SIZE_SMALL(size)) {
+    return ALIGNUP_SMALL_SIZE(size) == size;
+  } else if (IS_SIZE_MEDIUM(size)) {
+    return alignup_medium_size(size) == size;
+  }
+  return alignup_large_size(size) == size;
 }
