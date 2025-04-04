@@ -55,3 +55,5 @@ compile_commands.json
 build/
 Testing/
 include/api/export.h
+html/
+latex/

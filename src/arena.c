@@ -1,4 +1,7 @@
 #include "sealloc/arena.h"
+
+#include <string.h>
+
 #include "sealloc/chunk.h"
 #include "sealloc/container_ll.h"
 #include "sealloc/internal_allocator.h"
@@ -8,7 +11,6 @@
 #include "sealloc/run.h"
 #include "sealloc/size_class.h"
 #include "sealloc/utils.h"
-#include <string.h>
 
 void arena_init(arena_t *arena) {
   platform_status_code_t code;
@@ -117,8 +119,7 @@ void arena_deallocate_chunk(arena_t *arena, chunk_t *chunk) {
   internal_free(chunk);
 }
 
-chunk_t *arena_get_chunk_from_ptr(arena_t *arena, void *ptr) {
-  // ptr is some pointer inside of a chunk
+chunk_t *arena_get_chunk_from_ptr(const arena_t *arena, const void *const ptr) {
   chunk_t *chunk = NULL;
   ptrdiff_t target = (ptrdiff_t)ptr;
   for (ll_entry_t *entry = arena->chunk_list.ll; entry != NULL;
@@ -138,14 +139,14 @@ bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size) {
   bin_t *bin = NULL;
   // Assume reg_size is either small, medium or large class
   if (IS_SIZE_SMALL(reg_size)) {
-      // 0 .. 31 
+    // 0 .. 31
     bin = &arena->bins[SIZE_TO_IDX_SMALL(reg_size)];
   } else if (IS_SIZE_MEDIUM(reg_size)) {
-      // 32 .. 34
+    // 32 .. 34
     skip_bins = NO_SMALL_SIZE_CLASSES;
     bin = &arena->bins[skip_bins + size_to_idx_medium(reg_size)];
   } else {
-      // 35 ... 43
+    // 35 ... 43
     skip_bins = NO_SMALL_SIZE_CLASSES + NO_MEDIUM_SIZE_CLASSES;
     bin = &arena->bins[skip_bins + size_to_idx_large(reg_size)];
   }
