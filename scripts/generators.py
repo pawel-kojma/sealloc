@@ -36,7 +36,7 @@ def main():
     max_gens_medium = max(len(g) for g in sc_medium_gen)
     gen_header = env.get_template('generator.j2').render(
         sc_small_gen=sc_small_gen, sc_medium_gen=sc_medium_gen, max_gens_small=max_gens_small, max_gens_medium=max_gens_medium)
-    hdr = Path('include/sealloc/generator.h')
+    hdr = Path('src/sealloc/generator.h')
     hdr.touch(exist_ok=True)
     hdr.write_text(gen_header)
 

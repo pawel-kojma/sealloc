@@ -91,7 +91,8 @@ size_t run_validate_ptr(run_t *run, bin_t *bin, void *ptr) {
   size_t bitmap_idx = rel_ptr / bin->reg_size;
   // Check if ptr is unaligned
   if (rel_ptr % bin->reg_size != 0) {
-    se_error("Unaligned ptr (ptr=%p)", ptr);
+    se_debug("Unaligned ptr (ptr=%p)", ptr);
+    return SIZE_MAX;
   }
 
   // Check for double free

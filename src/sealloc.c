@@ -64,7 +64,12 @@ static huge_chunk_t *sealloc_allocate_huge(arena_t *arena,
 
 void *sealloc_malloc(arena_t *arena, size_t size) {
   size_t aligned_size;
-  if (size == 0) return NULL;
+
+  /*
+   * Some programs seem to allocate size 0 to reallocate in future
+   * and fail if NULL is returned, like grep.
+   */
+  if (size == 0) size = SMALL_SIZE_MIN_REGION;
 
   if (IS_SIZE_HUGE(size)) {
     huge_chunk_t *huge = sealloc_allocate_huge(arena, ALIGNUP_PAGE(size));
@@ -128,7 +133,8 @@ static metadata_t locate_metadata_for_ptr(arena_t *arena, void *ptr,
 static void sealloc_free_with_metadata(arena_t *arena, chunk_t *chunk,
                                        bin_t *bin, run_t *run, void *ptr) {
   if (!run_deallocate(run, bin, ptr)) {
-    se_error("Invalid call to free()");
+    se_log("Invalid call to free()");
+    abort();
   }
 
   if (run_is_freeable(run, bin)) {
@@ -152,8 +158,8 @@ void sealloc_free(arena_t *arena, void *ptr) {
   if (ptr == NULL) return;
   meta = locate_metadata_for_ptr(arena, ptr, &chunk, &run, &bin, &huge);
   if (meta == METADATA_INVALID) {
-    assert(false);
-    se_error("Invalid call to free()");
+    se_log("Invalid call to free()");
+    abort();
   }
   if (meta == METADATA_HUGE) {
     arena_deallocate_huge_mapping(arena, huge->entry.key,
@@ -215,14 +221,16 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
   meta = locate_metadata_for_ptr(arena, old_ptr, &chunk, &run_old, &bin_old,
                                  &huge);
   if (meta == METADATA_INVALID) {
-    se_error("Invalid call to realloc()");
+    se_log("Invalid call to realloc()");
+    abort();
   }
   if (meta == METADATA_HUGE) {
     return realloc_huge(arena, huge, ALIGNUP_PAGE(new_size));
   }
 
   if (run_validate_ptr(run_old, bin_old, old_ptr) == SIZE_MAX) {
-    se_error("Invalid call to realloc()");
+    se_log("Invalid call to realloc()");
+    abort();
   }
   se_debug("Reallocating region of small/medium/large class");
   if (IS_SIZE_HUGE(new_size)) {
@@ -233,9 +241,6 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
     return huge->entry.key;
   }
 
-  if (run_validate_ptr(run_old, bin_old, old_ptr) == SIZE_MAX) {
-    se_error("Invalid call to realloc()");
-  }
   if (IS_SIZE_SMALL(new_size)) {
     new_size_aligned = ALIGNUP_SMALL_SIZE(new_size);
   } else if (IS_SIZE_MEDIUM(new_size)) {
