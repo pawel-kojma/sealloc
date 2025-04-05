@@ -57,6 +57,15 @@ list(APPEND tests_integration
 )
 list(APPEND test_srcs
     test_ia test_run test_container_ll test_bin test_chunk test_arena test_size_class)
+
+
+list(APPEND tests_e2e  
+        double_free_close
+        double_free_far
+        uaf_close
+        uaf_many_no_duplicates
+)
+
 include(GoogleTest)
 
 foreach(test_src ${test_srcs})
@@ -67,9 +76,14 @@ foreach(test_src ${test_srcs})
 endforeach()
 
 foreach(test_integration ${tests_integration})
-    add_executable(${test_integration} "./test_sealloc/${test_integration}.cpp")
+    add_executable(${test_integration} "./test_integration/${test_integration}.cpp")
     set_target_properties(${test_integration} PROPERTIES OUTPUT_NAME "integration_${test_integration}")
     target_link_libraries(${test_integration} ${test_libs})
     gtest_discover_tests(${test_integration})
 endforeach()
 
+foreach(test_e2e ${tests_e2e})
+    add_executable(${test_e2e} "./test_e2e/${test_e2e}.c")
+    set_target_properties(${test_e2e} PROPERTIES OUTPUT_NAME "e2e_${test_e2e}")
+    target_link_libraries(${test_e2e} test_cflags)
+endforeach()
