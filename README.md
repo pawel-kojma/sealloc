@@ -7,3 +7,27 @@ Key features are:
 - Linear overflow resistance using guard pages.
 - Protection from freeing fake region
 - Use-after-free protection using randomized region allocation.
+
+## Build
+
+To build the project run following commands:
+
+```bash
+$ cmake -S . -B build
+$ cmake --build build -- -j
+```
+
+Additional flags may be specified to get specialized build:
+```
+-DLog=ON/OFF - Enable library logging
+-DBuildType=Release/Debug - Build release version with optimization or debug with debugging symbols
+-DBUILD_SHARED_LIBS=ON/OFF - Build shared library
+-DTests=ON/OFF - Build tests
+```
+
+## Tests
+
+To run tests, build the project with `-DTests` and enter following command:
+```
+$ ctest --test-dir ./build/test/
+```

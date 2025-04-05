@@ -3,6 +3,8 @@
 #ifndef SEALLOC_UTILS_H_
 #define SEALLOC_UTILS_H_
 
+#include <stdint.h>
+
 #define PAGE_SIZE 4096
 #define ALIGNUP_8(n) ((n + 7) & ~7)
 #define ALIGNUP_16(n) ((n + 15) & ~15)
@@ -13,4 +15,6 @@
 #define CONTAINER_OF(ptr, type, member) \
   ((type *)((char *)ptr - offsetof(type, member)))
 
+uint32_t str2u32(const char *str);
+unsigned msg_len(const char* msg);
 #endif /* SEALLOC_UTILS_H_ */

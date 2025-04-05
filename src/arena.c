@@ -1,6 +1,7 @@
 #include "sealloc/arena.h"
 
 #include <assert.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "sealloc/chunk.h"
@@ -15,9 +16,16 @@
 
 void arena_init(arena_t *arena) {
   platform_status_code_t code;
-  if ((code = platform_get_random(&arena->secret)) != PLATFORM_STATUS_OK) {
+#ifdef DEBUG
+  char *user_rand = getenv("SEALLOC_SEED");
+  if (user_rand != NULL) {
+    arena->secret = str2u32(user_rand);
+  } else
+#endif
+      if ((code = platform_get_random(&arena->secret)) != PLATFORM_STATUS_OK) {
     se_error("Failed to get random value: %s", platform_strerror(code));
   }
+
   init_splitmix32(arena->secret);
   internal_allocator_init();
   ll_init(&arena->chunk_list);

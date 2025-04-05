@@ -3,8 +3,10 @@ set(msvc_like_c "$<COMPILE_LANG_AND_ID:C,MSVC>")
 
 if (BuildType MATCHES "Release")
     set(EXTRA_COMPILE_OPTIONS $<${gcc_like_c}:-O3>)
+    set(debug 0)
 elseif(BuildType MATCHES "Debug")
     set(EXTRA_COMPILE_OPTIONS $<${gcc_like_c}:-O0 -ggdb>)
+    set(debug 1)
 endif()
 
 if (Log MATCHES "OFF")
@@ -17,6 +19,7 @@ add_library(sealloc)
 
 target_sources(sealloc
     PRIVATE malloc_api.c sealloc.c platform.c chunk.c bin.c internal_allocator.c random.c run.c container_ll.c arena.c size_class.c logging.c
+    utils.c
 )
 target_include_directories(sealloc
     PRIVATE "src/"
@@ -24,7 +27,10 @@ target_include_directories(sealloc
 target_compile_options(sealloc
     PRIVATE $<${gcc_like_c}:-Wall -Werror -Wextra -pedantic -Wformat=0> ${EXTRA_COMPILE_OPTIONS}
 )
-target_compile_definitions(sealloc PRIVATE "$<$<BOOL:${enable_logging}>:LOGGING>")
+target_compile_definitions(sealloc PRIVATE
+    "$<$<BOOL:${enable_logging}>:LOGGING>"
+    "$<$<BOOL:${debug}>:DEBUG>"
+)
 
 include(GenerateExportHeader)
 set_property(

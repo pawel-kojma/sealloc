@@ -18,6 +18,7 @@ list(APPEND sealloc_internal_srcs
     arena.c
     size_class.c
     logging.c
+    utils.c
 )
 list(TRANSFORM sealloc_internal_srcs PREPEND "${PROJECT_SOURCE_DIR}/src/")
 

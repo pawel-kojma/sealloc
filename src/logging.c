@@ -1,13 +1,5 @@
 #include <unistd.h>
-
-unsigned msg_len(const char* msg) {
-  unsigned cnt = 0;
-  while (*msg != '\0') {
-    cnt++;
-    msg++;
-  }
-  return cnt;
-}
+#include "sealloc/utils.h"
 
 void logE(const char* msg) {
   unsigned len = msg_len(msg);
