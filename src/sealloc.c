@@ -133,7 +133,7 @@ static metadata_t locate_metadata_for_ptr(arena_t *arena, void *ptr,
 static void sealloc_free_with_metadata(arena_t *arena, chunk_t *chunk,
                                        bin_t *bin, run_t *run, void *ptr) {
   if (!run_deallocate(run, bin, ptr)) {
-    logE("Invalid call to free()");
+    se_log("Invalid call to free()");
     abort();
   }
 
@@ -158,7 +158,7 @@ void sealloc_free(arena_t *arena, void *ptr) {
   if (ptr == NULL) return;
   meta = locate_metadata_for_ptr(arena, ptr, &chunk, &run, &bin, &huge);
   if (meta == METADATA_INVALID) {
-    logE("Invalid call to free()");
+    se_log("Invalid call to free()");
     abort();
   }
   if (meta == METADATA_HUGE) {
@@ -221,7 +221,7 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
   meta = locate_metadata_for_ptr(arena, old_ptr, &chunk, &run_old, &bin_old,
                                  &huge);
   if (meta == METADATA_INVALID) {
-    logE("Invalid call to realloc()");
+    se_log("Invalid call to realloc()");
     abort();
   }
   if (meta == METADATA_HUGE) {
@@ -229,7 +229,7 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
   }
 
   if (run_validate_ptr(run_old, bin_old, old_ptr) == SIZE_MAX) {
-    logE("Invalid call to realloc()");
+    se_log("Invalid call to realloc()");
     abort();
   }
   se_debug("Reallocating region of small/medium/large class");

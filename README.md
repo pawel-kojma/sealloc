@@ -2,11 +2,12 @@
 
 Prototype `malloc(3)` implementation which aims to improve security.
 Key features are:
-- Separation of allocator metadata and user data to avoid leakage.
+- Separation of allocator metadata and user data to avoid leakage and corruption.
 - Double-free resistance.
 - Linear overflow resistance using guard pages.
-- Protection from freeing fake region
-- Use-after-free protection using randomized region allocation.
+- Protection from freeing fake region.
+- Use-after-free protection using one time allocation.
+- Randomized region allocation.
 
 ## Build
 
@@ -27,7 +28,7 @@ Additional flags may be specified to get specialized build:
 
 ## Tests
 
-To run tests, build the project with `-DTests` and enter following command:
+To run unit tests, build the project with `-DTests=ON` and enter following command:
 ```
 $ ctest --test-dir ./build/test/
 ```
