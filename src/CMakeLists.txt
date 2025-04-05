@@ -3,16 +3,20 @@ set(msvc_like_c "$<COMPILE_LANG_AND_ID:C,MSVC>")
 
 if (BuildType MATCHES "Release")
     set(EXTRA_COMPILE_OPTIONS $<${gcc_like_c}:-O3>)
-    set(enable_logging 0)
 elseif(BuildType MATCHES "Debug")
     set(EXTRA_COMPILE_OPTIONS $<${gcc_like_c}:-O0 -ggdb>)
+endif()
+
+if (Log MATCHES "OFF")
+    set(enable_logging 0)
+elseif(Log MATCHES "ON")
     set(enable_logging 1)
 endif()
 
 add_library(sealloc)
 
 target_sources(sealloc
-    PRIVATE malloc_api.c sealloc.c platform.c chunk.c bin.c internal_allocator.c random.c run.c container_ll.c arena.c size_class.c
+    PRIVATE malloc_api.c sealloc.c platform.c chunk.c bin.c internal_allocator.c random.c run.c container_ll.c arena.c size_class.c logging.c
 )
 target_include_directories(sealloc
     PRIVATE "src/"

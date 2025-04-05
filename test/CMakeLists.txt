@@ -16,7 +16,9 @@ list(APPEND sealloc_internal_srcs
     run.c
     container_ll.c
     arena.c
-    size_class.c)
+    size_class.c
+    logging.c
+)
 list(TRANSFORM sealloc_internal_srcs PREPEND "${PROJECT_SOURCE_DIR}/src/")
 
 add_library(sealloc_internal SHARED ${sealloc_internal_srcs})
@@ -26,7 +28,7 @@ target_compile_options(sealloc_internal PRIVATE
     $<${gcc_like_c}:-Wall -Werror -Wextra -pedantic -Wformat=0>
     ${EXTRA_COMPILE_OPTIONS}
 )
-target_compile_definitions(sealloc_internal PRIVATE LOGGING)
+target_compile_definitions(sealloc_internal PRIVATE "$<$<BOOL:${enable_logging}>:LOGGING>")
 
 list(APPEND test_libs 
   GTest::gtest_main

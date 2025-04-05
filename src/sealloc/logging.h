@@ -42,4 +42,6 @@
   }
 #endif
 
+void logE(const char* msg);
+
 #endif /* SEALLOC_LOGGING_H_ */
