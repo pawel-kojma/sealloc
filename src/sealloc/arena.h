@@ -44,6 +44,10 @@ typedef struct huge_chunk huge_chunk_t;
 
 /*!
  * @brief Holds state of arena
+ *
+ * Chunks and internal allocator structures are allocated incrementally.
+ * Chunks start at random offset from the program break, intial address for
+ * internal allocator is chosen randomly. All huge allocation address hints are chosen randomly.
  */
 struct arena_state {
   int is_initialized;   /*!< Holds 1 if arena was initialized, 0 otherwise. */
@@ -51,14 +55,15 @@ struct arena_state {
                            structures or      user allocations. */
   ll_head_t chunk_list; /*!< Head to list of linkage entries within chunk_t
                            structures. */
-  uintptr_t alloc_ptr;  /*!< If not NULL, a pointer to place within a mapping
-                           from where next chunk will be allocated. If alloc_ptr
-                           is NULL, then chunks_left is 0. */
-  unsigned chunks_left; /*!< Indicate how many chunks are left in current
-                           mapping servicing chunks. If chunks_left is 0, then
-                           alloc_ptr is NULL. */
-  ll_head_t huge_mappings;   /*!< Head to list of linkage entries within
-                                huge_chunk_t structures. */
+  ll_head_t huge_alloc_list;  /*!< Head to list of linkage entries within
+                               huge_chunk_t structures. */
+  ll_head_t internal_alloc; /*!< Head to list of linkage entries within internal
+                               allocator nodes. */
+  uintptr_t chunk_alloc_ptr; /*!< A pointer where arena will start probing
+                                system for more memory for chunks. */
+  uintptr_t
+      internal_alloc_ptr; /*!< A pointer where arena will start probing system
+                             for more memory for internal allocator nodes. */
   bin_t bins[ARENA_NO_BINS]; /*!< Array of bin_t structures for SMALL, MEDIUM or
                                 LARGE size classes. */
 };
@@ -180,7 +185,7 @@ void *arena_allocate_huge_mapping(arena_t *arena, size_t len);
  * @param[in] len size of requested allocation, page aligned.
  * @pre len is page aligned
  * @pre arena is initialized
- * @sideeffect fails if mapping could not be deallocated 
+ * @sideeffect fails if mapping could not be deallocated
  */
 void arena_deallocate_huge_mapping(arena_t *arena, void *const huge_map,
                                    size_t len);

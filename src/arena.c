@@ -14,6 +14,8 @@
 #include "sealloc/size_class.h"
 #include "sealloc/utils.h"
 
+#define USERSPACE_ADDRESS_MASK 0xffffffffffffULL
+
 void arena_init(arena_t *arena) {
   platform_status_code_t code;
 #ifdef DEBUG
@@ -28,13 +30,74 @@ void arena_init(arena_t *arena) {
   }
 
   init_splitmix32(arena->secret);
-  internal_allocator_init();
+  ll_init(&arena->internal_alloc);
   ll_init(&arena->chunk_list);
-  ll_init(&arena->huge_mappings);
+  ll_init(&arena->huge_alloc_list);
   arena->is_initialized = 1;
-  arena->alloc_ptr = 0;
-  arena->chunks_left = 0;
+
+  arena->chunk_alloc_ptr = splitmix32() & ~PAGE_SIZE;
+  arena->internal_alloc_ptr =
+      ((splitmix32() << 32) + splitmix32()) & USERSPACE_ADDRESS_MASK;
+  if ((code = platform_program_break((void **)&arena->huge_alloc_list)) !=
+      PLATFORM_STATUS_OK) {
+    se_error("Failed to get program break: %s", platform_strerror(code));
+  }
+  // Offset start of chunk allocations from program break by [1, 16] pages
+  arena->huge_alloc_list += (1 + (splitmix32() % 16)) * PAGE_SIZE;
   memset(arena->bins, 0, sizeof(bin_t) * ARENA_NO_BINS);
+}
+
+static void *arena_internal_alloc(arena_t *arena, size_t size) {
+  int_alloc_t *map;
+  void *alloc;
+  platform_status_code_t code;
+  // Loop over memory mappings and try to satisfy the request
+  for (ll_entry_t *root = arena->internal_alloc.ll; root != NULL;
+       root = root->link.fd) {
+    se_debug("Trying to allocate with root = %p", (void *)root);
+    alloc = internal_alloc(CONTAINER_OF(root, int_alloc_t, entry), size);
+    if (alloc != NULL) return alloc;
+  }
+
+  // No mapping can satisfy the request, try to get more memory
+  se_debug("Trying to allocate more metadata memory");
+
+  if ((code = platform_map_probe((void **)&map, &arena->internal_alloc_ptr,
+                                 sizeof(int_alloc_t))) != PLATFORM_STATUS_OK) {
+    se_error("Failed to allocate mapping (size : %u): %s", map_len,
+             platform_strerror(code));
+  }
+
+  if (map == NULL) {
+    se_debug("No more memory");
+    return NULL;
+  }
+
+  internal_allocator_init(map);
+  ll_add(&arena->internal_alloc, &map->entry);
+
+  se_debug("Allocating from fresh mapping");
+  return internal_alloc(map, size);
+}
+static void *arena_internal_free(arena_t *arena, void *ptr) {
+  uintptr_t ptr_dest = (uintptr_t)ptr;
+  int_alloc_t *root = NULL;
+
+  // Find mapping that contains the ptr
+  for (root = CONTAINER_OF(arena->internal_alloc.ll, int_alloc_t, entry);
+       root != NULL;
+       root = CONTAINER_OF(root->entry.link.fd, int_alloc_t, entry)) {
+    if ((uintptr_t)&root->memory <= ptr_dest &&
+        ptr_dest <= (uintptr_t)root->memory + sizeof(root->memory))
+      break;
+  }
+
+  // No mapping found, panic
+  if (!root) {
+    se_error("root == NULL");
+  }
+
+  internal_free(root, ptr);
 }
 
 run_t *arena_allocate_run(arena_t *arena, bin_t *bin) {
@@ -51,8 +114,8 @@ run_t *arena_allocate_run(arena_t *arena, bin_t *bin) {
                                  bin->reg_size);
     if (run_ptr != NULL) {
       // We just allocated a run
-      run = internal_alloc(sizeof(run_t) +
-                           BITS2BYTES_CEIL(bin->reg_mask_size_bits));
+      run = arena_internal_alloc(sizeof(run_t) +
+                                 BITS2BYTES_CEIL(bin->reg_mask_size_bits));
       run_init(run, bin, run_ptr);
       return run;
     }
@@ -64,8 +127,8 @@ run_t *arena_allocate_run(arena_t *arena, bin_t *bin) {
       chunk_allocate_run(chunk, bin->run_size_pages * PAGE_SIZE, bin->reg_size);
   assert(run_ptr != NULL && "Failed to allocate run from fresh chunk");
 
-  run =
-      internal_alloc(sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
+  run = arena_internal_alloc(
+      arena, sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
   run_init(run, bin, run_ptr);
   return run;
 }
@@ -73,21 +136,17 @@ run_t *arena_allocate_run(arena_t *arena, bin_t *bin) {
 chunk_t *arena_allocate_chunk(arena_t *arena) {
   assert(arena->is_initialized == 1);
 
-  // arena->alloc_ptr == 0 <=> arena->chunks_left == 0
-  assert(!(arena->alloc_ptr == 0) || (arena->chunks_left == 0));
-  assert((arena->alloc_ptr == 0) || !(arena->chunks_left == 0));
-
-  chunk_t *chunk_meta = internal_alloc(sizeof(chunk_t));
+  chunk_t *chunk_meta = arena_internal_alloc(arena, sizeof(chunk_t));
   platform_status_code_t code;
   size_t map_len = CHUNKS_PER_MAPPING * (CHUNK_SIZE_BYTES + PAGE_SIZE);
 
   // get more memory if needed
-  if (arena->alloc_ptr == 0) {
-    if ((code = platform_map(NULL, map_len, (void **)&arena->alloc_ptr)) !=
-        PLATFORM_STATUS_OK) {
-      se_error("Failed to allocate mapping (size : %u): %s", map_len,
-               platform_strerror(code));
-    }
+  if (arena->chunk_alloc_ptr) {
+  if ((code = platform_map_probe((void **)&map, &arena->internal_alloc_ptr,
+                                 sizeof(int_alloc_t))) != PLATFORM_STATUS_OK) {
+    se_error("Failed to allocate mapping (size : %u): %s", map_len,
+             platform_strerror(code));
+  }
     arena->chunks_left = CHUNKS_PER_MAPPING;
   }
 
@@ -177,7 +236,7 @@ bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size) {
 huge_chunk_t *arena_find_huge_mapping(const arena_t *arena,
                                       const void *const huge_map) {
   assert(arena->is_initialized == 1);
-  ll_entry_t *entry = ll_find(&arena->huge_mappings, huge_map);
+  ll_entry_t *entry = ll_find(&arena->huge_list, huge_map);
   if (entry == NULL) return NULL;
   huge_chunk_t *huge = CONTAINER_OF(entry, huge_chunk_t, entry);
   assert(huge->entry.key == huge_map);
@@ -188,14 +247,14 @@ void arena_store_huge_meta(arena_t *arena, huge_chunk_t *huge) {
   assert(arena->is_initialized == 1);
   assert(IS_ALIGNED(huge->len, PAGE_SIZE));
   assert(huge->entry.key != NULL);
-  ll_add(&arena->huge_mappings, &huge->entry);
+  ll_add(&arena->huge_list, &huge->entry);
 }
 
 void arena_delete_huge_meta(arena_t *arena, huge_chunk_t *huge) {
   assert(arena->is_initialized == 1);
   assert(IS_ALIGNED(huge->len, PAGE_SIZE));
   assert(huge->entry.key != NULL);
-  ll_del(&arena->huge_mappings, &huge->entry);
+  ll_del(&arena->huge_list, &huge->entry);
 }
 
 void *arena_allocate_huge_mapping(arena_t *arena, size_t len) {
