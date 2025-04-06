@@ -59,7 +59,11 @@ list(APPEND test_srcs
     test_ia test_run test_container_ll test_bin test_chunk test_arena test_size_class)
 
 
-list(APPEND tests_e2e  
+list(APPEND tests_e2e
+        overflow_large
+        overflow_medium
+        overflow_small
+        arbitrary_free_near
         double_free_close
         double_free_far
         uaf_close

@@ -15,6 +15,10 @@ def run_bin(program, lib_path, seed):
 
 @pytest.mark.parametrize("seed", SEEDS)
 @pytest.mark.parametrize("bin_name", [
+    "e2e_overflow_large",
+    "e2e_overflow_medium",
+    "e2e_overflow_small",
+    "e2e_arbitrary_free_near",
     "e2e_double_free_close",
     "e2e_double_free_far",
     "e2e_uaf_close",
