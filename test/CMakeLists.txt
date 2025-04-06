@@ -60,6 +60,7 @@ list(APPEND test_srcs
 
 
 list(APPEND tests_e2e
+        randomized_allocations
         overflow_large
         overflow_medium
         overflow_small
