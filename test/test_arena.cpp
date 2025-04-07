@@ -105,6 +105,26 @@ TEST_F(ArenaUtilsTest, ArenaAllocateHugeChunk) {
   EXPECT_NE(huge_chunk, nullptr);
 }
 
+TEST_F(ArenaUtilsTest, ArenaReallocateHugeChunkSameSize) {
+  huge_chunk_t *huge_chunk1;
+  void *key;
+  huge_chunk1 = arena_allocate_huge_mapping(&arena, huge_chunk_size);
+  key = huge_chunk1->entry.key;
+  arena_reallocate_huge_mapping(&arena, huge_chunk1, huge_chunk_size);
+  EXPECT_EQ(huge_chunk1->entry.key, key);
+}
+
+TEST_F(ArenaUtilsTest, ArenaReallocateHugeChunkExpand) {
+  huge_chunk_t *huge_chunk1;
+  void *key;
+  huge_chunk1 = arena_allocate_huge_mapping(&arena, huge_chunk_size);
+  EXPECT_NE(huge_chunk1->entry.key, nullptr);
+  key = huge_chunk1->entry.key;
+  arena_reallocate_huge_mapping(&arena, huge_chunk1, 2*huge_chunk_size);
+  EXPECT_NE(huge_chunk1->entry.key, nullptr);
+  EXPECT_NE(huge_chunk1->entry.key, key);
+}
+
 TEST_F(ArenaUtilsTest, ArenaDeallocateHugeChunk) {
   huge_chunk_t *huge_chunk;
   huge_chunk = arena_allocate_huge_mapping(&arena, huge_chunk_size);

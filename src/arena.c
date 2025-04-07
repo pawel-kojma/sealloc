@@ -14,7 +14,6 @@
 #include "sealloc/size_class.h"
 #include "sealloc/utils.h"
 
-
 void arena_init(arena_t *arena) {
   platform_status_code_t code;
 #ifdef DEBUG
@@ -62,7 +61,8 @@ void *arena_internal_alloc(arena_t *arena, size_t size) {
   se_debug("Trying to allocate more metadata memory");
 
   if ((code = platform_map_probe(&arena->internal_alloc_ptr,
-                                 ALIGNUP_PAGE(sizeof(int_alloc_t)))) != PLATFORM_STATUS_OK) {
+                                 ALIGNUP_PAGE(sizeof(int_alloc_t)))) !=
+      PLATFORM_STATUS_OK) {
     se_error("Failed to allocate mapping (size : %zu): %s", sizeof(int_alloc_t),
              platform_strerror(code));
   }
@@ -114,8 +114,8 @@ run_t *arena_allocate_run(arena_t *arena, bin_t *bin) {
                                  bin->reg_size);
     if (run_ptr != NULL) {
       // We just allocated a run
-      run = arena_internal_alloc(arena, sizeof(run_t) +
-                                 BITS2BYTES_CEIL(bin->reg_mask_size_bits));
+      run = arena_internal_alloc(
+          arena, sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
       run_init(run, bin, run_ptr);
       return run;
     }
@@ -266,11 +266,14 @@ huge_chunk_t *arena_allocate_huge_mapping(arena_t *arena, size_t len) {
 }
 
 void arena_reallocate_huge_mapping(arena_t *arena, huge_chunk_t *huge,
-                                    size_t new_size) {
+                                   size_t new_size) {
   assert(IS_ALIGNED(huge->len, PAGE_SIZE));
   assert(IS_ALIGNED(new_size, PAGE_SIZE));
   assert(arena->is_initialized == 1);
   assert(IS_SIZE_HUGE(new_size));
+
+  // If aligned size is the same, then do nothing
+  if (new_size <= huge->len) return;
 
   platform_status_code_t code;
   void *new_map;
@@ -294,8 +297,8 @@ void arena_reallocate_huge_mapping(arena_t *arena, huge_chunk_t *huge,
   // Deallocate old mapping
   if ((code = platform_unmap(huge->entry.key, huge->len)) !=
       PLATFORM_STATUS_OK) {
-    se_error("Failed to deallocate huge mapping (ptr : %p, size : %u): %s", huge->entry.key,
-             huge->len, platform_strerror(code));
+    se_error("Failed to deallocate huge mapping (ptr : %p, size : %u): %s",
+             huge->entry.key, huge->len, platform_strerror(code));
   }
 
   // Update chunk info
@@ -309,8 +312,8 @@ void arena_deallocate_huge_mapping(arena_t *arena, huge_chunk_t *huge) {
   platform_status_code_t code;
   if ((code = platform_unmap(huge->entry.key, huge->len)) !=
       PLATFORM_STATUS_OK) {
-    se_error("Failed to deallocate huge mapping (ptr : %p, size : %u): %s", huge->entry.key,
-             huge->len, platform_strerror(code));
+    se_error("Failed to deallocate huge mapping (ptr : %p, size : %u): %s",
+             huge->entry.key, huge->len, platform_strerror(code));
   }
   ll_del(&arena->huge_alloc_list, &huge->entry);
   arena_internal_free(arena, huge);
