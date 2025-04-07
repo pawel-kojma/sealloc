@@ -54,7 +54,7 @@ TEST_F(RunUtilsTestSmall, RunInit) {
   EXPECT_EQ(run->entry.key, heap);
   EXPECT_EQ(run->nfreed, 0);
   EXPECT_EQ(run->gen, 229);
-  EXPECT_EQ(run->current_idx, 181);
+  EXPECT_EQ(run->current_idx, 240);
   for (int i = 0; i < BITS2BYTES_CEIL(bin->reg_mask_size_bits); i++) {
     EXPECT_EQ(run->reg_bitmap[i], 0x0);
   }
@@ -153,7 +153,7 @@ TEST_F(RunUtilsTestMedium, RunInit) {
   EXPECT_EQ(run->entry.key, heap);
   EXPECT_EQ(run->nfreed, 0);
   EXPECT_EQ(run->gen, 5);
-  EXPECT_EQ(run->current_idx, 1);
+  EXPECT_EQ(run->current_idx, 0);
   for (int i = 0; i < BITS2BYTES_CEIL(bin->reg_mask_size_bits); i++) {
     EXPECT_EQ(run->reg_bitmap[i], 0x0);
   }

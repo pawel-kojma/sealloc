@@ -7,9 +7,10 @@
 
 void ll_init(ll_head_t *head) { head->ll = NULL; }
 void ll_add(ll_head_t *head, ll_entry_t *item) {
-  se_debug("fd: %p, bk: %p", item->link.fd, item->link.bk);
+  se_debug("key: %p, fd: %p, bk: %p", item->key, item->link.fd, item->link.bk);
   assert(item->link.fd == NULL);
   assert(item->link.bk == NULL);
+  assert(item->key != NULL);
   assert(ll_find(head, item->key) == NULL);
 
   if (head->ll == NULL) {

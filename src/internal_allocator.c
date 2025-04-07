@@ -29,7 +29,8 @@ typedef enum tree_traverse_state {
 
 // Initialize internal allocator with fresh mapping
 void internal_allocator_init(int_alloc_t *ia) {
-  ia->entry.key = NULL;
+  // It does not matter what is the key because no user region is associated
+  ia->entry.key = (void *)ia;
   ia->entry.link.fd = NULL;
   ia->entry.link.bk = NULL;
   ia->buddy_tree[0] = (uint8_t)NODE_FREE;

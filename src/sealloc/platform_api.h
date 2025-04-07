@@ -30,11 +30,26 @@ const char *platform_strerror(platform_status_code_t code);
  *
  * @param[in] hint
  * @param[in] len Page-aligned length of requested mapping
- * @param[in,out] result storage for mapping result 
+ * @param[in,out] result storage for mapping result
  * @return error code.
- * @post *result points to allocated mapping iff return code is PLATFORM_STATUS_OK
+ * @post *result points to allocated mapping iff return code is
+ * PLATFORM_STATUS_OK
  */
 platform_status_code_t platform_map(void *hint, size_t len, void **result);
+
+/*!
+ * @brief Allocates a mapping from the operating system, by probing
+ * incrementally.
+ *
+ * @param[in, out] probe Start probe parameter, updated to new mapping address
+ * @param[in] len Length of requested mapping
+ * @return error code.
+ * @pre probe is page-aligned
+ * @pre len is page-aligned
+ * @post *result points to allocated mapping iff return code is
+ * PLATFORM_STATUS_OK
+ */
+platform_status_code_t platform_map_probe(uintptr_t *probe, size_t len);
 
 /*!
  * @brief Unmaps/decommits page-aligned piece of memory

@@ -32,6 +32,7 @@ target_compile_options(sealloc_internal PRIVATE
 target_compile_definitions(sealloc_internal PRIVATE 
     "$<$<BOOL:${enable_logging}>:LOGGING>"
     "$<$<BOOL:${debug}>:DEBUG>"
+    LOGGING
 )
 
 list(APPEND test_libs 

@@ -45,23 +45,6 @@ static void *sealloc_allocate_with_bin(arena_t *arena, bin_t *bin) {
   return ptr;
 }
 
-static huge_chunk_t *sealloc_allocate_huge(arena_t *arena,
-                                           size_t aligned_size) {
-  huge_chunk_t *huge;
-  huge = internal_alloc(sizeof(huge_chunk_t));
-  if (huge == NULL) return NULL;
-  huge->len = aligned_size;
-  huge->entry.link.fd = NULL;
-  huge->entry.link.bk = NULL;
-  se_debug("Allocating huge chunk");
-  huge->entry.key = arena_allocate_huge_mapping(arena, huge->len);
-  if (huge->entry.key == NULL) {
-    return NULL;
-  }
-  arena_store_huge_meta(arena, huge);
-  return huge;
-}
-
 void *sealloc_malloc(arena_t *arena, size_t size) {
   size_t aligned_size;
 
@@ -72,8 +55,7 @@ void *sealloc_malloc(arena_t *arena, size_t size) {
   if (size == 0) size = SMALL_SIZE_MIN_REGION;
 
   if (IS_SIZE_HUGE(size)) {
-    huge_chunk_t *huge = sealloc_allocate_huge(arena, ALIGNUP_PAGE(size));
-    if (huge == NULL) return NULL;
+    huge_chunk_t *huge = arena_allocate_huge_mapping(arena, ALIGNUP_PAGE(size));
     return huge->entry.key;
   }
 
@@ -144,7 +126,7 @@ static void sealloc_free_with_metadata(arena_t *arena, chunk_t *chunk,
       se_debug("Chunk is fully unmapped, deallocating chunk metadata");
       arena_deallocate_chunk(arena, chunk);
     }
-    internal_free(run);
+    arena_internal_free(arena, run);
   }
 }
 
@@ -162,10 +144,7 @@ void sealloc_free(arena_t *arena, void *ptr) {
     abort();
   }
   if (meta == METADATA_HUGE) {
-    arena_deallocate_huge_mapping(arena, huge->entry.key,
-                                  ALIGNUP_PAGE(huge->len));
-    arena_delete_huge_meta(arena, huge);
-    internal_free(huge);
+    arena_deallocate_huge_mapping(arena, huge);
     return;
   }
 
@@ -175,22 +154,7 @@ void sealloc_free(arena_t *arena, void *ptr) {
 static void *realloc_huge(arena_t *arena, huge_chunk_t *huge, size_t new_size) {
   se_debug("Reallocating huge chunk at %p", huge->entry.key);
   if (IS_SIZE_HUGE(new_size)) {
-    void *new_map = arena_allocate_huge_mapping(arena, new_size);
-    if (new_map == NULL) {
-      se_debug("Failed to reallocate huge mapping");
-      return NULL;
-    }
-    if (huge->len > new_size) {
-      memcpy(new_map, huge->entry.key, new_size);
-    } else {
-      memcpy(new_map, huge->entry.key, huge->len);
-    }
-    arena_delete_huge_meta(arena, huge);
-    huge->entry.key = new_map;
-    huge->len = new_size;
-    huge->entry.link.bk = NULL;
-    huge->entry.link.fd = NULL;
-    arena_store_huge_meta(arena, huge);
+    arena_reallocate_huge_mapping(arena, huge, new_size);
     return huge->entry.key;
   }
   // huge -> regular case
@@ -200,9 +164,7 @@ static void *realloc_huge(arena_t *arena, huge_chunk_t *huge, size_t new_size) {
     return NULL;
   }
   memcpy(new_reg, huge->entry.key, new_size);
-  arena_deallocate_huge_mapping(arena, huge->entry.key, huge->len);
-  arena_delete_huge_meta(arena, huge);
-  internal_free(huge);
+  arena_deallocate_huge_mapping(arena, huge);
   return new_reg;
 }
 
@@ -234,8 +196,7 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
   }
   se_debug("Reallocating region of small/medium/large class");
   if (IS_SIZE_HUGE(new_size)) {
-    huge = sealloc_allocate_huge(arena, ALIGNUP_PAGE(new_size));
-    if (huge == NULL) return NULL;
+    huge = arena_allocate_huge_mapping(arena, ALIGNUP_PAGE(new_size));
     memcpy(huge->entry.key, old_ptr, bin_old->reg_size);
     sealloc_free_with_metadata(arena, chunk, bin_old, run_old, old_ptr);
     return huge->entry.key;

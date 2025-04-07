@@ -5,7 +5,9 @@
 
 #include <stdint.h>
 
+#define USERSPACE_ADDRESS_MASK 0x7fffffffffffULL
 #define PAGE_SIZE 4096
+#define PAGE_MASK 0xfffULL
 #define ALIGNUP_8(n) ((n + 7) & ~7)
 #define ALIGNUP_16(n) ((n + 15) & ~15)
 #define ALIGNUP_PAGE(n) ((n + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1))

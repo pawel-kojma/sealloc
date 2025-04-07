@@ -47,20 +47,25 @@ typedef struct huge_chunk huge_chunk_t;
  *
  * Chunks and internal allocator structures are allocated incrementally.
  * Chunks start at random offset from the program break, intial address for
- * internal allocator is chosen randomly. All huge allocation address hints are chosen randomly.
+ * internal allocator is chosen randomly. All huge allocation address hints are
+ * chosen randomly.
  */
 struct arena_state {
-  int is_initialized;   /*!< Holds 1 if arena was initialized, 0 otherwise. */
-  uint32_t secret;      /*!< 32-bit PRNG seed used to randomize allocation of
-                           structures or      user allocations. */
-  ll_head_t chunk_list; /*!< Head to list of linkage entries within chunk_t
-                           structures. */
-  ll_head_t huge_alloc_list;  /*!< Head to list of linkage entries within
-                               huge_chunk_t structures. */
-  ll_head_t internal_alloc; /*!< Head to list of linkage entries within internal
-                               allocator nodes. */
-  uintptr_t chunk_alloc_ptr; /*!< A pointer where arena will start probing
-                                system for more memory for chunks. */
+  int is_initialized; /*!< Holds 1 if arena was initialized, 0 otherwise. */
+  uint32_t secret;    /*!< 32-bit PRNG seed used to randomize allocation of
+                         structures or user allocations. */
+  unsigned
+      chunks_left; /*!< Indicate how many chunks are left in current mapping */
+  ll_head_t chunk_list;      /*!< Head to list of linkage entries within chunk_t
+                                structures. */
+  ll_head_t huge_alloc_list; /*!< Head to list of linkage entries within
+                              huge_chunk_t structures. */
+  ll_head_t internal_alloc_list; /*!< Head to list of linkage entries within
+                               internal allocator nodes. */
+  uintptr_t chunk_alloc_ptr;     /*!< A pointer where arena will start probing
+                                    system for more memory for chunks. */
+  uintptr_t huge_alloc_ptr;      /*!< A pointer where arena will start probing
+                                     system for more memory for huge mappings. */
   uintptr_t
       internal_alloc_ptr; /*!< A pointer where arena will start probing system
                              for more memory for internal allocator nodes. */
@@ -76,6 +81,27 @@ typedef struct arena_state arena_t;
  * @sideeffect Terminates if random value for seed couldn't be acquired.
  */
 void arena_init(arena_t *arena);
+
+/*!
+ * @brief Allocates metadata of specified size.
+ *
+ * @param[in,out] arena Pointer to the allocated arena structure.
+ * @param[in] size metadata size
+ * @pre arena is initialized
+ * @sideeffect Terminates if could not allocate
+ */
+void *arena_internal_alloc(arena_t *arena, size_t size);
+
+/*!
+ * @brief Frees metadata associated with ptr.
+ *
+ * @param[in,out] arena Pointer to the allocated arena structure.
+ * @param[in] ptr Pointer to the metadata being freed. 
+ * @pre arena is initialized
+ * @sideeffect Terminates if could not allocate
+ */
+void arena_internal_free(arena_t *arena, void *ptr);
+
 
 /*!
  * @brief Allocates a run within some chunk assigned to arena.
@@ -163,54 +189,41 @@ bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size);
  * @pre arena is initialized
  */
 huge_chunk_t *arena_find_huge_mapping(const arena_t *arena,
-                                      const void *const huge_map);
+                                      const void *huge_map);
 
 /*!
- * @brief Allocates huge allocation without allocating metadata.
+ * @brief Allocates huge allocation.
  *
- * @param[in, out] arena Pointer to the allocated arena structure
+ * @param[in, out] arena Pointer to the allocated arena structure.
  * @param[in] len size of requested allocation, page aligned.
  * @return Pointer to huge allocation mapping.
  * @pre len is page aligned
  * @pre arena is initialized
  * @sideeffect fails if mapping could not be allocated
  */
-void *arena_allocate_huge_mapping(arena_t *arena, size_t len);
+huge_chunk_t *arena_allocate_huge_mapping(arena_t *arena, size_t len);
 
 /*!
- * @brief Deallocates huge allocation without deallocating metadata.
+ * @brief Deallocates huge allocation.
  *
- * @param[in, out] arena Pointer to the allocated arena structure
- * @param[in] huge_map Pointer to valid huge mapping.
- * @param[in] len size of requested allocation, page aligned.
+ * @param[in, out] arena Pointer to the allocated arena structure.
+ * @param[in] huge Metadata of chunk being freed.
  * @pre len is page aligned
  * @pre arena is initialized
  * @sideeffect fails if mapping could not be deallocated
  */
-void arena_deallocate_huge_mapping(arena_t *arena, void *const huge_map,
-                                   size_t len);
+void arena_deallocate_huge_mapping(arena_t *arena, huge_chunk_t *huge);
 
 /*!
- * @brief Stores huge allocation metadata in arena.
- *
- * Does not deallocate metadata itself.
+ * @brief Reallocates huge allocation without deallocating metadata.
  *
  * @param[in, out] arena Pointer to the allocated arena structure
- * @param[in, out] huge Pointer to valid huge mapping.
- * @pre huge is initialized
+ * @param[in] huge_map Pointer to valid huge mapping.
+ * @param[in] new_size Size of reallocated mapping.
+ * @pre len is page aligned
  * @pre arena is initialized
+ * @sideeffect fails if mapping could not be deallocated
  */
-void arena_store_huge_meta(arena_t *arena, huge_chunk_t *huge);
-
-/*!
- * @brief Deletes huge allocation info from arena.
- *
- * Does not deallocate metadata itself.
- *
- * @param[in, out] arena Pointer to the allocated arena structure
- * @param[in, out] huge_map Pointer to valid huge mapping.
- * @pre huge is initialized
- * @pre arena is initialized
- */
-void arena_delete_huge_meta(arena_t *arena, huge_chunk_t *huge);
+void arena_reallocate_huge_mapping(arena_t *arena, huge_chunk_t *huge,
+                                   size_t new_size);
 #endif /* SEALLOC_ARENA_H_ */
