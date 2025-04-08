@@ -14,8 +14,25 @@
 #include "sealloc/size_class.h"
 #include "sealloc/utils.h"
 
+static void reset_ia_ptr_start(arena_t *arena) {
+  arena->internal_alloc_ptr =
+      arena->brk + (splitmix64() % (MAX_USERSPACE_ADDR64 - arena->brk));
+  arena->internal_alloc_ptr = ALIGNUP_PAGE(arena->internal_alloc_ptr);
+}
+
+static void reset_huge_alloc_ptr_start(arena_t *arena) {
+  arena->huge_alloc_ptr =
+      arena->brk + (splitmix64() % (MAX_USERSPACE_ADDR64 - arena->brk));
+  arena->huge_alloc_ptr = ALIGNUP_PAGE(arena->huge_alloc_ptr);
+}
+
+static void reset_chunk_ptr_start(arena_t *arena) {
+  arena->chunk_alloc_ptr = ALIGNUP_PAGE(splitmix32());
+}
+
 void arena_init(arena_t *arena) {
   platform_status_code_t code;
+  void *ptr;
 #ifdef DEBUG
   char *user_rand = getenv("SEALLOC_SEED");
   if (user_rand != NULL) {
@@ -26,15 +43,95 @@ void arena_init(arena_t *arena) {
       if ((code = platform_get_random(&arena->secret)) != PLATFORM_STATUS_OK) {
     se_error("Failed to get random value: %s", platform_strerror(code));
   }
-
+  if ((code = platform_get_program_break(&ptr)) != PLATFORM_STATUS_OK) {
+    se_error("Failed to get program break: %s", platform_strerror(code));
+  }
+  arena->brk = (uintptr_t)ptr;
   init_splitmix32(arena->secret);
-  internal_allocator_init();
+  init_splitmix64(arena->secret);
+  ll_init(&arena->internal_alloc_list);
   ll_init(&arena->chunk_list);
-  ll_init(&arena->huge_mappings);
+  ll_init(&arena->huge_alloc_list);
   arena->is_initialized = 1;
-  arena->alloc_ptr = 0;
+
+  /* Regular allocations start at 32-bit address */
+  reset_chunk_ptr_start(arena);
+  /* Metadata and huge allocations start at random 48-bit address bigger than
+   * program break */
+  reset_ia_ptr_start(arena);
+  reset_huge_alloc_ptr_start(arena);
   arena->chunks_left = 0;
   memset(arena->bins, 0, sizeof(bin_t) * ARENA_NO_BINS);
+}
+
+void *arena_internal_alloc(arena_t *arena, size_t size) {
+  int_alloc_t *map;
+  void *alloc;
+  platform_status_code_t code;
+  // Loop over memory mappings and try to satisfy the request
+  for (ll_entry_t *root = arena->internal_alloc_list.ll; root != NULL;
+       root = root->link.fd) {
+    se_debug("Trying to allocate with root = %p", (void *)root);
+    alloc = internal_alloc(CONTAINER_OF(root, int_alloc_t, entry), size);
+    if (alloc != NULL) return alloc;
+  }
+
+  // No mapping can satisfy the request, try to get more memory
+  se_debug("Trying to allocate more metadata memory");
+  code = platform_map_probe(&arena->internal_alloc_ptr, MAX_USERSPACE_ADDR64,
+                            ALIGNUP_PAGE(sizeof(int_alloc_t)));
+  if (code != PLATFORM_STATUS_OK) {
+    if (code == PLATFORM_STATUS_CEILING_HIT) {
+      // We hit top of address space, highly unlikely
+      // Reset internal_alloc_ptr and try one more time
+
+      reset_ia_ptr_start(arena);
+      code =
+          platform_map_probe(&arena->internal_alloc_ptr, MAX_USERSPACE_ADDR64,
+                             ALIGNUP_PAGE(sizeof(int_alloc_t)));
+      if (code != PLATFORM_STATUS_OK) {
+        se_error(
+            "Failed to allocate mapping after reseting the ptr (size : %zu): "
+            "%s",
+            sizeof(int_alloc_t), platform_strerror(code));
+      }
+
+    } else
+      se_error("Failed to allocate mapping (size : %zu): %s",
+               sizeof(int_alloc_t), platform_strerror(code));
+  }
+
+  // Get new metadata mapping
+  map = (int_alloc_t *)arena->internal_alloc_ptr;
+  // Update pointer for next mapping
+  arena->internal_alloc_ptr += ALIGNUP_PAGE(sizeof(int_alloc_t));
+
+  internal_allocator_init(map);
+  ll_add(&arena->internal_alloc_list, &map->entry);
+
+  se_debug("Allocating from fresh mapping");
+  return internal_alloc(map, size);
+}
+
+void arena_internal_free(arena_t *arena, void *ptr) {
+  uintptr_t ptr_dest = (uintptr_t)ptr;
+  int_alloc_t *root = NULL;
+
+  // Find mapping that contains the ptr
+  for (root = CONTAINER_OF(arena->internal_alloc_list.ll, int_alloc_t, entry);
+       root != NULL;
+       root = CONTAINER_OF(root->entry.link.fd, int_alloc_t, entry)) {
+    if ((uintptr_t)&root->memory <= ptr_dest &&
+        ptr_dest <= (uintptr_t)root->memory + sizeof(root->memory))
+      break;
+  }
+
+  // No mapping found, panic
+  if (!root) {
+    se_error("root == NULL");
+  }
+
+  internal_free(root, ptr);
 }
 
 run_t *arena_allocate_run(arena_t *arena, bin_t *bin) {
@@ -51,8 +148,8 @@ run_t *arena_allocate_run(arena_t *arena, bin_t *bin) {
                                  bin->reg_size);
     if (run_ptr != NULL) {
       // We just allocated a run
-      run = internal_alloc(sizeof(run_t) +
-                           BITS2BYTES_CEIL(bin->reg_mask_size_bits));
+      run = arena_internal_alloc(
+          arena, sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
       run_init(run, bin, run_ptr);
       return run;
     }
@@ -64,8 +161,8 @@ run_t *arena_allocate_run(arena_t *arena, bin_t *bin) {
       chunk_allocate_run(chunk, bin->run_size_pages * PAGE_SIZE, bin->reg_size);
   assert(run_ptr != NULL && "Failed to allocate run from fresh chunk");
 
-  run =
-      internal_alloc(sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
+  run = arena_internal_alloc(
+      arena, sizeof(run_t) + BITS2BYTES_CEIL(bin->reg_mask_size_bits));
   run_init(run, bin, run_ptr);
   return run;
 }
@@ -73,42 +170,49 @@ run_t *arena_allocate_run(arena_t *arena, bin_t *bin) {
 chunk_t *arena_allocate_chunk(arena_t *arena) {
   assert(arena->is_initialized == 1);
 
-  // arena->alloc_ptr == 0 <=> arena->chunks_left == 0
-  assert(!(arena->alloc_ptr == 0) || (arena->chunks_left == 0));
-  assert((arena->alloc_ptr == 0) || !(arena->chunks_left == 0));
-
-  chunk_t *chunk_meta = internal_alloc(sizeof(chunk_t));
+  chunk_t *chunk_meta = arena_internal_alloc(arena, sizeof(chunk_t));
   platform_status_code_t code;
   size_t map_len = CHUNKS_PER_MAPPING * (CHUNK_SIZE_BYTES + PAGE_SIZE);
 
   // get more memory if needed
-  if (arena->alloc_ptr == 0) {
-    if ((code = platform_map(NULL, map_len, (void **)&arena->alloc_ptr)) !=
-        PLATFORM_STATUS_OK) {
-      se_error("Failed to allocate mapping (size : %u): %s", map_len,
-               platform_strerror(code));
+  if (arena->chunks_left == 0) {
+    code = platform_map_probe(&arena->chunk_alloc_ptr, arena->brk, map_len);
+    if (code != PLATFORM_STATUS_OK) {
+      if (code == PLATFORM_STATUS_CEILING_HIT) {
+        // We hit top of address space, highly unlikely
+        // Reset chunk_alloc_ptr and try one more time
+
+        reset_chunk_ptr_start(arena);
+        code = platform_map_probe(&arena->chunk_alloc_ptr, arena->brk, map_len);
+        if (code != PLATFORM_STATUS_OK) {
+          se_error(
+              "Failed to allocate mapping after reseting the ptr (size : %zu): "
+              "%s",
+              map_len, platform_strerror(code));
+        }
+      }
     }
     arena->chunks_left = CHUNKS_PER_MAPPING;
   }
 
   // Guard one page after the end of chunk
-  if ((code = platform_guard((void *)(arena->alloc_ptr + CHUNK_SIZE_BYTES),
-                             PAGE_SIZE)) != PLATFORM_STATUS_OK) {
+  code = platform_guard((void *)(arena->chunk_alloc_ptr + CHUNK_SIZE_BYTES),
+                        PAGE_SIZE);
+  if (code != PLATFORM_STATUS_OK) {
     se_error("Failed to allocate mapping (size : %u): %s", PAGE_SIZE,
              platform_strerror(code));
   }
-  chunk_init(chunk_meta, (void *)arena->alloc_ptr);
+  chunk_init(chunk_meta, (void *)arena->chunk_alloc_ptr);
   ll_add(&arena->chunk_list, &chunk_meta->entry);
-  arena->alloc_ptr += (CHUNK_SIZE_BYTES + PAGE_SIZE);
+  arena->chunk_alloc_ptr += (CHUNK_SIZE_BYTES + PAGE_SIZE);
   arena->chunks_left--;
-  if (arena->chunks_left == 0) arena->alloc_ptr = 0;
   return chunk_meta;
 }
 
 void arena_deallocate_chunk(arena_t *arena, chunk_t *chunk) {
   assert(arena->is_initialized == 1);
   assert(chunk_is_unmapped(chunk));
-
+  se_debug("Deallocating chunk");
   platform_status_code_t code;
 
   // Unmap guard page
@@ -122,7 +226,7 @@ void arena_deallocate_chunk(arena_t *arena, chunk_t *chunk) {
   ll_del(&arena->chunk_list, &chunk->entry);
 
   // Free metadata
-  internal_free(chunk);
+  arena_internal_free(arena, chunk);
 }
 
 chunk_t *arena_get_chunk_from_ptr(const arena_t *arena, const void *const ptr) {
@@ -175,50 +279,100 @@ bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size) {
 }
 
 huge_chunk_t *arena_find_huge_mapping(const arena_t *arena,
-                                      const void *const huge_map) {
+                                      const void *huge_map) {
   assert(arena->is_initialized == 1);
-  ll_entry_t *entry = ll_find(&arena->huge_mappings, huge_map);
+  ll_entry_t *entry = ll_find(&arena->huge_alloc_list, huge_map);
   if (entry == NULL) return NULL;
   huge_chunk_t *huge = CONTAINER_OF(entry, huge_chunk_t, entry);
   assert(huge->entry.key == huge_map);
   return huge;
 }
 
-void arena_store_huge_meta(arena_t *arena, huge_chunk_t *huge) {
-  assert(arena->is_initialized == 1);
-  assert(IS_ALIGNED(huge->len, PAGE_SIZE));
-  assert(huge->entry.key != NULL);
-  ll_add(&arena->huge_mappings, &huge->entry);
+static void create_huge_mapping(arena_t *arena, size_t len) {
+  platform_status_code_t code;
+  if ((code = platform_map_probe(&arena->huge_alloc_ptr, MAX_USERSPACE_ADDR64,
+                                 len)) != PLATFORM_STATUS_OK) {
+    if (code == PLATFORM_STATUS_CEILING_HIT) {
+      // We hit top of address space, highly unlikely
+      // Reset huge_alloc_ptr and try one more time
+
+      reset_huge_alloc_ptr_start(arena);
+      code =
+          platform_map_probe(&arena->huge_alloc_ptr, MAX_USERSPACE_ADDR64, len);
+      if (code != PLATFORM_STATUS_OK) {
+        se_error(
+            "Failed to allocate mapping after reseting the huge_alloc_ptr "
+            "(size : %zu): "
+            "%s",
+            len, platform_strerror(code));
+      }
+    }
+  }
 }
 
-void arena_delete_huge_meta(arena_t *arena, huge_chunk_t *huge) {
-  assert(arena->is_initialized == 1);
-  assert(IS_ALIGNED(huge->len, PAGE_SIZE));
-  assert(huge->entry.key != NULL);
-  ll_del(&arena->huge_mappings, &huge->entry);
-}
-
-void *arena_allocate_huge_mapping(arena_t *arena, size_t len) {
+huge_chunk_t *arena_allocate_huge_mapping(arena_t *arena, size_t len) {
   assert(IS_ALIGNED(len, PAGE_SIZE));
   assert(arena->is_initialized == 1);
-  (void)arena;
+  huge_chunk_t *huge;
+
+  huge = arena_internal_alloc(arena, sizeof(huge_chunk_t));
+  huge->len = len;
+  huge->entry.link.fd = NULL;
+  huge->entry.link.bk = NULL;
+  create_huge_mapping(arena, len);
+  huge->entry.key = (void *)arena->huge_alloc_ptr;
+  // Leave one page space in between to avoid overflows
+  arena->huge_alloc_ptr += len + PAGE_SIZE;
+  ll_add(&arena->huge_alloc_list, &huge->entry);
+  return huge;
+}
+
+void arena_reallocate_huge_mapping(arena_t *arena, huge_chunk_t *huge,
+                                   size_t new_size) {
+  assert(IS_ALIGNED(huge->len, PAGE_SIZE));
+  assert(IS_ALIGNED(new_size, PAGE_SIZE));
+  assert(arena->is_initialized == 1);
+  assert(IS_SIZE_HUGE(new_size));
+
+  // If aligned size is the same, then do nothing
+  if (new_size == huge->len) return;
+
   platform_status_code_t code;
-  void *huge_map;
-  if ((code = platform_map(NULL, len, (void **)&huge_map)) !=
+  void *new_map;
+  // Make new huge allocation
+  create_huge_mapping(arena, new_size);
+  new_map = (void *)arena->huge_alloc_ptr;
+  // Leave one page space in between to avoid overflows
+  arena->huge_alloc_ptr += new_size + PAGE_SIZE;
+
+  // Transfer data from old one to new
+  if (huge->len > new_size) {
+    memcpy(new_map, huge->entry.key, new_size);
+  } else {
+    memcpy(new_map, huge->entry.key, huge->len);
+  }
+
+  // Deallocate old mapping
+  if ((code = platform_unmap(huge->entry.key, huge->len)) !=
       PLATFORM_STATUS_OK) {
-    se_error("Failed to allocate huge mapping (size : %u): %s", len,
-             platform_strerror(code));
+    se_error("Failed to deallocate huge mapping (ptr : %p, size : %u): %s",
+             huge->entry.key, huge->len, platform_strerror(code));
   }
-  return huge_map;
+
+  // Update chunk info
+  huge->entry.key = new_map;
+  huge->len = new_size;
 }
 
-void arena_deallocate_huge_mapping(arena_t *arena, void *map, size_t len) {
-  assert(IS_ALIGNED(len, PAGE_SIZE));
+void arena_deallocate_huge_mapping(arena_t *arena, huge_chunk_t *huge) {
+  assert(IS_ALIGNED(huge->len, PAGE_SIZE));
   assert(arena->is_initialized == 1);
-  (void)arena;
   platform_status_code_t code;
-  if ((code = platform_unmap(map, len)) != PLATFORM_STATUS_OK) {
-    se_error("Failed to deallocate huge mapping (ptr : %p, size : %u): %s", map,
-             len, platform_strerror(code));
+  if ((code = platform_unmap(huge->entry.key, huge->len)) !=
+      PLATFORM_STATUS_OK) {
+    se_error("Failed to deallocate huge mapping (ptr : %p, size : %u): %s",
+             huge->entry.key, huge->len, platform_strerror(code));
   }
+  ll_del(&arena->huge_alloc_list, &huge->entry);
+  arena_internal_free(arena, huge);
 }

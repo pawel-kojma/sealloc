@@ -1,21 +1,19 @@
+include(CMakePrintHelpers)
 set(gcc_like_c "$<COMPILE_LANG_AND_ID:C,ARMClang,AppleClang,Clang,GNU,LCC>")
 set(msvc_like_c "$<COMPILE_LANG_AND_ID:C,MSVC>")
 
-if (BuildType MATCHES "Release")
-    set(EXTRA_COMPILE_OPTIONS $<${gcc_like_c}:-O3>)
-    set(debug 0)
-elseif(BuildType MATCHES "Debug")
-    set(EXTRA_COMPILE_OPTIONS $<${gcc_like_c}:-O0 -ggdb>)
-    set(debug 1)
-endif()
-
-if (Log MATCHES "OFF")
-    set(enable_logging 0)
-elseif(Log MATCHES "ON")
-    set(enable_logging 1)
-endif()
-
 add_library(sealloc)
+
+if(BuildType MATCHES "Release")
+    target_compile_options(sealloc PRIVATE $<${gcc_like_c}:-O3>)
+    set(Debug OFF)
+elseif(BuildType MATCHES "Debug")
+    target_compile_options(sealloc PRIVATE $<${gcc_like_c}:-O0 -ggdb3>)
+    set(Debug ON)
+endif()
+
+cmake_print_variables(CMAKE_BUILD_TYPE Log BuildType Tests Debug)
+
 
 target_sources(sealloc
     PRIVATE malloc_api.c sealloc.c platform.c chunk.c bin.c internal_allocator.c random.c run.c container_ll.c arena.c size_class.c logging.c
@@ -25,11 +23,11 @@ target_include_directories(sealloc
     PRIVATE "src/"
     PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)
 target_compile_options(sealloc
-    PRIVATE $<${gcc_like_c}:-Wall -Werror -Wextra -pedantic -Wformat=0> ${EXTRA_COMPILE_OPTIONS}
+    PRIVATE $<${gcc_like_c}:-Wall -Werror -Wextra -pedantic -Wformat=0>
 )
 target_compile_definitions(sealloc PRIVATE
-    "$<$<BOOL:${enable_logging}>:LOGGING>"
-    "$<$<BOOL:${debug}>:DEBUG>"
+    "$<$<BOOL:${Log}>:LOGGING>"
+    "$<IF:$<BOOL:${Debug}>,DEBUG,NDEBUG>"
 )
 
 include(GenerateExportHeader)

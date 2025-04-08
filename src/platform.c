@@ -3,6 +3,7 @@
 
 #include "sealloc/logging.h"
 #include "sealloc/platform_api.h"
+#include "sealloc/utils.h"
 
 #ifdef __linux__
 
@@ -32,6 +33,8 @@ const char *platform_strerror(platform_status_code_t code) {
       return "Unknown error";
     case PLATFORM_STATUS_OK:
       return "No error";
+    case PLATFORM_STATUS_CEILING_HIT:
+      return "Maximum address hit";
   }
   return NULL;
 }
@@ -45,6 +48,49 @@ platform_status_code_t platform_map(void *hint, size_t len, void **result) {
   *result = map;
   return PLATFORM_STATUS_OK;
 }
+
+platform_status_code_t platform_get_program_break(void **result) {
+  se_debug("Getting program break");
+  *result = sbrk(0);
+  if (*result == (void *)-1) {
+    return get_error_from_errno();
+  }
+  return PLATFORM_STATUS_OK;
+}
+platform_status_code_t platform_map_probe(uintptr_t *probe, uintptr_t ceiling,
+                                          size_t len) {
+  assert(len > 0);
+  assert(IS_ALIGNED(len, PAGE_SIZE));
+  assert(IS_ALIGNED(*probe, PAGE_SIZE));
+  void *map = NULL;
+  uintptr_t new_probe = *probe;
+
+  if (new_probe >= ceiling) {
+    return PLATFORM_STATUS_CEILING_HIT;
+  }
+  while (map == NULL) {
+    map = mmap((void *)new_probe, len, PROT_READ | PROT_WRITE,
+               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+    se_debug("Mapping (probe : %p, len : %zu, result : %p)", (void *)new_probe,
+             len, map);
+    if (map == MAP_FAILED) {
+      if (errno == EEXIST) {
+        /* We hit a mapping, try incrementing probe */
+        se_debug("Existing mapping hit");
+        new_probe += PAGE_SIZE;
+        if (new_probe >= ceiling) {
+          return PLATFORM_STATUS_CEILING_HIT;
+        }
+        map = NULL;
+      } else
+        return get_error_from_errno();
+    }
+  }
+  assert((uintptr_t)map == new_probe);
+  *probe = new_probe;
+  return PLATFORM_STATUS_OK;
+}
+
 platform_status_code_t platform_unmap(void *ptr, size_t len) {
   assert(len > 0);
   se_debug("Unmapping (ptr : %p, len : %zu)", ptr, len);
@@ -69,7 +115,6 @@ platform_status_code_t platform_unguard(void *ptr, size_t len) {
   }
   return get_error_from_errno();
 }
-
 platform_status_code_t platform_get_random(uint32_t *buf) {
   // Manual recommends /dev/urandom for fast random data
   se_debug("Getting random value to (ptr : %p)", buf);

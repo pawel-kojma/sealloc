@@ -1,10 +1,11 @@
 #include "sealloc/internal_allocator.h"
-#include "sealloc/logging.h"
-#include "sealloc/platform_api.h"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
+
+#include "sealloc/logging.h"
 
 #define RIGHT_CHILD(idx) (idx * 2 + 1)
 #define LEFT_CHILD(idx) (idx * 2)
@@ -12,8 +13,6 @@
 #define IS_ROOT(idx) (idx != 1)
 #define IS_LEAF(idx) (idx >= ((INTERNAL_ALLOC_NO_NODES + 1) / 2))
 #define IS_RIGHT_CHILD(idx) (idx & 1)
-
-static struct internal_allocator_data *internal_alloc_mappings_root;
 
 typedef enum internal_allocator_node_type {
   NODE_FULL = 0,
@@ -28,40 +27,14 @@ typedef enum tree_traverse_state {
   UP_RIGHT,
 } tstate_t;
 
-// Get a fresh mapping from kernel for further allocations
-// Link it to the beginning of the list
-static int morecore(void) {
-  struct internal_allocator_data *map;
-  platform_status_code_t code =
-      platform_map(NULL, sizeof(struct internal_allocator_data), (void **)&map);
-  if (code != PLATFORM_STATUS_OK) {
-    se_error("Failed to allocate mapping for internal allocator: %s.",
-             platform_strerror(code));
-  }
-
-  se_debug("map=%p", (void *)map);
-  internal_alloc_mappings_root->bk = map;
-  map->fd = internal_alloc_mappings_root;
-  map->bk = NULL;
-  map->buddy_tree[0] = (uint8_t)NODE_FREE;
-  map->free_mem = sizeof(internal_alloc_mappings_root->memory);
-  internal_alloc_mappings_root = map;
-  return 0;
-}
-
 // Initialize internal allocator with fresh mapping
-void internal_allocator_init(void) {
-  platform_status_code_t code;
-  if ((code = platform_map(NULL, sizeof(struct internal_allocator_data),
-                           (void **)&internal_alloc_mappings_root)) !=
-      PLATFORM_STATUS_OK) {
-    se_error("Failed to allocate mapping for internal allocator: %s.", code);
-  }
-  internal_alloc_mappings_root->bk = NULL;
-  internal_alloc_mappings_root->fd = NULL;
-  internal_alloc_mappings_root->buddy_tree[0] = (uint8_t)NODE_FREE;
-  internal_alloc_mappings_root->free_mem =
-      sizeof(internal_alloc_mappings_root->memory);
+void internal_allocator_init(int_alloc_t *ia) {
+  // It does not matter what is the key because no user region is associated
+  ia->entry.key = (void *)ia;
+  ia->entry.link.fd = NULL;
+  ia->entry.link.bk = NULL;
+  ia->buddy_tree[0] = (uint8_t)NODE_FREE;
+  ia->free_mem = sizeof(ia->memory);
 }
 
 // Get tree node type at given index
@@ -130,9 +103,7 @@ static void coalesce_full_nodes(uint8_t *mem, size_t idx) {
   }
 }
 
-// Try to allocate with given root
-void *internal_alloc_with_root(struct internal_allocator_data *root,
-                               size_t size) {
+void *internal_alloc(int_alloc_t *root, size_t size) {
   size_t idx, cur_size;
   uintptr_t ptr;
   ia_node_t node;
@@ -247,50 +218,11 @@ void *internal_alloc_with_root(struct internal_allocator_data *root,
   return NULL;
 }
 
-void *internal_alloc(size_t size) {
-  void *alloc;
-
-  // Loop over memory mappings and try to satisfy the request
-  for (struct internal_allocator_data *root = internal_alloc_mappings_root;
-       root != NULL; root = root->fd) {
-    se_debug("Trying to allocate with root = %p", (void *)root);
-    alloc = internal_alloc_with_root(root, size);
-    if (alloc != NULL) return alloc;
-  }
-
-  // No mapping can satisfy the request, try to get more memory
-  se_debug("Trying to allocate more memory with memcore()");
-  int res = morecore();
-
-  // Cannot get more memory
-  if (res < 0) {
-    se_debug("No more memory");
-    return NULL;
-  }
-
-  // Allocate with fresh memory mapping
-  se_debug("Allocating from fresh mapping");
-  return internal_alloc_with_root(internal_alloc_mappings_root, size);
-}
-
 // Free the chunk pointed by ptr
-void internal_free(void *ptr) {
+void internal_free(int_alloc_t *root, void *ptr) {
   size_t idx = 1, cur_size = INTERNAL_ALLOC_CHUNK_SIZE_BYTES;
   uintptr_t ptr_cur, ptr_dest = (uintptr_t)ptr;
   ia_node_t state;
-  struct internal_allocator_data *root = NULL;
-
-  // Find mapping that contains the ptr
-  for (root = internal_alloc_mappings_root; root != NULL; root = root->fd) {
-    if ((uintptr_t)&root->memory <= ptr_dest &&
-        ptr_dest <= (uintptr_t)root->memory + sizeof(root->memory))
-      break;
-  }
-
-  // No mapping found, panic
-  if (!root) {
-    se_error("root == NULL");
-  }
 
   ptr_cur = (uintptr_t)&root->memory;
   state = get_tree_item(root->buddy_tree, idx);
