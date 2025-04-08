@@ -4,7 +4,7 @@ set(gcc_like_c "$<COMPILE_LANG_AND_ID:C,ARMClang,AppleClang,Clang,GNU,LCC>")
 add_library(test_cflags INTERFACE)
 add_library(test_cxxflags INTERFACE)
 target_compile_features(test_cxxflags INTERFACE cxx_std_20)
-target_compile_options(test_cflags INTERFACE $<${gcc_like_c}:-O0 -ggdb>)
+target_compile_options(test_cflags INTERFACE $<${gcc_like_c}:-O0 -ggdb3>)
 
 list(APPEND sealloc_internal_srcs
     sealloc.c
@@ -27,12 +27,10 @@ target_include_directories(sealloc_internal PUBLIC "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(sealloc_internal test_cflags)
 target_compile_options(sealloc_internal PRIVATE
     $<${gcc_like_c}:-Wall -Werror -Wextra -pedantic -Wformat=0>
-    ${EXTRA_COMPILE_OPTIONS}
 )
 target_compile_definitions(sealloc_internal PRIVATE 
-    "$<$<BOOL:${enable_logging}>:LOGGING>"
-    "$<$<BOOL:${debug}>:DEBUG>"
-    LOGGING
+    "$<$<BOOL:${Log}>:LOGGING>"
+    DEBUG
 )
 
 list(APPEND test_libs 

@@ -33,6 +33,8 @@ const char *platform_strerror(platform_status_code_t code) {
       return "Unknown error";
     case PLATFORM_STATUS_OK:
       return "No error";
+    case PLATFORM_STATUS_CEILING_HIT:
+      return "Maximum address hit";
   }
   return NULL;
 }
@@ -47,7 +49,16 @@ platform_status_code_t platform_map(void *hint, size_t len, void **result) {
   return PLATFORM_STATUS_OK;
 }
 
-platform_status_code_t platform_map_probe(uintptr_t *probe, size_t len) {
+platform_status_code_t platform_get_program_break(void **result) {
+  se_debug("Getting program break");
+  *result = sbrk(0);
+  if (*result == (void *)-1) {
+    return get_error_from_errno();
+  }
+  return PLATFORM_STATUS_OK;
+}
+platform_status_code_t platform_map_probe(uintptr_t *probe, uintptr_t ceiling,
+                                          size_t len) {
   assert(len > 0);
   assert(IS_ALIGNED(len, PAGE_SIZE));
   assert(IS_ALIGNED(*probe, PAGE_SIZE));
@@ -65,6 +76,9 @@ platform_status_code_t platform_map_probe(uintptr_t *probe, size_t len) {
         /* We hit a mapping, try incrementing probe */
         se_debug("Existing mapping hit");
         new_probe += PAGE_SIZE;
+        if (new_probe >= ceiling) {
+          return PLATFORM_STATUS_CEILING_HIT;
+        }
         map = NULL;
       } else
         return get_error_from_errno();

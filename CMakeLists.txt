@@ -6,7 +6,7 @@ set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED True)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 
-option(BuildType "Type of the build (Release, Debug)" Release)
+option(BuildType "Type of the build (Release, Debug)" "Release")
 option(Log "Enable logging" "OFF")
 option(Tests "Build tests (ON/OFF)" "OFF")
 

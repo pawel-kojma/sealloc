@@ -51,9 +51,10 @@ typedef struct huge_chunk huge_chunk_t;
  * chosen randomly.
  */
 struct arena_state {
-  int is_initialized; /*!< Holds 1 if arena was initialized, 0 otherwise. */
-  uint32_t secret;    /*!< 32-bit PRNG seed used to randomize allocation of
-                         structures or user allocations. */
+  int is_initialized;  /*!< Holds 1 if arena was initialized, 0 otherwise. */
+  uint32_t secret;     /*!< 32-bit PRNG seed used to randomize allocation of
+                          structures or user allocations. */
+  uintptr_t brk; /*!< Initial program break */
   unsigned
       chunks_left; /*!< Indicate how many chunks are left in current mapping */
   ll_head_t chunk_list;      /*!< Head to list of linkage entries within chunk_t
@@ -96,12 +97,11 @@ void *arena_internal_alloc(arena_t *arena, size_t size);
  * @brief Frees metadata associated with ptr.
  *
  * @param[in,out] arena Pointer to the allocated arena structure.
- * @param[in] ptr Pointer to the metadata being freed. 
+ * @param[in] ptr Pointer to the metadata being freed.
  * @pre arena is initialized
  * @sideeffect Terminates if could not allocate
  */
 void arena_internal_free(arena_t *arena, void *ptr);
-
 
 /*!
  * @brief Allocates a run within some chunk assigned to arena.
