@@ -65,7 +65,9 @@ platform_status_code_t platform_map_probe(uintptr_t *probe, uintptr_t ceiling,
   void *map = NULL;
   uintptr_t new_probe = *probe;
 
-  // TODO: what if top of the address space is hit ?
+  if (new_probe >= ceiling) {
+    return PLATFORM_STATUS_CEILING_HIT;
+  }
   while (map == NULL) {
     map = mmap((void *)new_probe, len, PROT_READ | PROT_WRITE,
                MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);

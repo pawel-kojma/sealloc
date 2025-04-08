@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include <cstring>
 #include <algorithm>
+#include <cstring>
 #include <random>
 
 extern "C" {
@@ -10,11 +10,6 @@ extern "C" {
 #include <sealloc/internal_allocator.h>
 #include <sealloc/size_class.h>
 #include <sealloc/utils.h>
-}
-
-TEST(ArenaUtils, ArenaInit) {
-  arena_t arena;
-  arena_init(&arena);
 }
 
 namespace {
@@ -50,6 +45,19 @@ class ArenaUtilsTest : public ::testing::Test {
     return ((uintptr_t)bin - (uintptr_t)&arena.bins) / sizeof(bin_t);
   }
 };
+
+TEST_F(ArenaUtilsTest, ArenaInit) {
+  EXPECT_EQ(arena.is_initialized, 1);
+
+  EXPECT_TRUE(arena.brk > 0);
+  EXPECT_TRUE(arena.chunk_alloc_ptr < arena.brk);
+  EXPECT_TRUE(arena.huge_alloc_ptr > arena.brk);
+  EXPECT_TRUE(arena.internal_alloc_ptr > arena.brk);
+  EXPECT_EQ(arena.chunks_left, 0);
+  for (int i = 0; i < ARENA_NO_BINS; i++) {
+    EXPECT_EQ(arena.bins[i].reg_size, 0);
+  }
+}
 
 TEST_F(ArenaUtilsTest, ArenaChunkAllocate) {
   chunk_t *chunk = arena_allocate_chunk(&arena);
@@ -120,7 +128,7 @@ TEST_F(ArenaUtilsTest, ArenaReallocateHugeChunkExpand) {
   huge_chunk1 = arena_allocate_huge_mapping(&arena, huge_chunk_size);
   EXPECT_NE(huge_chunk1->entry.key, nullptr);
   key = huge_chunk1->entry.key;
-  arena_reallocate_huge_mapping(&arena, huge_chunk1, 2*huge_chunk_size);
+  arena_reallocate_huge_mapping(&arena, huge_chunk1, 2 * huge_chunk_size);
   EXPECT_NE(huge_chunk1->entry.key, nullptr);
   EXPECT_NE(huge_chunk1->entry.key, key);
 }
@@ -201,6 +209,15 @@ TEST_F(ArenaUtilsTest, MemoryIntegrity) {
                  chunks_dut[i], chunks_exp[i].data(), size[i])
         << "Chunks of size " << size[i] << " at index " << i << " differ";
   }
+}
+
+TEST(ArenaUtilsDeathTest, CeilingHitOnProbe) {
+  arena_t arena;
+  arena_init(&arena);
+  arena.brk = 0;
+  EXPECT_DEATH(
+      { void *chunk = arena_allocate_chunk(&arena); },
+      ".*Failed to allocate mapping after reseting the ptr.*");
 }
 
 }  // namespace
