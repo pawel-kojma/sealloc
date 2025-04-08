@@ -37,7 +37,7 @@ void arena_init(arena_t *arena) {
   char *user_rand = getenv("SEALLOC_SEED");
   if (user_rand != NULL) {
     arena->secret = str2u32(user_rand);
-    se_log("Using user passed secret: %u", arena->secret);
+    se_log("Using user passed secret: %u\n", arena->secret);
   } else
 #endif
       if ((code = platform_get_random(&arena->secret)) != PLATFORM_STATUS_OK) {

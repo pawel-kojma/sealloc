@@ -115,6 +115,7 @@ static metadata_t locate_metadata_for_ptr(arena_t *arena, void *ptr,
 static void sealloc_free_with_metadata(arena_t *arena, chunk_t *chunk,
                                        bin_t *bin, run_t *run, void *ptr) {
   if (!run_deallocate(run, bin, ptr)) {
+    se_debug("Invalid pointer: %p", ptr);
     se_log("Invalid call to free()");
     abort();
   }
@@ -140,6 +141,7 @@ void sealloc_free(arena_t *arena, void *ptr) {
   if (ptr == NULL) return;
   meta = locate_metadata_for_ptr(arena, ptr, &chunk, &run, &bin, &huge);
   if (meta == METADATA_INVALID) {
+    se_debug("Invalid pointer: %p", ptr);
     se_log("Invalid call to free()");
     abort();
   }
@@ -183,6 +185,7 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
   meta = locate_metadata_for_ptr(arena, old_ptr, &chunk, &run_old, &bin_old,
                                  &huge);
   if (meta == METADATA_INVALID) {
+    se_debug("Invalid pointer: %p", old_ptr);
     se_log("Invalid call to realloc()");
     abort();
   }

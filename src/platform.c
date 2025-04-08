@@ -41,11 +41,11 @@ const char *platform_strerror(platform_status_code_t code) {
 
 platform_status_code_t platform_map(void *hint, size_t len, void **result) {
   assert(len > 0);
-  se_debug("Mapping (hint : %p, len : %zu, result : %p)", hint, len, result);
   void *map = mmap(hint, len, PROT_READ | PROT_WRITE,
                    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (map == MAP_FAILED) return get_error_from_errno();
   *result = map;
+  se_debug("Mapping (hint : %p, len : %zu, result : %p)", hint, len, *result);
   return PLATFORM_STATUS_OK;
 }
 
