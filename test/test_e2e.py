@@ -3,7 +3,7 @@ import pytest
 from pathlib import Path
 
 # Seeds for allocator
-SEEDS = ["123", "31247823", "1"]
+SEEDS = ["1237", "31247823", "1"]
 
 
 def run_bin(program, lib_path, seed):
@@ -25,7 +25,7 @@ def run_bin(program, lib_path, seed):
     "e2e_uaf_close",
     "e2e_uaf_many_no_duplicates"
 ])
-def test_df_close(seed, bin_name, request):
+def test_run_binaries(seed, bin_name, request):
     bin_dir = Path(request.config.getoption("--bin-dir"))
     lib_path = Path(request.config.getoption("--lib-path"))
     bin = bin_dir / bin_name

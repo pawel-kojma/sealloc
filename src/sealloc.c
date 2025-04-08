@@ -116,7 +116,7 @@ static void sealloc_free_with_metadata(arena_t *arena, chunk_t *chunk,
                                        bin_t *bin, run_t *run, void *ptr) {
   if (!run_deallocate(run, bin, ptr)) {
     se_debug("Invalid pointer: %p", ptr);
-    se_log("Invalid pointer passed");
+    se_log("Invalid call to free()");
     abort();
   }
 
