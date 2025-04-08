@@ -7,6 +7,7 @@
 extern "C" {
 #include <sealloc/arena.h>
 #include <sealloc/chunk.h>
+#include <sealloc/platform_api.h>
 #include <sealloc/internal_allocator.h>
 #include <sealloc/size_class.h>
 #include <sealloc/utils.h>
@@ -211,13 +212,25 @@ TEST_F(ArenaUtilsTest, MemoryIntegrity) {
   }
 }
 
-TEST(ArenaUtilsDeathTest, CeilingHitOnProbe) {
+TEST(ArenaUtilsDeathTest, CeilingHitOnProbeFail) {
   arena_t arena;
   arena_init(&arena);
   arena.brk = 0;
   EXPECT_DEATH(
-      { void *chunk = arena_allocate_chunk(&arena); },
+      { chunk_t *chunk = arena_allocate_chunk(&arena); },
       ".*Failed to allocate mapping after reseting the ptr.*");
+}
+
+TEST_F(ArenaUtilsTest, CeilingHitOnProbeSuccess) {
+  platform_status_code_t code;
+  uintptr_t res = 0;
+  code = platform_map(NULL, PAGE_SIZE, (void **)&res);
+  EXPECT_NE(res, 0);
+  arena.chunk_alloc_ptr = res;
+  arena.brk = res + PAGE_SIZE;
+  chunk_t *chunk = arena_allocate_chunk(&arena);
+  EXPECT_NE(chunk, nullptr);
+  EXPECT_NE(res, arena.chunk_alloc_ptr);
 }
 
 }  // namespace
