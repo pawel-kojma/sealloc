@@ -46,6 +46,9 @@ void arena_init(arena_t *arena) {
   if ((code = platform_get_program_break(&ptr)) != PLATFORM_STATUS_OK) {
     se_error("Failed to get program break: %s", platform_strerror(code));
   }
+#ifdef DEBUG
+  se_log("Using secret %u\n", arena->secret);
+#endif
   arena->brk = (uintptr_t)ptr;
   init_splitmix32(arena->secret);
   init_splitmix64(arena->secret);
@@ -186,9 +189,9 @@ chunk_t *arena_allocate_chunk(arena_t *arena) {
         code = platform_map_probe(&arena->chunk_alloc_ptr, arena->brk, map_len);
         if (code != PLATFORM_STATUS_OK) {
           se_error(
-              "Failed to allocate mapping after reseting the ptr (size : %zu): "
+              "Failed to allocate mapping after reseting the ptr (chunk_alloc_ptr : %p, brk : %p ,size : %zu): "
               "%s",
-              map_len, platform_strerror(code));
+              arena->chunk_alloc_ptr, arena->brk, map_len, platform_strerror(code));
         }
       }
     }
