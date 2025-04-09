@@ -67,4 +67,4 @@ def test_performance_on_cfrac(cmd, output_dir_performance, tmp_path, lib_path, p
         (output_dir_performance / "cfrac").mkdir(exist_ok=True)
         shutil.copyfile(
             report_file, output_dir_performance / "cfrac" / report_file.name)
-    assert res.returncode == 10
+    assert res.returncode == 0
