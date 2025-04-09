@@ -7,6 +7,9 @@
 
 #define USERSPACE_ADDRESS_MASK 0x7fffffffffffULL
 #define MAX_USERSPACE_ADDR64 USERSPACE_ADDRESS_MASK
+#define MASK_44_BITS 0x0fffffffffffULL
+#define MASK_45_BITS 0x1fffffffffffULL
+#define MASK_46_BITS 0x2fffffffffffULL
 #define PAGE_SIZE 4096
 #define PAGE_MASK 0xfffULL
 #define ALIGNUP_8(n) (((n) + 7) & ~7)

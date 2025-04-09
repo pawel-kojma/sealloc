@@ -43,12 +43,12 @@ def progs_dir(request):
 @pytest.fixture(scope="session")
 def output_dir_e2e():
     path = Path("./test_output/e2e")
-    path.mkdir(exist_ok=True)
+    path.mkdir(exist_ok=True, parents=True)
     return path
 
 
 @pytest.fixture(scope="session")
 def output_dir_performance():
     path = Path("./test_output/performance")
-    path.mkdir(exist_ok=True)
+    path.mkdir(exist_ok=True, parents=True)
     return path

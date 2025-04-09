@@ -17,60 +17,54 @@ def prepare_env(dir: Path, prog: Path, library: Path):
 
 
 @pytest.mark.performance
-def test_kissat_runtime(output_dir_performance, tmp_path, lib_path, progs_dir):
-    input_file = Path("./test/assets/cnf.out")
+@pytest.mark.parametrize("cmd", [
+    ['/usr/bin/time', '-v', '--output=time.kissat'],
+    ['/usr/bin/strace', '-c', '--output=strace.kissat'],
+    ['/usr/bin/valgrind', '--tool=callgrind',
+     '--callgrind-out-file=callgrind.kissat'],
+    ['/usr/bin/valgrind', '--tool=massif',
+     '--massif-out-file=massif.kissat', '--pages-as-heap=yes']
+])
+def test_performance_on_kissat(cmd, output_dir_performance, tmp_path, lib_path, progs_dir):
+    input_file = Path("./test/assets/cnf_small.out")
     shutil.copyfile(input_file, tmp_path / input_file.name)
     prepared_kissat = prepare_env(tmp_path, progs_dir / "kissat", lib_path)
-    # Use absolute path, otherwise arguments are not working
-    res = subprocess.run(
-        ['/usr/bin/time', '-v', '--output=time.kissat',
-            str(prepared_kissat), "-q", input_file.name],
+    res = subprocess.run(cmd + [
+        str(prepared_kissat), "-q", input_file.name],
         env={"SEALLOC_SEED": "1234"},
         capture_output=True,
         timeout=120,
         cwd=tmp_path
     )
-    time_result = tmp_path / "time.kissat"
-    if time_result.exists():
-        shutil.copyfile(time_result, output_dir_performance / time_result.name)
+    report_file = next(tmp_path.glob('*.kissat'), Path())
+    if report_file.exists():
+        (output_dir_performance / "kissat").mkdir(exist_ok=True)
+        shutil.copyfile(
+            report_file, output_dir_performance / "kissat" / report_file.name)
     assert res.returncode == 10
 
 
 @pytest.mark.performance
-def test_kissat_syscalls(output_dir_performance, tmp_path, lib_path, progs_dir):
-    input_file = Path("./test/assets/cnf.out")
-    shutil.copyfile(input_file, tmp_path / input_file.name)
-    prepared_kissat = prepare_env(tmp_path, progs_dir / "kissat", lib_path)
-    res = subprocess.run(
-        ['/usr/bin/strace', '-c', '--output=strace.kissat',
-            str(prepared_kissat), "-q", input_file.name],
+@pytest.mark.parametrize("cmd", [
+    ['/usr/bin/time', '-v', '--output=time.cfrac'],
+    ['/usr/bin/strace', '-c', '--output=strace.cfrac'],
+    ['/usr/bin/valgrind', '--tool=callgrind',
+     '--callgrind-out-file=callgrind.cfrac'],
+    ['/usr/bin/valgrind', '--tool=massif',
+     '--massif-out-file=massif.cfrac', '--pages-as-heap=yes']
+])
+def test_performance_on_cfrac(cmd, output_dir_performance, tmp_path, lib_path, progs_dir):
+    prepared_cfrac = prepare_env(tmp_path, progs_dir / "cfrac", lib_path)
+    res = subprocess.run(cmd + [
+        str(prepared_cfrac), "3707030275882252342412325295197136712092001"],
         env={"SEALLOC_SEED": "1234"},
         capture_output=True,
         timeout=120,
         cwd=tmp_path
     )
-    strace_result = tmp_path / "strace.kissat"
-    if strace_result.exists():
+    report_file = next(tmp_path.glob('*.cfrac'), Path())
+    if report_file.exists():
+        (output_dir_performance / "cfrac").mkdir(exist_ok=True)
         shutil.copyfile(
-            strace_result, output_dir_performance / strace_result.name)
-    assert res.returncode == 10
-
-
-@pytest.mark.performance
-def test_kissat_massif(output_dir_performance, tmp_path, lib_path, progs_dir):
-    input_file = Path("./test/assets/cnf.out")
-    shutil.copyfile(input_file, tmp_path / input_file.name)
-    prepared_kissat = prepare_env(tmp_path, progs_dir / "kissat", lib_path)
-    res = subprocess.run(
-        ['/usr/bin/valgrind', '--tool=massif', '--massif-out-file=massif.kissat', '--pages-as-heap=yes',
-            str(prepared_kissat), "-q", input_file.name],
-        env={"SEALLOC_SEED": "1234"},
-        capture_output=True,
-        timeout=120,
-        cwd=tmp_path
-    )
-    massif_result = tmp_path / "massif.kissat"
-    if massif_result.exists():
-        shutil.copyfile(
-            massif_result, output_dir_performance / massif_result.name)
+            report_file, output_dir_performance / "cfrac" / report_file.name)
     assert res.returncode == 10
