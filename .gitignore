@@ -57,3 +57,4 @@ Testing/
 include/api/export.h
 html/
 latex/
+compile_commands.json

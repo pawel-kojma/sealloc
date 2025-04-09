@@ -27,7 +27,12 @@ static void reset_huge_alloc_ptr_start(arena_t *arena) {
 }
 
 static void reset_chunk_ptr_start(arena_t *arena) {
-  arena->chunk_alloc_ptr = ALIGNUP_PAGE(splitmix32());
+  // Make sure program break is reasonably large (at least 45 bits) to be our
+  // separation point between regular chunks and huge/internal mappings
+    arena->chunk_alloc_ptr = ALIGNUP_PAGE(splitmix32());
+  if (arena->brk <= MASK_44_BITS) {
+    arena->brk = ALIGNUP_PAGE(splitmix64() & MASK_45_BITS);
+  }
 }
 
 void arena_init(arena_t *arena) {
@@ -43,6 +48,9 @@ void arena_init(arena_t *arena) {
       if ((code = platform_get_random(&arena->secret)) != PLATFORM_STATUS_OK) {
     se_error("Failed to get random value: %s", platform_strerror(code));
   }
+#ifdef DEBUG
+  se_log("Using secret %u\n", arena->secret);
+#endif
   if ((code = platform_get_program_break(&ptr)) != PLATFORM_STATUS_OK) {
     se_error("Failed to get program break: %s", platform_strerror(code));
   }
@@ -186,9 +194,11 @@ chunk_t *arena_allocate_chunk(arena_t *arena) {
         code = platform_map_probe(&arena->chunk_alloc_ptr, arena->brk, map_len);
         if (code != PLATFORM_STATUS_OK) {
           se_error(
-              "Failed to allocate mapping after reseting the ptr (size : %zu): "
+              "Failed to allocate mapping after reseting the ptr "
+              "(chunk_alloc_ptr : %p, brk : %p ,size : %zu): "
               "%s",
-              map_len, platform_strerror(code));
+              arena->chunk_alloc_ptr, arena->brk, map_len,
+              platform_strerror(code));
         }
       }
     }

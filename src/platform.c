@@ -86,8 +86,10 @@ platform_status_code_t platform_map_probe(uintptr_t *probe, uintptr_t ceiling,
         return get_error_from_errno();
     }
   }
-  assert((uintptr_t)map == new_probe);
-  *probe = new_probe;
+  if ((uintptr_t)map != new_probe) {
+    se_error("map : %p, new_probe %p", map, (void *)new_probe);
+  }
+  *probe = (uintptr_t)map;
   return PLATFORM_STATUS_OK;
 }
 
