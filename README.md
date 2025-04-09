@@ -40,3 +40,10 @@ $ . venv/bin/activate
 $ pip install pytest
 $ pytest ./test/test_e2e.py --bin-dir ./build/test/ --lib-path ./build/src/libsealloc.so
 ```
+
+To generate performance reports you need a directory:
+- a directory with kissat, cfrac programs
+- installed programs: strace, time, valgrind
+```
+$ pytest -m performance ./test/ --bin-dir ./build/test/ --lib-path ./build/src/libsealloc.so --progs-dir <programs_dir>
+```
