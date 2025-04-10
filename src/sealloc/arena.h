@@ -51,10 +51,10 @@ typedef struct huge_chunk huge_chunk_t;
  * chosen randomly.
  */
 struct arena_state {
-  int is_initialized;  /*!< Holds 1 if arena was initialized, 0 otherwise. */
-  uint32_t secret;     /*!< 32-bit PRNG seed used to randomize allocation of
-                          structures or user allocations. */
-  uintptr_t brk; /*!< Initial program break */
+  int is_initialized; /*!< Holds 1 if arena was initialized, 0 otherwise. */
+  uint32_t secret;    /*!< 32-bit PRNG seed used to randomize allocation of
+                         structures or user allocations. */
+  uintptr_t brk;      /*!< Initial program break */
   unsigned
       chunks_left; /*!< Indicate how many chunks are left in current mapping */
   ll_head_t chunk_list;      /*!< Head to list of linkage entries within chunk_t
