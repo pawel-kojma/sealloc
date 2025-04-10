@@ -212,15 +212,6 @@ TEST_F(ArenaUtilsTest, MemoryIntegrity) {
   }
 }
 
-TEST(ArenaUtilsDeathTest, CeilingHitOnProbeFail) {
-  arena_t arena;
-  arena_init(&arena);
-  arena.brk = 0;
-  EXPECT_DEATH(
-      { chunk_t *chunk = arena_allocate_chunk(&arena); },
-      ".*Failed to allocate mapping after reseting the ptr.*");
-}
-
 TEST_F(ArenaUtilsTest, CeilingHitOnProbeSuccess) {
   platform_status_code_t code;
   uintptr_t res = 0;

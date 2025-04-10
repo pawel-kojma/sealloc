@@ -66,6 +66,7 @@ void bin_retire_run(bin_t *bin, run_t *run) {
   assert(bin->reg_size != 0);
   assert(run->navail == 0);
   ll_del(&bin->run_list_active, &run->entry);
+  ll_add(&bin->run_list_inactive, &run->entry);
   bin->run_list_active_cnt--;
 }
 

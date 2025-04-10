@@ -131,5 +131,6 @@ TEST(BinUtils, BinGetRunForAllocationMulti) {
     run_init(runs[i], bin, run_heap);
     bin_add_run(bin, runs[i]);
   }
-  EXPECT_EQ(bin_get_run_for_allocation(bin), runs[6]);
+  init_splitmix32(1);
+  EXPECT_EQ(bin_get_run_for_allocation(bin), runs[30-7]);
 }

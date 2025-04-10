@@ -265,8 +265,8 @@ static inline unsigned ceil_div(unsigned a, unsigned b) {
 bool arena_supply_runs(arena_t *arena, bin_t *bin) {
   assert(BIN_MINIMUM_REGIONS > bin->avail_regs);
   run_t *run;
-  unsigned runs_to_allocate = ceil_div(
-      BIN_MINIMUM_REGIONS - bin->avail_regs, bin->reg_mask_size_bits / 2);
+  unsigned runs_to_allocate = ceil_div(BIN_MINIMUM_REGIONS - bin->avail_regs,
+                                       bin->reg_mask_size_bits / 2);
   for (unsigned i = 0; i < runs_to_allocate; i++) {
     run = arena_allocate_run(arena, bin);
     if (run == NULL) return false;
