@@ -26,14 +26,13 @@ def prepare_env(dir: Path, prog: Path, library: Path):
      '--massif-out-file=massif.kissat', '--pages-as-heap=yes']
 ])
 def test_performance_on_kissat(cmd, output_dir_performance, tmp_path, lib_path, progs_dir):
-    input_file = Path("./test/assets/cnf_small.out")
+    input_file = Path("./test/assets/cnf.out")
     shutil.copyfile(input_file, tmp_path / input_file.name)
     prepared_kissat = prepare_env(tmp_path, progs_dir / "kissat", lib_path)
     res = subprocess.run(cmd + [
         str(prepared_kissat), "-q", input_file.name],
         env={"SEALLOC_SEED": "1234"},
         capture_output=True,
-        timeout=120,
         cwd=tmp_path
     )
     report_file = next(tmp_path.glob('*.kissat'), Path())
@@ -59,7 +58,6 @@ def test_performance_on_cfrac(cmd, output_dir_performance, tmp_path, lib_path, p
         str(prepared_cfrac), "3707030275882252342412325295197136712092001"],
         env={"SEALLOC_SEED": "1234"},
         capture_output=True,
-        timeout=120,
         cwd=tmp_path
     )
     report_file = next(tmp_path.glob('*.cfrac'), Path())
