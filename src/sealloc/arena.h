@@ -118,6 +118,20 @@ void arena_internal_free(arena_t *arena, void *ptr);
 run_t *arena_allocate_run(arena_t *arena, bin_t *bin);
 
 /*!
+ * @brief Initially pumps runs into the bin to prepare for allocation.
+ *
+ * It uses bin metadata to allocate correct amount of memory for runs.
+ * It allocates chunks if needed.
+ *
+ * @param[in,out] arena Pointer to the allocated arena structure.
+ * @param[in,out] bin Pointer to the allocated arena structure.
+ * @return true if bin is prepared for allocation, false otherwise.
+ * @pre arena is initialized
+ * @pre bin is initialized
+ */
+bool arena_supply_runs(arena_t *arena, bin_t *bin);
+
+/*!
  * @brief Allocates a chunk and assigns it to arena.
  *
  * It allocates chunk metadata and mapping and stores it in arena.

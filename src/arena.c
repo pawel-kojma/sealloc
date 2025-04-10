@@ -29,7 +29,7 @@ static void reset_huge_alloc_ptr_start(arena_t *arena) {
 static void reset_chunk_ptr_start(arena_t *arena) {
   // Make sure program break is reasonably large (at least 45 bits) to be our
   // separation point between regular chunks and huge/internal mappings
-    arena->chunk_alloc_ptr = ALIGNUP_PAGE(splitmix32());
+  arena->chunk_alloc_ptr = ALIGNUP_PAGE(splitmix32());
   if (arena->brk <= MASK_44_BITS) {
     arena->brk = ALIGNUP_PAGE(splitmix64() & MASK_45_BITS);
   }
@@ -256,6 +256,23 @@ chunk_t *arena_get_chunk_from_ptr(const arena_t *arena, const void *const ptr) {
     }
   }
   return chunk;
+}
+
+static inline unsigned ceil_div(unsigned a, unsigned b) {
+  return (a / b) + (a % b == 0 ? 0 : 1);
+}
+
+bool arena_supply_runs(arena_t *arena, bin_t *bin) {
+  assert(BIN_MINIMUM_REGIONS > bin->avail_regs);
+  run_t *run;
+  unsigned runs_to_allocate = ceil_div(
+      BIN_MINIMUM_REGIONS - bin->avail_regs, bin->reg_mask_size_bits / 2);
+  for (unsigned i = 0; i < runs_to_allocate; i++) {
+    run = arena_allocate_run(arena, bin);
+    if (run == NULL) return false;
+    bin_add_run(bin, run);
+  }
+  return true;
 }
 
 bin_t *arena_get_bin_by_reg_size(arena_t *arena, unsigned reg_size) {

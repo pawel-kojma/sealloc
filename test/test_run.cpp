@@ -36,7 +36,9 @@ class RunUtilsTestSmall : public ::testing::Test {
     init_splitmix32(1);
     bin = (bin_t *)malloc(sizeof(bin_t));
     ll_init(&bin->run_list_inactive);
-    bin->run_list_inactive_cnt = 0;
+    ll_init(&bin->run_list_active);
+    bin->run_list_active_cnt = 0;
+    bin->avail_regs = 0;
     bin->reg_size = 16;
     bin->run_size_pages = 2;
     bin->reg_mask_size_bits = (PAGE_SIZE / bin->reg_size) * 2;
@@ -135,7 +137,9 @@ class RunUtilsTestMedium : public ::testing::Test {
     init_splitmix32(1);
     bin = (bin_t *)malloc(sizeof(bin_t));
     ll_init(&bin->run_list_inactive);
-    bin->run_list_inactive_cnt = 0;
+    ll_init(&bin->run_list_active);
+    bin->run_list_active_cnt = 0;
+    bin->avail_regs = 0;
     bin->reg_size = 1024;
     bin->run_size_pages = 2;
     bin->reg_mask_size_bits = (PAGE_SIZE / bin->reg_size) * 2;
@@ -234,7 +238,9 @@ class RunUtilsTestLarge : public ::testing::Test {
     init_splitmix32(1);
     bin = (bin_t *)malloc(sizeof(bin_t));
     ll_init(&bin->run_list_inactive);
-    bin->run_list_inactive_cnt = 0;
+    ll_init(&bin->run_list_active);
+    bin->run_list_active_cnt = 0;
+    bin->avail_regs = 0;
     bin->reg_size = 8192;
     bin->run_size_pages = 2;
     bin->reg_mask_size_bits = 2;

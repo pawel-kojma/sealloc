@@ -18,29 +18,25 @@ typedef enum metadata_type {
 
 static void *sealloc_allocate_with_bin(arena_t *arena, bin_t *bin) {
   void *ptr;
-  run_t *run = bin->runcur;
-  if (run != NULL) {
-    se_debug("Allocating from bin for region sizes %u", bin->reg_size);
-    ptr = run_allocate(run, bin);
-    if (run_is_depleted(run)) {
-      se_debug("Retiring run");
-      bin_retire_current_run(bin);
+
+  // Check if there is enough regions to choose from
+  // Here adding one run should be enough
+  if (bin->avail_regs < BIN_MINIMUM_REGIONS) {
+    // If runs could not be supplied, then we're out of memory
+    run_t *run = arena_allocate_run(arena, bin);
+    if (run == NULL) {
+      se_debug("End of memory");
+      return NULL;
     }
-    return ptr;
+    bin_add_run(bin, run);
   }
-  se_debug("Allocating run for current request");
-  run = arena_allocate_run(arena, bin);
-  if (run == NULL) {
-    se_debug("End of memory");
-    return NULL;
-  }
-  se_debug("Got run (run_ptr : %p)", run->entry.key);
-  bin->runcur = run;
-  se_debug("Allocating from fresh run");
+  assert(bin->avail_regs > BIN_MINIMUM_REGIONS);
+  run_t *run = bin_get_run_for_allocation(bin);
+  se_debug("Allocating from bin for region sizes %u", bin->reg_size);
   ptr = run_allocate(run, bin);
   if (run_is_depleted(run)) {
     se_debug("Retiring run");
-    bin_retire_current_run(bin);
+    bin_retire_run(bin, run);
   }
   return ptr;
 }
@@ -70,6 +66,10 @@ void *sealloc_malloc(arena_t *arena, size_t size) {
   se_debug("Allocating region of size %zu (aligned to %zu)", size,
            aligned_size);
   bin_t *bin = arena_get_bin_by_reg_size(arena, aligned_size);
+  // initialize bin with enugh runs, needed only once
+  if (bin->avail_regs == 0) {
+    if (!arena_supply_runs(arena, bin)) return NULL;
+  }
   return sealloc_allocate_with_bin(arena, bin);
 }
 
@@ -214,6 +214,10 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
   }
 
   bin_new = arena_get_bin_by_reg_size(arena, new_size_aligned);
+  // initialize bin with enugh runs, needed only once
+  if (bin_new->avail_regs == 0) {
+    if (!arena_supply_runs(arena, bin_new)) return NULL;
+  }
   if (bin_new->reg_size == bin_old->reg_size) {
     se_debug("New allocation is still in the same class");
     return old_ptr;

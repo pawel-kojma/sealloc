@@ -20,6 +20,12 @@ struct run_state;
 typedef struct run_state run_t;
 
 /*!
+ * Number of minumum regions that must be available for allocation in the runs
+ * of some bin
+ */
+#define BIN_MINIMUM_REGIONS 32
+
+/*!
  * @brief Holds metadata of a bin.
  */
 struct bin_state {
@@ -86,7 +92,7 @@ void bin_delete_run(bin_t *bin, run_t *run);
  * @pre bin is initialized
  * @pre run is initialized
  * @pre run is on the list of active runs
- * @pre run cannot service more allocations 
+ * @pre run cannot service more allocations
  */
 void bin_retire_run(bin_t *bin, run_t *run);
 
