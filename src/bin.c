@@ -75,8 +75,8 @@ void bin_retire_run(bin_t *bin, run_t *run) {
 run_t *bin_get_run_by_addr(bin_t *bin, const void *run_ptr) {
   assert(bin->reg_size != 0);
   run_t *run =
-      CONTAINER_OF(ll_find(&bin->run_list_inactive, run_ptr), run_t, entry);
+      CONTAINER_OF(ll_find(&bin->run_list_active, run_ptr), run_t, entry);
   if (run == NULL)
-    return CONTAINER_OF(ll_find(&bin->run_list_active, run_ptr), run_t, entry);
+    return CONTAINER_OF(ll_find(&bin->run_list_inactive, run_ptr), run_t, entry);
   return run;
 }
