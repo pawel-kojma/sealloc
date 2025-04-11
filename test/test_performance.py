@@ -55,7 +55,7 @@ def test_performance_on_kissat(cmd, output_dir_performance, tmp_path, lib_path, 
 def test_performance_on_cfrac(cmd, output_dir_performance, tmp_path, lib_path, progs_dir):
     prepared_cfrac = prepare_env(tmp_path, progs_dir / "cfrac", lib_path)
     res = subprocess.run(cmd + [
-        str(prepared_cfrac), "3707030275882252342412325295197136712092001"],
+        str(prepared_cfrac), "714660644893037395618884729892003411"],
         env={"SEALLOC_SEED": "1234"},
         capture_output=True,
         cwd=tmp_path

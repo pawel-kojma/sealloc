@@ -12,7 +12,7 @@ extern "C" {
 TEST(MallocApiTest, CorrectBinStateSmall) {
   arena_t arena;
   arena_init(&arena);
-  unsigned chunks = 512;
+  unsigned chunks = CHUNK_LEAST_REGION_SIZE_BYTES / SMALL_SIZE_MIN_REGION;
   void *reg;
   for (int i = 0; i < chunks - BIN_MINIMUM_REGIONS; i++) {
     reg = sealloc_malloc(&arena, SMALL_SIZE_MIN_REGION);
@@ -21,8 +21,15 @@ TEST(MallocApiTest, CorrectBinStateSmall) {
     EXPECT_EQ(arena.bins[0].avail_regs, chunks - i - 1);
   }
 
+  EXPECT_EQ(arena.bins[0].avail_regs, BIN_MINIMUM_REGIONS);
   reg = sealloc_malloc(&arena, SMALL_SIZE_MIN_REGION);
   EXPECT_NE(reg, nullptr);
+  EXPECT_EQ(arena.bins[0].avail_regs, BIN_MINIMUM_REGIONS - 1);
+  EXPECT_EQ(arena.bins[0].run_list_active_cnt, 1);
+
+  reg = sealloc_malloc(&arena, SMALL_SIZE_MIN_REGION);
+  EXPECT_NE(reg, nullptr);
+  EXPECT_EQ(arena.bins[0].avail_regs, BIN_MINIMUM_REGIONS - 1 + chunks - 1);
   EXPECT_EQ(arena.bins[0].run_list_active_cnt, 2);
 }
 
@@ -42,7 +49,7 @@ TEST(MallocApiTest, CorrectBinStateMedium) {
   reg = sealloc_malloc(&arena, MEDIUM_SIZE_MIN_REGION);
   EXPECT_NE(reg, nullptr);
   EXPECT_EQ(arena.bins[idx].run_list_active_cnt, min_run_lists + 1);
-  EXPECT_EQ(arena.bins[idx].avail_regs, BIN_MINIMUM_REGIONS - 1 + chunks);
+  EXPECT_EQ(arena.bins[idx].avail_regs, BIN_MINIMUM_REGIONS - 1 + chunks - 1);
 }
 
 TEST(MallocApiTest, CorrectBinStateLarge) {
@@ -55,7 +62,8 @@ TEST(MallocApiTest, CorrectBinStateLarge) {
   EXPECT_NE(reg, nullptr);
   EXPECT_EQ(arena.bins[idx].run_list_active_cnt, BIN_MINIMUM_REGIONS - 1);
   EXPECT_EQ(arena.bins[idx].avail_regs, BIN_MINIMUM_REGIONS - 1);
+
   reg = sealloc_malloc(&arena, LARGE_SIZE_MIN_REGION);
-  EXPECT_EQ(arena.bins[idx].run_list_active_cnt, BIN_MINIMUM_REGIONS);
-  EXPECT_EQ(arena.bins[idx].avail_regs, BIN_MINIMUM_REGIONS);
+  EXPECT_EQ(arena.bins[idx].run_list_active_cnt, BIN_MINIMUM_REGIONS - 1);
+  EXPECT_EQ(arena.bins[idx].avail_regs, BIN_MINIMUM_REGIONS - 1);
 }

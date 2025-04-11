@@ -267,10 +267,13 @@ bool arena_supply_runs(arena_t *arena, bin_t *bin) {
   run_t *run;
   unsigned runs_to_allocate = ceil_div(BIN_MINIMUM_REGIONS - bin->avail_regs,
                                        bin->reg_mask_size_bits / 2);
+  se_debug("Adding %u more runs (%u regions total)", runs_to_allocate,
+           runs_to_allocate * (bin->reg_mask_size_bits / 2));
   for (unsigned i = 0; i < runs_to_allocate; i++) {
     run = arena_allocate_run(arena, bin);
     if (run == NULL) return false;
     bin_add_run(bin, run);
+    se_debug("Added run %p to bin %p",run,bin);
   }
   return true;
 }

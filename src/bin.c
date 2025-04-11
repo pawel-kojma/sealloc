@@ -34,6 +34,7 @@ void bin_add_run(bin_t *bin, run_t *run) {
   assert(bin->reg_size != 0);
   assert(run->entry.key != NULL);
   assert(run->navail == (bin->reg_mask_size_bits / 2));
+  assert(bin_get_run_by_addr(bin, run->entry.key) == NULL);
   bin->avail_regs += run->navail;
   bin->run_list_active_cnt++;
   ll_add(&bin->run_list_active, &run->entry);
@@ -55,6 +56,7 @@ run_t *bin_get_run_for_allocation(bin_t *bin) {
   se_debug("Before search, run_idx : %u", run_idx);
   for (; entry != NULL; entry = entry->link.fd) {
     if (run_idx == 0) {
+      bin->avail_regs--;
       return CONTAINER_OF(entry, run_t, entry);
     }
     run_idx--;

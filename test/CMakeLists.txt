@@ -46,7 +46,7 @@ list(APPEND tests_integration
             malloc_huge
             malloc_huge_multi
             malloc_memory_integrity
-            malloc_multi           
+            malloc_bin_state_correct
             malloc_single          
             realloc_invalid
             realloc_regular

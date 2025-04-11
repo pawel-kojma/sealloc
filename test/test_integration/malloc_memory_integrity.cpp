@@ -3,11 +3,12 @@
 #include <algorithm>
 #include <cstring>
 #include <random>
+#include <iostream>
 
 extern "C" {
-#include <sealloc/sealloc.h>
-#include <sealloc/random.h>
 #include <sealloc/arena.h>
+#include <sealloc/random.h>
+#include <sealloc/sealloc.h>
 }
 
 TEST(MallocApiTest, MemoryIntegrity) {
@@ -24,6 +25,8 @@ TEST(MallocApiTest, MemoryIntegrity) {
   init_splitmix32(2060289228);
   for (int i = 0; i < CHUNKS; i++) {
     size[i] = SIZES[rand() % SIZES.size()];
+    std::cout << "========================== Allocation " << i + 1
+              << " ==========================\n";
     chunks_dut[i] = sealloc_malloc(&arena, size[i]);
     chunks_exp[i].reserve(size[i]);
     std::generate(chunks_exp[i].begin(), chunks_exp[i].end(), std::ref(engine));

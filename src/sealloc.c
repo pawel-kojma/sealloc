@@ -4,7 +4,6 @@
 #include "sealloc/arena.h"
 #include "sealloc/bin.h"
 #include "sealloc/chunk.h"
-#include "sealloc/internal_allocator.h"
 #include "sealloc/logging.h"
 #include "sealloc/run.h"
 #include "sealloc/size_class.h"
@@ -30,7 +29,7 @@ static void *sealloc_allocate_with_bin(arena_t *arena, bin_t *bin) {
     }
     bin_add_run(bin, run);
   }
-  assert(bin->avail_regs > BIN_MINIMUM_REGIONS);
+  assert(bin->avail_regs >= BIN_MINIMUM_REGIONS);
   run_t *run = bin_get_run_for_allocation(bin);
   se_debug("Allocating from bin for region sizes %u", bin->reg_size);
   ptr = run_allocate(run, bin);
@@ -68,6 +67,7 @@ void *sealloc_malloc(arena_t *arena, size_t size) {
   bin_t *bin = arena_get_bin_by_reg_size(arena, aligned_size);
   // initialize bin with enugh runs, needed only once
   if (bin->avail_regs == 0) {
+    se_debug("No available regions, supplying more");
     if (!arena_supply_runs(arena, bin)) return NULL;
   }
   return sealloc_allocate_with_bin(arena, bin);
