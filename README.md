@@ -24,6 +24,7 @@ Additional flags may be specified to get specialized build:
 -DBuildType=Release/Debug - Build release version with optimization or debug with debugging symbols
 -DBUILD_SHARED_LIBS=ON/OFF - Build shared library
 -DTests=ON/OFF - Build tests
+-DAssert=ON/OFF - Build with assertions
 ```
 
 ## Tests
