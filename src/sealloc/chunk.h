@@ -22,11 +22,11 @@ typedef struct run_state run_t;
 /*!
  * @brief Size of chunk_node_t in bits
  */
-#define NODE_STATE_BITS 3
+#define NODE_STATE_BITS 2
 /*!
- * @brief Each chunk is 4MB in size
+ * @brief Each chunk is 32MB in size
  */
-#define CHUNK_SIZE_BYTES 4194304
+#define CHUNK_SIZE_BYTES 33554432
 
 /*!
  * @brief Size of the leaf in a tree spans 2*PAGE_SIZE == 8192 bytes
@@ -37,11 +37,13 @@ typedef struct run_state run_t;
 #define CHUNK_NO_NODES \
   (CHUNK_NO_NODES_LAST_LAYER + (CHUNK_NO_NODES_LAST_LAYER - 1))
 #define CHUNK_BUDDY_TREE_SIZE_BITS (CHUNK_NO_NODES * NODE_STATE_BITS)
-#define CHUNK_BUDDY_TREE_DEPTH 9
+#define CHUNK_BUDDY_TREE_DEPTH 12
+#define CHUNK_JUMP_NODE_SIZE_BYTES 3
+#define CHUNK_JUMP_TREE_SIZE_BYTES (CHUNK_JUMP_NODE_SIZE_BYTES * CHUNK_NO_NODES)
 /*!
  * @brief Arbitrary point where we unmap part of the chunk
  */
-#define CHUNK_UNMAP_THRESHOLD (CHUNK_BUDDY_TREE_DEPTH / 2)
+#define CHUNK_UNMAP_THRESHOLD 4
 
 #define CHUNK_BUDDY_TREE_SIZE_BYTES \
   ((((CHUNK_BUDDY_TREE_SIZE_BITS) + 7) & ~7) / 8)
@@ -51,19 +53,31 @@ typedef struct run_state run_t;
  */
 #define REG_MARK_BAD_VALUE 0xFF
 
+#define RANDOM_LOOKUP_TRESHOLD_PERCENTAGE 25
+#define RANDOM_LOOKUP_TRIES 4
+
 /*!
  * @brief Describes chunk metadata.
  */
 struct chunk_state {
   ll_entry_t
       entry; /*!< Linkage field that links together more chunk metadata. */
-  unsigned
-      free_mem; /*!< Non-contiguous free memory in bytes that chunk has left */
+  unsigned short
+      avail_nodes_count[CHUNK_BUDDY_TREE_DEPTH + 1]; /*!< i-th element tells how
+                                                    many nodes are available for
+                                                    allocation in i-th row of
+                                                    the tree */
   uint8_t
       reg_size_small_medium[CHUNK_NO_NODES_LAST_LAYER]; /*!<  Stores (reg_size /
                                                            16) for small and
                                                            medium size class
                                                            ONLY */
+  uint8_t jump_tree_first_index[CHUNK_BUDDY_TREE_DEPTH +
+                                1]; /*!< Array of starting global indexes of
+                                       free nodes in each level */
+  uint8_t
+      jump_tree[CHUNK_JUMP_TREE_SIZE_BYTES]; /*!< Tree where each node has prev
+              and next pointing at prev/next free element in the same row */
   uint8_t buddy_tree[CHUNK_BUDDY_TREE_SIZE_BYTES]; /*<! Segment tree state for
                                                       binary buddy algorithm */
 };
@@ -93,7 +107,6 @@ void chunk_init(chunk_t *chunk, void *heap);
  * @pre chunk is initialized
  * @pre CHUNK_LEAST_REGION_SIZE_BYTES <= run_size <= CHUNK_SIZE_BYTES
  * @pre reg_size is aligned to size within its size class
- * @sideeffect fails if guard page after allocated space could not be placed
  */
 void *chunk_allocate_run(chunk_t *chunk, unsigned run_size, unsigned reg_size);
 
