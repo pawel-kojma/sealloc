@@ -34,29 +34,28 @@ typedef struct buddy_state {
   search_state_t state;    // Current search state
 } buddy_ctx_t;
 
-typedef struct jump_node {
-  unsigned short prev : 12;
-  unsigned short next : 12;
-} jump_node_t;
-
 static inline unsigned get_mask(unsigned bits) { return (1 << bits) - 1; }
 
 static inline unsigned min(unsigned a, unsigned b) { return a > b ? b : a; }
 
-static inline void set_jt_item_next(uint8_t *mem, unsigned idx, unsigned val) {
-  ((jump_node_t *)(&mem[CHUNK_JUMP_NODE_SIZE_BYTES * (idx - 1)]))->next = val;
+static inline void set_jt_item_next(jump_node_t *mem, unsigned idx,
+                                    unsigned short val) {
+  mem[idx - 1].next = val;
 }
-static inline void set_jt_item_prev(uint8_t *mem, unsigned idx, unsigned val) {
-  ((jump_node_t *)(&mem[CHUNK_JUMP_NODE_SIZE_BYTES * (idx - 1)]))->prev = val;
+static inline void set_jt_item_prev(jump_node_t *mem, unsigned idx,
+                                    unsigned short val) {
+  mem[idx - 1].prev = val;
 }
-static inline void incr_jt_item_next(uint8_t *mem, unsigned idx, unsigned val) {
-  ((jump_node_t *)(&mem[CHUNK_JUMP_NODE_SIZE_BYTES * (idx - 1)]))->next += val;
+static inline void incr_jt_item_next(jump_node_t *mem, unsigned idx,
+                                     unsigned short val) {
+  mem[idx - 1].next += val;
 }
-static inline void incr_jt_item_prev(uint8_t *mem, unsigned idx, unsigned val) {
-  ((jump_node_t *)(&mem[CHUNK_JUMP_NODE_SIZE_BYTES * (idx - 1)]))->prev += val;
+static inline void incr_jt_item_prev(jump_node_t *mem, unsigned idx,
+                                     unsigned short val) {
+  mem[idx - 1].prev += val;
 }
-static inline jump_node_t get_jt_item(uint8_t *mem, unsigned idx) {
-  return *(jump_node_t *)&mem[CHUNK_JUMP_NODE_SIZE_BYTES * (idx - 1)];
+static inline jump_node_t get_jt_item(jump_node_t *mem, unsigned idx) {
+  return mem[idx - 1];
 }
 
 // Get tree node type at given index

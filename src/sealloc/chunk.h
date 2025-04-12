@@ -56,6 +56,11 @@ typedef struct run_state run_t;
 #define RANDOM_LOOKUP_TRESHOLD_PERCENTAGE 25
 #define RANDOM_LOOKUP_TRIES 4
 
+typedef struct jump_node {
+  unsigned short prev;
+  unsigned short next;
+} jump_node_t;
+
 /*!
  * @brief Describes chunk metadata.
  */
@@ -75,8 +80,8 @@ struct chunk_state {
   uint8_t jump_tree_first_index[CHUNK_BUDDY_TREE_DEPTH +
                                 1]; /*!< Array of starting global indexes of
                                        free nodes in each level */
-  uint8_t
-      jump_tree[CHUNK_JUMP_TREE_SIZE_BYTES]; /*!< Tree where each node has prev
+  jump_node_t
+      jump_tree[CHUNK_NO_NODES]; /*!< Tree where each node has prev
               and next pointing at prev/next free element in the same row */
   uint8_t buddy_tree[CHUNK_BUDDY_TREE_SIZE_BYTES]; /*<! Segment tree state for
                                                       binary buddy algorithm */
