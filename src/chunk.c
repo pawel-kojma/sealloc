@@ -45,11 +45,11 @@ static inline unsigned get_mask(unsigned bits) { return (1 << bits) - 1; }
 
 static inline unsigned min(unsigned a, unsigned b) { return a > b ? b : a; }
 
-static void set_jump_tree_item_next(uint8_t *mem, unsigned idx,
-                                    unsigned short val);
-static void set_jump_tree_item_prev(uint8_t *mem, unsigned idx,
-                                    unsigned short val);
-static jump_node_t get_jump_tree_item(uint8_t *mem, unsigned idx);
+static inline void set_jt_item_next(uint8_t *mem, unsigned idx, unsigned val);
+static inline void set_jt_item_prev(uint8_t *mem, unsigned idx, unsigned val);
+static inline void incr_jt_item_next(uint8_t *mem, unsigned idx, unsigned val);
+static inline void incr_jt_item_prev(uint8_t *mem, unsigned idx, unsigned val);
+static inline jump_node_t get_jt_item(uint8_t *mem, unsigned idx);
 
 // Get tree node type at given index
 static chunk_node_t get_buddy_tree_item(uint8_t *mem, size_t idx) {
@@ -267,9 +267,10 @@ unsigned inline size2idx(unsigned run_size) {
   return ctz(run_size / CHUNK_LEAST_REGION_SIZE_BYTES);
 }
 
-void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node, unsigned idx,
-                               unsigned base_level_idx, unsigned level,
-                               unsigned reg_size) {
+void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node,
+                               const unsigned idx,
+                               const unsigned base_level_idx,
+                               const unsigned level, const unsigned reg_size) {
   // State of current node being unlinked
   jump_node_t current_node = node;
 
@@ -284,6 +285,8 @@ void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node, unsigned idx,
 
   // Global indexes of next and previous free nodes in current level
   unsigned next_node_global_idx, prev_node_global_idx;
+
+  unsigned current_level = level;
 
   /*
    * Każdy node ma prev i next pointujące na nastepny i poprzedni wolny element
@@ -300,7 +303,8 @@ void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node, unsigned idx,
     }
     if (current_node.prev == 0) {
       // Left side of the tree, set starting point to next
-      chunk->jump_tree_first_index[level] = current_idx + current_node.next;
+      chunk->jump_tree_first_index[current_level] =
+          current_idx + current_node.next;
     } else {
       next_node_global_idx = current_global_idx + current_node.next;
       prev_node_global_idx = current_global_idx - current_node.prev;
@@ -317,6 +321,7 @@ void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node, unsigned idx,
     set_prev_jt_item(chunk->jump_tree, current_global_idx, 0);
 
     // Go up
+    current_level--;
     current_global_idx = PARENT(current_global_idx);
     current_node = get_jt_item(chunk->jump_tree, current_global_idx);
   }
@@ -325,11 +330,61 @@ void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node, unsigned idx,
   if (IS_LEAF(idx)) {
     chunk->reg_size_small_medium[idx - base_level_idx] =
         (reg_size / SMALL_SIZE_CLASS_ALIGNMENT) & UINT8_MAX;
+    set_buddy_tree_item(chunk->buddy_tree, idx, NODE_USED);
     return (void *)(chunk->entry.key +
                     (idx - base_level_idx) * CHUNK_LEAST_REGION_SIZE_BYTES);
   }
+  // In this case, we are higher up the tree so we have to invalidate nodes
+  // below us
+  // 1. Set pointers in jump tree to skip all nodes in current subtree
+  // 2. memset 0 entire subtree
 
+  // Indexes of the leftmost and rightmost node on current level in the subtree
+  unsigned left_idx = LEFT_CHILD(idx);
+  unsigned right_idx = RIGHT_CHILD(idx);
+  unsigned current_level_span = right_idx - left_idx;
+  current_level = level + 1;
+  jump_node_t node_left, node_right;
+  while (current_level <= CHUNK_BUDDY_TREE_DEPTH) {
+    node_left = get_jt_item(chunk->jump_tree, left_idx);
+    node_right = get_jt_item(chunk->jump_tree, right_idx);
 
+    if (node_left.prev == 0 && node_right.next == 0) {
+      // Entire level is cleared
+      chunk->jump_tree_first_index[current_level] = 0;
+    } else if (node_left.prev == 0) {
+      // node_right.next cannot be 0 here
+      chunk->jump_tree_first_index[current_level] =
+          current_level_span + node_right.next;
+      set_jt_item_next(chunk->jump_tree, right_idx + node_right.next, 0);
+    } else {
+      incr_jt_item_next(chunk->jump_tree, left_idx - node_left.prev,
+                        current_level_span + node_right.next);
+      incr_jt_item_prev(chunk->jump_tree, right_idx + node_right.next,
+                        current_level_span + node_left.prev);
+    }
+
+    left_idx = LEFT_CHILD(idx);
+    right_idx = RIGHT_CHILD(idx);
+    current_level++;
+  }
+  unsigned start_clear_idx = LEFT_CHILD(idx);
+  unsigned n = 2;
+  // memset 0 entire subtree
+  for (current_level = level + 1; current_level <= CHUNK_BUDDY_TREE_DEPTH;
+       current_level++) {
+    memset((void *)chunk->jump_tree +
+               (CHUNK_JUMP_NODE_SIZE_BYTES * start_clear_idx),
+           0, n);
+    n *= 2;
+    start_clear_idx = LEFT_CHILD(start_clear_idx);
+  }
+
+  // Update buddy and return ptr
+  set_buddy_tree_item(chunk->buddy_tree, idx, NODE_USED);
+  unsigned offset = get_leftmost_idx(idx, CHUNK_BUDDY_TREE_DEPTH - level) -
+                    ((CHUNK_NO_NODES + 1) / 2);
+  return (void *)(chunk->entry.key + offset * CHUNK_LEAST_REGION_SIZE_BYTES);
 }
 
 void *chunk_allocate_run(chunk_t *chunk, unsigned run_size, unsigned reg_size) {
