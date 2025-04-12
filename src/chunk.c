@@ -35,21 +35,29 @@ typedef struct buddy_state {
 } buddy_ctx_t;
 
 typedef struct jump_node {
-  unsigned short prev : 9;
-  unsigned short next : 9;
+  unsigned short prev : 12;
+  unsigned short next : 12;
 } jump_node_t;
-
-#define JUMP_NODE_EMPTY ((jump_node_t)0)
 
 static inline unsigned get_mask(unsigned bits) { return (1 << bits) - 1; }
 
 static inline unsigned min(unsigned a, unsigned b) { return a > b ? b : a; }
 
-static inline void set_jt_item_next(uint8_t *mem, unsigned idx, unsigned val);
-static inline void set_jt_item_prev(uint8_t *mem, unsigned idx, unsigned val);
-static inline void incr_jt_item_next(uint8_t *mem, unsigned idx, unsigned val);
-static inline void incr_jt_item_prev(uint8_t *mem, unsigned idx, unsigned val);
-static inline jump_node_t get_jt_item(uint8_t *mem, unsigned idx);
+static inline void set_jt_item_next(uint8_t *mem, unsigned idx, unsigned val) {
+  ((jump_node_t *)(&mem[CHUNK_JUMP_NODE_SIZE_BYTES * (idx - 1)]))->next = val;
+}
+static inline void set_jt_item_prev(uint8_t *mem, unsigned idx, unsigned val) {
+  ((jump_node_t *)(&mem[CHUNK_JUMP_NODE_SIZE_BYTES * (idx - 1)]))->prev = val;
+}
+static inline void incr_jt_item_next(uint8_t *mem, unsigned idx, unsigned val) {
+  ((jump_node_t *)(&mem[CHUNK_JUMP_NODE_SIZE_BYTES * (idx - 1)]))->next += val;
+}
+static inline void incr_jt_item_prev(uint8_t *mem, unsigned idx, unsigned val) {
+  ((jump_node_t *)(&mem[CHUNK_JUMP_NODE_SIZE_BYTES * (idx - 1)]))->prev += val;
+}
+static inline jump_node_t get_jt_item(uint8_t *mem, unsigned idx) {
+  return *(jump_node_t *)&mem[CHUNK_JUMP_NODE_SIZE_BYTES * (idx - 1)];
+}
 
 // Get tree node type at given index
 static chunk_node_t get_buddy_tree_item(uint8_t *mem, size_t idx) {
@@ -91,15 +99,15 @@ void chunk_init(chunk_t *chunk, void *heap) {
   unsigned short l = 1, r = 2;
   for (int i = 0; i < CHUNK_BUDDY_TREE_DEPTH + 1; i++) {
     chunk->jump_tree_first_index[i] = 1;
-    set_jump_tree_item_prev(chunk->jump_tree, l, 0);
-    set_jump_tree_item_next(chunk->jump_tree, r - 1, 0);
+    set_jt_item_prev(chunk->jump_tree, l, 0);
+    set_jt_item_next(chunk->jump_tree, r - 1, 0);
     chunk->avail_nodes_count[i] = l;
     l *= 2;
     r *= 2;
   }
 }
 
-void inline buddy_state_go_up(buddy_ctx_t *ctx) {
+inline void buddy_state_go_up(buddy_ctx_t *ctx) {
   ctx->state = IS_RIGHT_CHILD(ctx->idx) ? UP_RIGHT : UP_LEFT;
   ctx->ptr = IS_RIGHT_CHILD(ctx->idx) ? ctx->ptr - ctx->cur_size : ctx->ptr;
   ctx->idx = PARENT(ctx->idx);
@@ -107,7 +115,7 @@ void inline buddy_state_go_up(buddy_ctx_t *ctx) {
   ctx->depth_to_leaf++;
 }
 
-void inline buddy_state_go_right(buddy_ctx_t *ctx) {
+inline void buddy_state_go_right(buddy_ctx_t *ctx) {
   ctx->cur_size = ctx->cur_size / 2;
   ctx->ptr = ctx->ptr + ctx->cur_size;
   ctx->state = DOWN;
@@ -115,7 +123,7 @@ void inline buddy_state_go_right(buddy_ctx_t *ctx) {
   ctx->depth_to_leaf--;
 }
 
-void inline buddy_state_go_left(buddy_ctx_t *ctx) {
+inline void buddy_state_go_left(buddy_ctx_t *ctx) {
   ctx->idx = LEFT_CHILD(ctx->idx);
   ctx->cur_size = ctx->cur_size / 2;
   ctx->depth_to_leaf--;
