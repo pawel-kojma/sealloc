@@ -295,13 +295,6 @@ void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node,
 
   unsigned current_level = level;
 
-  /*
-   * Każdy node ma prev i next pointujące na nastepny i poprzedni wolny element
-   *
-   * node.prev - offset do poprzedniego wolnego względem siebie
-   * node.next - offset do nastepnego wolnego względem siebie
-   */
-
   while (current_node.next != 0 && current_node.prev != 0) {
     if (current_node.next == 0) {
       // Right side of the tree, just set prev to 0
@@ -380,9 +373,8 @@ void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node,
   // memset 0 entire subtree
   for (current_level = level + 1; current_level <= CHUNK_BUDDY_TREE_DEPTH;
        current_level++) {
-    memset((void *)chunk->jump_tree +
-               (CHUNK_JUMP_NODE_SIZE_BYTES * start_clear_idx),
-           0, n);
+    memset((void *)&chunk->jump_tree[start_clear_idx], 0,
+           n * sizeof(jump_node_t));
     n *= 2;
     start_clear_idx = LEFT_CHILD(start_clear_idx);
   }
