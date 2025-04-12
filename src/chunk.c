@@ -7,17 +7,18 @@
 #include "sealloc/platform_api.h"
 #include "sealloc/size_class.h"
 
-#define RIGHT_CHILD(idx) (idx * 2 + 1)
-#define LEFT_CHILD(idx) (idx * 2)
-#define PARENT(idx) (idx / 2)
-#define IS_ROOT(idx) (idx != 1)
-#define IS_LEAF(idx) (idx >= ((CHUNK_NO_NODES + 1) / 2))
-#define IS_RIGHT_CHILD(idx) (idx & 1)
+#define RIGHT_CHILD(idx) (((idx) * 2) + 1)
+#define LEFT_CHILD(idx) ((idx) * 2)
+#define PARENT(idx) ((idx) / 2)
+#define IS_ROOT(idx) ((idx) != 1)
+#define IS_LEAF(idx) ((idx) >= ((CHUNK_NO_NODES + 1) / 2))
+#define IS_RIGHT_CHILD(idx) ((idx) & 1)
 
 typedef enum chunk_node {
   NODE_FREE = 0,
   NODE_USED = 1,
   NODE_DEPLETED = 2,
+  NODE_UNMAPPED = 3,
 } chunk_node_t;
 
 typedef enum search_state {
@@ -471,8 +472,6 @@ static void coalesce_unmapped_nodes(buddy_ctx_t *ctx, chunk_t *chunk) {
   }
 }
 
-// Coalesce nodes up the tree during allocation to indicate that this branch is
-// free, change full node to split ones
 static void coalesce_depleted_nodes(buddy_ctx_t *ctx, chunk_t *chunk) {
   unsigned neigh_idx;
   chunk_node_t node;
@@ -503,74 +502,30 @@ static void coalesce_depleted_nodes(buddy_ctx_t *ctx, chunk_t *chunk) {
 
 bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
   uintptr_t ptr_dest = (uintptr_t)run_ptr;
-  chunk_node_t node, neigh;
-  buddy_ctx_t ctx = {
-      .idx = 1,
-      .state = DOWN,
-      .depth_to_leaf = CHUNK_BUDDY_TREE_DEPTH,
-      .cur_size = CHUNK_SIZE_BYTES,
-      .ptr = (uintptr_t)chunk->entry.key,
-  };
-  node = get_buddy_tree_item(chunk->buddy_tree, ctx.idx);
-  while (!(ptr_dest == ctx.ptr && node == NODE_USED)) {
-    if (IS_LEAF(ctx.idx)) {
+  chunk_node_t node;
+  unsigned first_leaf_idx = (CHUNK_NO_NODES + 1) / 2;
+  unsigned ptr_offset = ((ptr_dest - (uintptr_t)chunk->entry.key) /
+                         CHUNK_LEAST_REGION_SIZE_BYTES);
+  unsigned idx = first_leaf_idx + ptr_offset;
+  unsigned depth_to_leaf = 0;
+  node = get_buddy_tree_item(chunk->buddy_tree, idx);
+  while (node != NODE_USED) {
+    if (IS_ROOT(idx) || IS_RIGHT_CHILD(idx)) {
       se_error("No run found");
     }
-    // Go to right child
-    if (ptr_dest >= ctx.ptr + (ctx.cur_size / 2)) {
-      buddy_state_go_right(&ctx);
+    if (node == NODE_DEPLETED) {
+      se_error("run is depleted?");
     }
-    // Go to left child
-    else {
-      buddy_state_go_left(&ctx);
-    }
-    node = get_buddy_tree_item(chunk->buddy_tree, ctx.idx);
+    idx = PARENT(idx);
+    depth_to_leaf++;
   }
-  // Mark the node as depleted as we wont be using this memory again
-  set_buddy_tree_item(chunk->buddy_tree, ctx.idx, NODE_DEPLETED);
-  // Set leftmost as guarded to indicate that other allocations do not need to
-  // guard pages
-  // Note that leaf node will be just NODE_DEPLETED since leftmost of leaf ==
-  // leaf
-  set_buddy_tree_item(chunk->buddy_tree,
-                      get_leftmost_idx(ctx.idx, ctx.depth_to_leaf),
-                      NODE_DEPLETED);
-
-  // Guard the memory region, may be unnecessary because we might be unmapping
-  // it later
-  platform_status_code_t code;
-  if ((code = platform_guard((void *)ctx.ptr, ctx.cur_size) !=
-              PLATFORM_STATUS_OK)) {
-    se_error("Failed to guard page (ptr : %p, size : %zu): %s", (void *)ctx.ptr,
-             ctx.cur_size, platform_strerror(code));
-  }
-
-  unsigned neigh_idx = get_rightmost_idx(ctx.idx, ctx.depth_to_leaf) + 1;
-  if (neigh_idx <= CHUNK_NO_NODES) {
-    neigh = get_buddy_tree_item(chunk->buddy_tree, neigh_idx);
-    if (neigh == NODE_GUARD) {
-      // That means the guard page was not used before
-      // Unguard it and make it free
-      if ((code = platform_unguard((void *)(ctx.ptr + ctx.cur_size),
-                                   CHUNK_LEAST_REGION_SIZE_BYTES)) !=
-          PLATFORM_STATUS_OK) {
-        se_error("Failed to unguard page (ptr : %p, size : %zu): %s",
-                 (void *)(ctx.ptr + ctx.cur_size),
-                 CHUNK_LEAST_REGION_SIZE_BYTES, platform_strerror(code));
-      }
-      set_buddy_tree_item(chunk->buddy_tree, neigh_idx, NODE_FREE);
-      chunk->free_mem += CHUNK_LEAST_REGION_SIZE_BYTES;
-      coalesce_free_nodes(chunk->buddy_tree, neigh_idx);
-    }
-  }
-
+  set_buddy_tree_item(chunk->buddy_tree, idx, NODE_DEPLETED);
+  buddy_ctx_t ctx = {.idx = idx,
+                     .cur_size = CHUNK_LEAST_REGION_SIZE_BYTES << depth_to_leaf,
+                     .depth_to_leaf = depth_to_leaf,
+                     .ptr = ptr_dest,
+                     .state = NODE_DEPLETED};
   coalesce_depleted_nodes(&ctx, chunk);
-  // Check if we unmapped the entire mapping to return information to delete
-  // the chunk metadata
-  // If idx is root (idx == 1) after coalescing, we definetely unmapped the
-  // entire chunk
-  if (ctx.idx == 1) return true;
-  return false;
 }
 
 // Fills run data based of ptr
@@ -590,7 +545,7 @@ void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
       .ptr = (uintptr_t)chunk->entry.key,
   };
   node = get_buddy_tree_item(chunk->buddy_tree, ctx.idx);
-  while (node == NODE_SPLIT || node == NODE_FULL) {
+  while (node == NODE_FREE) {
     if (IS_LEAF(ctx.idx)) {
       return;
     }
@@ -623,4 +578,6 @@ void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
 bool chunk_is_unmapped(chunk_t *chunk) {
   return get_tree_item(chunk->buddy_tree, 1) == NODE_UNMAPPED;
 }
-bool chunk_is_full(chunk_t *chunk) { return chunk->free_mem == 0; }
+bool chunk_is_full(chunk_t *chunk) {
+  return chunk->avail_nodes_count[CHUNK_BUDDY_TREE_DEPTH] == 0;
+}
