@@ -12,7 +12,7 @@
 #define RIGHT_CHILD(idx) (((idx) * 2) + 1)
 #define LEFT_CHILD(idx) ((idx) * 2)
 #define PARENT(idx) ((idx) / 2)
-#define IS_ROOT(idx) ((idx) != 1)
+#define IS_ROOT(idx) ((idx) == 1)
 #define IS_LEAF(idx) ((idx) >= ((CHUNK_NO_NODES + 1) / 2))
 #define IS_RIGHT_CHILD(idx) ((idx) & 1)
 
@@ -166,13 +166,12 @@ void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node,
   }
 
   // Update up the tree
-  while (current_node.next != 0 && current_node.prev != 0) {
+  while (current_node.next != 0 || current_node.prev != 0) {
     if (current_node.next == 0) {
       // Right side of the tree, just set prev to 0
       set_jt_item_next(chunk->jump_tree, current_global_idx - current_node.prev,
                        0);
-    }
-    if (current_node.prev == 0) {
+    } else if (current_node.prev == 0) {
       // Left side of the tree, set starting point to next
       chunk->jump_tree_first_index[current_level] =
           current_global_idx + current_node.next;
@@ -225,10 +224,12 @@ void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node,
       // Entire level is cleared
       chunk->jump_tree_first_index[current_level] = 0;
     } else if (node_left.prev == 0) {
-      // node_right.next cannot be 0 here
-      chunk->jump_tree_first_index[current_level] =
-          current_level_span + node_right.next;
-      set_jt_item_next(chunk->jump_tree, right_idx + node_right.next, 0);
+      // node_left was the first free node on this level
+      // point first indxes to after right node
+      // set prev of after right node to 0 since there are none free nodes on
+      // the left
+      chunk->jump_tree_first_index[current_level] = right_idx + node_right.next;
+      set_jt_item_prev(chunk->jump_tree, right_idx + node_right.next, 0);
     } else {
       incr_jt_item_next(chunk->jump_tree, left_idx - node_left.prev,
                         current_level_span + node_right.next);
@@ -236,9 +237,10 @@ void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node,
                         current_level_span + node_left.prev);
     }
 
-    left_idx = LEFT_CHILD(idx);
-    right_idx = RIGHT_CHILD(idx);
+    left_idx = LEFT_CHILD(left_idx);
+    right_idx = RIGHT_CHILD(right_idx);
     current_level++;
+    current_level_span = right_idx - left_idx;
   }
   unsigned start_clear_idx = LEFT_CHILD(idx);
   unsigned n = 2;
@@ -278,24 +280,21 @@ void *chunk_allocate_run(chunk_t *chunk, unsigned run_size, unsigned reg_size) {
     for (uint8_t i = 0; i < RANDOM_LOOKUP_TRIES; i++) {
       rand_idx = splitmix32() % all_nodes;
       node = get_jt_item(chunk->jump_tree, level_base_idx + rand_idx);
-      if (node.prev != 0 && node.next != 0)
+      if (node.prev != 0 || node.next != 0)
         return chunk_allocate_with_node(chunk, node, level_base_idx + rand_idx,
                                         level, reg_size);
     }
-  } else {
-    // Get random node index
-    rand_idx = splitmix32() % avail_nodes;
-    current_idx = chunk->jump_tree_first_index[level];
-    for (jump_node_t node = get_jt_item(chunk->jump_tree, current_idx);
-         node.next != 0; node = get_jt_item(chunk->jump_tree, current_idx)) {
-      if (rand_idx == 0)
-        return chunk_allocate_with_node(chunk, node, current_idx, level,
-                                        reg_size);
-      rand_idx--;
-      current_idx += node.next;
-    }
   }
-  se_error("Should never reach here");
+  // Get random node index
+  rand_idx = splitmix32() % avail_nodes;
+  current_idx = chunk->jump_tree_first_index[level];
+  node = get_jt_item(chunk->jump_tree, current_idx);
+  while (rand_idx > 0) {
+    rand_idx--;
+    current_idx += node.next;
+    node = get_jt_item(chunk->jump_tree, current_idx);
+  }
+  return chunk_allocate_with_node(chunk, node, current_idx, level, reg_size);
 }
 
 // Merge unmapped nodes to indicate that the pages corresponding to those nodes
@@ -360,6 +359,7 @@ bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
     }
     idx = PARENT(idx);
     depth_to_leaf++;
+    node = get_buddy_tree_item(chunk->buddy_tree, idx);
   }
   set_buddy_tree_item(chunk->buddy_tree, idx, NODE_DEPLETED);
   buddy_ctx_t ctx = {.idx = idx,

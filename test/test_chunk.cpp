@@ -52,6 +52,19 @@ bool all_unique(std::vector<T> &v) {
   return std::adjacent_find(v.begin(), v.end()) == v.end();
 }
 
+unsigned size2idx(unsigned run_size) {
+  return ctz(run_size / CHUNK_LEAST_REGION_SIZE_BYTES);
+}
+
+TEST(ChunkUtilsTestUtility, Size2Index) {
+  std::vector<unsigned> sizes = {8192,    16384,    32768,   65536,   131072,
+                                 262144,  524288,   1048576, 2097152, 4194304,
+                                 8388608, 16777216, 33554432};
+  for (int i = 0; i < sizes.size(); i++) {
+    EXPECT_EQ(size2idx(sizes[i]), i);
+  }
+}
+
 TEST_F(ChunkUtilsTest, ChunkInit) {
   chunk_t chunk;
   jump_node_t node;
@@ -116,7 +129,7 @@ TEST_F(ChunkUtilsTest, ChunkManyAllocations) {
 TEST_F(ChunkUtilsTest, ChunkRegSizeArrayUpdate) {
   void *alloc;
   /*
-   * 1580013426 % 4096 == 1906
+   * 1580013426 % 4096 = 1906
    * 350525680 % 4096 = 2288
    * 3524174333 % 4096 = 509
    */
@@ -164,22 +177,37 @@ TEST_F(ChunkUtilsTest, AvailNodesCountUpdateSmall) {
 
 TEST_F(ChunkUtilsTest, AvailNodesCountUpdateLarge) {
   void *alloc;
-  alloc = chunk_allocate_run(chunk, run_size_small, LARGE_SIZE_MAX_REGION);
-  unsigned short l = 1;
-  for (int i = 0; i < ctz(LARGE_SIZE_MAX_REGION); i++) {
-    EXPECT_EQ(chunk->avail_nodes_count[i], l - 1);
-    l *= 2;
-  }
-  // TODO: complete this test case
-  for (int i = ctz(LARGE_SIZE_MAX_REGION); i <= CHUNK_BUDDY_TREE_DEPTH; i++) {
-    EXPECT_EQ(chunk->avail_nodes_count[i], 0);
-    l *= 2;
-  }
+  alloc =
+      chunk_allocate_run(chunk, LARGE_SIZE_MAX_REGION, LARGE_SIZE_MAX_REGION);
+  EXPECT_EQ(chunk->avail_nodes_count[0], 0);
+  EXPECT_EQ(chunk->avail_nodes_count[1], 1);
+  EXPECT_EQ(chunk->avail_nodes_count[2], 3);
+  EXPECT_EQ(chunk->avail_nodes_count[3], 7);
+  EXPECT_EQ(chunk->avail_nodes_count[4], 15);
+  EXPECT_EQ(chunk->avail_nodes_count[5], 31);
+  EXPECT_EQ(chunk->avail_nodes_count[6], 62);
+  EXPECT_EQ(chunk->avail_nodes_count[7], 124);
+  EXPECT_EQ(chunk->avail_nodes_count[8], 248);
+  EXPECT_EQ(chunk->avail_nodes_count[9], 496);
+  EXPECT_EQ(chunk->avail_nodes_count[10], 992);
+  EXPECT_EQ(chunk->avail_nodes_count[11], 1984);
+  EXPECT_EQ(chunk->avail_nodes_count[12], 3968);
 }
 
-TEST_F(ChunkUtilsTest, ChunkAllocationPlacement1) {
+TEST_F(ChunkUtilsTest, ChunkDeallocateRunSmall) {
+  void *alloc1 = chunk_allocate_run(chunk, run_size_small, 16);
+  EXPECT_NE(alloc1, nullptr);
+  chunk_deallocate_run(chunk, alloc1);
+}
+
+TEST_F(ChunkUtilsTest, ChunkDeallocateRunLarge) {
+  void *alloc1 = chunk_allocate_run(chunk, run_size_large, run_size_large);
+  EXPECT_NE(alloc1, nullptr);
+  chunk_deallocate_run(chunk, alloc1);
+}
+
+TEST_F(ChunkUtilsTest, ChunkAllocationPlacementSmall) {
   void *alloc1, *alloc2, *alloc3;
-  chunk_init(chunk, heap);
   alloc1 = chunk_allocate_run(chunk, run_size_small, 16);
   alloc2 = chunk_allocate_run(chunk, run_size_small, 16);
   ptrdiff_t a1 = (ptrdiff_t)alloc1, a2 = (ptrdiff_t)alloc2;
@@ -192,11 +220,10 @@ TEST_F(ChunkUtilsTest, ChunkAllocationPlacement1) {
 
 TEST_F(ChunkUtilsTest, ChunkCoalesceDepletedUnmappingLarge) {
   void *alloc1;
-  chunk_init(chunk, heap);
-
   for (int i = 0; i < 32; i++) {
     alloc1 =
         chunk_allocate_run(chunk, LARGE_SIZE_MAX_REGION, LARGE_SIZE_MAX_REGION);
+    EXPECT_NE(alloc1, nullptr);
     chunk_deallocate_run(chunk, alloc1);
   }
   EXPECT_EQ(get_buddy_tree_item(chunk->buddy_tree, 1), NODE_UNMAPPED);
