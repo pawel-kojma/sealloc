@@ -97,15 +97,17 @@ void chunk_init(chunk_t *chunk, void *heap) {
          sizeof(chunk->reg_size_small_medium));
   set_buddy_tree_item(chunk->buddy_tree, 1, NODE_FREE);
   memset(&chunk->buddy_tree, 0, sizeof(chunk->buddy_tree));
-  memset(&chunk->jump_tree, 1, sizeof(chunk->jump_tree));
-  unsigned short l = 1, r = 2;
+  for (int i = 0; i < CHUNK_NO_NODES; i++) {
+    chunk->jump_tree[i].next = 1;
+    chunk->jump_tree[i].prev = 1;
+  }
+  unsigned short l = 1;
   for (int i = 0; i < CHUNK_BUDDY_TREE_DEPTH + 1; i++) {
     chunk->jump_tree_first_index[i] = l;
     set_jt_item_prev(chunk->jump_tree, l, 0);
-    set_jt_item_next(chunk->jump_tree, r - 1, 0);
+    set_jt_item_next(chunk->jump_tree, 2 * l - 1, 0);
     chunk->avail_nodes_count[i] = l;
     l *= 2;
-    r *= 2;
   }
 }
 
@@ -150,8 +152,20 @@ void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node,
   // Global indexes of next and previous free nodes in current level
   unsigned next_node_global_idx, prev_node_global_idx;
 
+  // 0-based level index
   unsigned current_level = level;
 
+  // Update available nodes
+  unsigned l = 1;
+  for (unsigned i = level; i <= CHUNK_BUDDY_TREE_DEPTH; i++) {
+    chunk->avail_nodes_count[i] -= l;
+    l *= 2;
+  }
+  for (unsigned i = 0; i < level; i++) {
+    chunk->avail_nodes_count[i]--;
+  }
+
+  // Update up the tree
   while (current_node.next != 0 && current_node.prev != 0) {
     if (current_node.next == 0) {
       // Right side of the tree, just set prev to 0
@@ -185,8 +199,9 @@ void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node,
 
   // If idx is a leaf node then job is done
   if (IS_LEAF(idx)) {
-    chunk->reg_size_small_medium[idx - base_level_idx] =
-        (reg_size / SMALL_SIZE_CLASS_ALIGNMENT) & UINT8_MAX;
+    if (reg_size != CHUNK_LEAST_REGION_SIZE_BYTES)
+      chunk->reg_size_small_medium[idx - base_level_idx] =
+          (reg_size / SMALL_SIZE_CLASS_ALIGNMENT) & UINT8_MAX;
     set_buddy_tree_item(chunk->buddy_tree, idx, NODE_USED);
     return (void *)((uintptr_t)chunk->entry.key +
                     (idx - base_level_idx) * CHUNK_LEAST_REGION_SIZE_BYTES);

@@ -5,13 +5,9 @@
 extern "C" {
 #include <sealloc/chunk.h>
 #include <sealloc/platform_api.h>
+#include <sealloc/random.h>
+#include <sealloc/size_class.h>
 #include <sealloc/utils.h>
-}
-
-TEST(ChunkUtils, ChunkInit) {
-  chunk_t chunk;
-  void *heap = (void *)1;
-  chunk_init(&chunk, heap);
 }
 
 namespace {
@@ -47,7 +43,7 @@ static jump_node_t get_jt_item(jump_node_t *mem, unsigned idx) {
 static chunk_node_t get_buddy_tree_item(uint8_t *mem, size_t idx) {
   size_t word = (idx - 1) / 4;
   size_t off = (idx - 1) % 4;
-  return (chunk_node_t)(mem[word] >> (2 * off)) & 3;
+  return (chunk_node_t)(mem[word] >> (2 * off) & 3);
 }
 
 template <class T>
@@ -56,16 +52,46 @@ bool all_unique(std::vector<T> &v) {
   return std::adjacent_find(v.begin(), v.end()) == v.end();
 }
 
+TEST_F(ChunkUtilsTest, ChunkInit) {
+  chunk_t chunk;
+  jump_node_t node;
+  std::vector<unsigned> pow = {1,   2,   4,   8,    16,   32,  64,
+                               128, 256, 512, 1024, 2048, 4096};
+  for (int i = 0; i < pow.size(); i++) {
+    EXPECT_EQ(pow[i], chunk.avail_nodes_count[i]);
+    EXPECT_EQ(pow[i], chunk.jump_tree_first_index[i]);
+  }
+  node = get_jt_item(chunk.jump_tree, 1);
+  EXPECT_EQ(node.prev, 0);
+  EXPECT_EQ(node.next, 0);
+  for (int i = 2; i <= 4096; i *= 2) {
+    node = get_jt_item(chunk.jump_tree, i);
+    EXPECT_EQ(node.prev, 0);
+    EXPECT_EQ(node.next, 1);
+    node = get_jt_item(chunk.jump_tree, 2 * i - 1);
+    EXPECT_EQ(node.next, 0);
+    EXPECT_EQ(node.prev, 1);
+  }
+}
+
 TEST_F(ChunkUtilsTest, ChunkSingleAllocation) {
-  void *alloc;
+  void *alloc, *expected;
   unsigned reg_size = 16;
   alloc = chunk_allocate_run(chunk, run_size_small, reg_size);
-  EXPECT_NE(alloc, nullptr);
+  expected = (void *)((uintptr_t)chunk->entry.key +
+                      (1906 * CHUNK_LEAST_REGION_SIZE_BYTES));
+  EXPECT_EQ(alloc, expected);
   // 1580013426 % 4096 == 1906
-  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 4096 + 1906), NODE_USED);
+  EXPECT_EQ(get_buddy_tree_item(chunk->buddy_tree, 4096 + 1906), NODE_USED);
   jump_node_t node = get_jt_item(chunk->jump_tree, 4096 + 1906);
-  EXPECT_EQ(node->prev, 0);
-  EXPECT_EQ(node->next, 0);
+  EXPECT_EQ(node.prev, 0);
+  EXPECT_EQ(node.next, 0);
+  node = get_jt_item(chunk->jump_tree, 4096 + 1905);
+  EXPECT_EQ(node.prev, 1);
+  EXPECT_EQ(node.next, 2);
+  node = get_jt_item(chunk->jump_tree, 4096 + 1907);
+  EXPECT_EQ(node.prev, 2);
+  EXPECT_EQ(node.next, 1);
 }
 
 TEST_F(ChunkUtilsTest, ChunkManyAllocations) {
@@ -79,7 +105,6 @@ TEST_F(ChunkUtilsTest, ChunkManyAllocations) {
   std::vector<void *> chunks;
   chunks.reserve(CHUNKS);
   std::srand(123);
-  chunk_init(chunk, heap);
   for (int i = 0; i < CHUNKS; i++) {
     auto [run_size, reg_size] = run_reg_sizes[rand() % run_reg_sizes.size()];
     chunks[i] = chunk_allocate_run(chunk, run_size, reg_size);
@@ -90,11 +115,10 @@ TEST_F(ChunkUtilsTest, ChunkManyAllocations) {
 
 TEST_F(ChunkUtilsTest, ChunkRegSizeArrayUpdate) {
   void *alloc;
-  chunk_init(chunk, heap);
   /*
    * 1580013426 % 4096 == 1906
-   * 914163893 % 4096 = 2229
-   * 1798215561 % 4096 = 1929
+   * 350525680 % 4096 = 2288
+   * 3524174333 % 4096 = 509
    */
   alloc = chunk_allocate_run(chunk, run_size_small, 16);
   EXPECT_NE(alloc, nullptr);
@@ -103,12 +127,13 @@ TEST_F(ChunkUtilsTest, ChunkRegSizeArrayUpdate) {
   alloc = chunk_allocate_run(chunk, run_size_small, 48);
   EXPECT_NE(alloc, nullptr);
   EXPECT_EQ(chunk->reg_size_small_medium[1906], 1);
-  EXPECT_EQ(chunk->reg_size_small_medium[2229], 2);
-  EXPECT_EQ(chunk->reg_size_small_medium[1929], 3);
+  EXPECT_EQ(chunk->reg_size_small_medium[2288], 2);
+  EXPECT_EQ(chunk->reg_size_small_medium[509], 3);
+  EXPECT_EQ(chunk->reg_size_small_medium[508], 255);
+  EXPECT_EQ(chunk->reg_size_small_medium[510], 255);
 }
 
 TEST_F(ChunkUtilsTest, ChunkRegSizeArrayLargeHandling) {
-  chunk_init(chunk, heap);
   // Allocate smallest large size, which will be a leaf node
   void *run_ptr = nullptr,
        *alloc = chunk_allocate_run(chunk, run_size_small, 8192);
@@ -122,10 +147,34 @@ TEST_F(ChunkUtilsTest, ChunkRegSizeArrayLargeHandling) {
 
 TEST_F(ChunkUtilsTest, ChunkSingleDeallocate) {
   void *alloc;
-  chunk_init(chunk, heap);
   alloc = chunk_allocate_run(chunk, run_size_small, 16);
   chunk_deallocate_run(chunk, alloc);
-  EXPECT_EQ(get_tree_item(chunk->buddy_tree, 4096 + 1906), NODE_DEPLETED);
+  EXPECT_EQ(get_buddy_tree_item(chunk->buddy_tree, 4096 + 1906), NODE_DEPLETED);
+}
+
+TEST_F(ChunkUtilsTest, AvailNodesCountUpdateSmall) {
+  void *alloc;
+  alloc = chunk_allocate_run(chunk, run_size_small, 16);
+  unsigned short l = 1;
+  for (int i = 0; i < CHUNK_BUDDY_TREE_DEPTH + 1; i++) {
+    EXPECT_EQ(chunk->avail_nodes_count[i], l - 1);
+    l *= 2;
+  }
+}
+
+TEST_F(ChunkUtilsTest, AvailNodesCountUpdateLarge) {
+  void *alloc;
+  alloc = chunk_allocate_run(chunk, run_size_small, LARGE_SIZE_MAX_REGION);
+  unsigned short l = 1;
+  for (int i = 0; i < ctz(LARGE_SIZE_MAX_REGION); i++) {
+    EXPECT_EQ(chunk->avail_nodes_count[i], l - 1);
+    l *= 2;
+  }
+  // TODO: complete this test case
+  for (int i = ctz(LARGE_SIZE_MAX_REGION); i <= CHUNK_BUDDY_TREE_DEPTH; i++) {
+    EXPECT_EQ(chunk->avail_nodes_count[i], 0);
+    l *= 2;
+  }
 }
 
 TEST_F(ChunkUtilsTest, ChunkAllocationPlacement1) {
@@ -138,7 +187,7 @@ TEST_F(ChunkUtilsTest, ChunkAllocationPlacement1) {
   EXPECT_EQ(a1,
             (ptrdiff_t)chunk->entry.key + 1906 * CHUNK_LEAST_REGION_SIZE_BYTES);
   EXPECT_EQ(a2,
-            (ptrdiff_t)chunk->entry.key + 2229 * CHUNK_LEAST_REGION_SIZE_BYTES);
+            (ptrdiff_t)chunk->entry.key + 2288 * CHUNK_LEAST_REGION_SIZE_BYTES);
 }
 
 TEST_F(ChunkUtilsTest, ChunkCoalesceDepletedUnmappingLarge) {
@@ -153,7 +202,7 @@ TEST_F(ChunkUtilsTest, ChunkCoalesceDepletedUnmappingLarge) {
   EXPECT_EQ(get_buddy_tree_item(chunk->buddy_tree, 1), NODE_UNMAPPED);
 }
 
-TEST_F(ChunkUtilsTest, ChunkCoalesceDepletedUnmappingLarge) {
+TEST_F(ChunkUtilsTest, ChunkCoalesceDepletedUnmappingSmall) {
   void *alloc1;
   chunk_init(chunk, heap);
 
@@ -198,8 +247,6 @@ TEST_F(ChunkUtilsTest, ChunkIsFull) {
   EXPECT_TRUE(chunk_is_full(chunk));
 }
 
-TEST_F(ChunkUtilsTest, SizesArrayUpdate){
-
-}
+TEST_F(ChunkUtilsTest, SizesArrayUpdate) {}
 
 }  // namespace

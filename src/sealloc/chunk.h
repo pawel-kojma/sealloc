@@ -77,7 +77,7 @@ struct chunk_state {
                                                            16) for small and
                                                            medium size class
                                                            ONLY */
-  uint8_t jump_tree_first_index[CHUNK_BUDDY_TREE_DEPTH +
+  unsigned jump_tree_first_index[CHUNK_BUDDY_TREE_DEPTH +
                                 1]; /*!< Array of starting global indexes of
                                        free nodes in each level */
   jump_node_t
