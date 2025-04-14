@@ -33,7 +33,7 @@ class ChunkUtilsTest : public ::testing::Test {
     unsigned leftmost_idx = 1 << level, rightmost_idx = (1 << (level + 1)) - 1;
     std::cout << "Jump Start : " << chunk->jump_tree_first_index[level] << " ";
     for (int i = leftmost_idx; i <= rightmost_idx; i++) {
-      std::cout << i - 32 << "(p=" << chunk->jump_tree[i - 1].prev
+      std::cout << i - leftmost_idx << "(p=" << chunk->jump_tree[i - 1].prev
                 << ", n=" << chunk->jump_tree[i - 1].next << ")" << " ";
     }
     std::cout << '\n';
@@ -69,7 +69,8 @@ class ChunkUtilsTest : public ::testing::Test {
         EXPECT_TRUE(idx >= leftmost_idx);
         EXPECT_TRUE(idx <= rightmost_idx);
       }
-      EXPECT_EQ(actual_free_count, expected_free_count);
+      EXPECT_EQ(actual_free_count, expected_free_count)
+          << "Failed at level " << level;
     }
 
     // Validate node metadata
@@ -99,6 +100,12 @@ class ChunkUtilsTest : public ::testing::Test {
         EXPECT_EQ(node.prev, 0);
         EXPECT_EQ(node.next, 0);
       }
+    }
+  }
+
+  void validate_entire_tree() {
+    for (int level = 0; level <= CHUNK_BUDDY_TREE_DEPTH; level++) {
+      validate_free_list_on_level(level, chunk->avail_nodes_count[level]);
     }
   }
 };
@@ -140,22 +147,22 @@ TEST(ChunkUtilsTestUtility, Size2Index) {
 }
 
 TEST_F(ChunkUtilsTest, ChunkInit) {
-  chunk_t chunk;
   jump_node_t node;
   std::vector<unsigned> pow = {1,   2,   4,   8,    16,   32,  64,
                                128, 256, 512, 1024, 2048, 4096};
-  for (int i = 0; i < pow.size(); i++) {
-    EXPECT_EQ(pow[i], chunk.avail_nodes_count[i]);
-    EXPECT_EQ(pow[i], chunk.jump_tree_first_index[i]);
+  EXPECT_EQ(chunk->avail_nodes_count[0], 0);
+  for (int i = 1; i < pow.size(); i++) {
+    EXPECT_EQ(pow[i], chunk->avail_nodes_count[i]);
+    EXPECT_EQ(pow[i], chunk->jump_tree_first_index[i]);
   }
-  node = get_jt_item(chunk.jump_tree, 1);
+  node = get_jt_item(chunk->jump_tree, 1);
   EXPECT_EQ(node.prev, 0);
   EXPECT_EQ(node.next, 0);
   for (int i = 2; i <= 4096; i *= 2) {
-    node = get_jt_item(chunk.jump_tree, i);
+    node = get_jt_item(chunk->jump_tree, i);
     EXPECT_EQ(node.prev, 0);
     EXPECT_EQ(node.next, 1);
-    node = get_jt_item(chunk.jump_tree, 2 * i - 1);
+    node = get_jt_item(chunk->jump_tree, 2 * i - 1);
     EXPECT_EQ(node.next, 0);
     EXPECT_EQ(node.prev, 1);
   }
@@ -244,7 +251,7 @@ TEST_F(ChunkUtilsTest, AvailNodesCountUpdateSmall) {
   alloc = chunk_allocate_run(chunk, run_size_small, 16);
   unsigned short l = 1;
   for (int i = 0; i < CHUNK_BUDDY_TREE_DEPTH + 1; i++) {
-    EXPECT_EQ(chunk->avail_nodes_count[i], l - 1);
+    EXPECT_EQ(chunk->avail_nodes_count[i], l - 1) << "Failed on level " << i;
     l *= 2;
   }
 }
@@ -278,6 +285,26 @@ TEST_F(ChunkUtilsTest, ChunkDeallocateRunLarge) {
   void *alloc1 = chunk_allocate_run(chunk, run_size_large, run_size_large);
   EXPECT_NE(alloc1, nullptr);
   chunk_deallocate_run(chunk, alloc1);
+}
+
+TEST_F(ChunkUtilsTest, ChunkValidateTreeSmall) {
+  void *alloc;
+  unsigned reg_size = 16;
+  alloc = chunk_allocate_run(chunk, run_size_small, reg_size);
+  validate_entire_tree();
+}
+
+TEST_F(ChunkUtilsTest, ChunkValidateTreeMedium) {
+  void *alloc;
+  alloc = chunk_allocate_run(chunk, run_size_small, 2048);
+  validate_entire_tree();
+}
+
+TEST_F(ChunkUtilsTest, ChunkValidateTreeLarge) {
+  void *alloc;
+  alloc =
+      chunk_allocate_run(chunk, LARGE_SIZE_MAX_REGION, LARGE_SIZE_MAX_REGION);
+  validate_entire_tree();
 }
 
 TEST_F(ChunkUtilsTest, ChunkAllocateAllNodesLarge) {
@@ -332,7 +359,7 @@ TEST_F(ChunkUtilsTest, ChunkAllocateAllNodesSmall) {
     EXPECT_EQ(chunk->avail_nodes_count[LEVEL], CHUNKS - i - 1);
     validate_free_list_on_level(LEVEL, CHUNKS - i - 1);
   }
-  validate_free_list_on_level(LEVEL,0);
+  validate_free_list_on_level(LEVEL, 0);
   EXPECT_TRUE(all_unique(chunks));
 }
 
@@ -407,14 +434,14 @@ TEST_F(ChunkUtilsTest, ChunkGetRunPointerNegative) {
 }
 
 TEST_F(ChunkUtilsTest, ChunkIsFull) {
-  unsigned chunks_to_alloc = CHUNK_NO_NODES_LAST_LAYER / 2;
+  constexpr unsigned CHUNKS = 32;
   chunk_init(chunk, heap);
-  for (int i = 0; i < chunks_to_alloc; i++) {
-    EXPECT_NE(chunk_allocate_run(chunk, run_size_small, 16), nullptr);
+  for (int i = 0; i < CHUNKS; i++) {
+    EXPECT_NE(
+        chunk_allocate_run(chunk, LARGE_SIZE_MAX_REGION, LARGE_SIZE_MAX_REGION),
+        nullptr);
   }
   EXPECT_TRUE(chunk_is_full(chunk));
 }
-
-TEST_F(ChunkUtilsTest, SizesArrayUpdate) {}
 
 }  // namespace
