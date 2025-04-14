@@ -54,7 +54,7 @@ def test_run_binaries(bin_name, bin_dir, lib_path):
 @pytest.mark.parametrize(
     "prog,args",
     [
-        ("cfrac", ["714660644893037395618884729892003411"]),
+        ("cfrac", ["3707030275882252342412325295197136712092001"]),
     ],
 )
 def test_real_programs(prog, args, output_dir_e2e, progs_dir, lib_path):
