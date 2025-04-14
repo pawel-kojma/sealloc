@@ -23,6 +23,84 @@ class ChunkUtilsTest : public ::testing::Test {
     init_splitmix32(1);
     chunk_init(chunk, heap);
   }
+
+  jump_node_t get_jt_item(jump_node_t *mem, unsigned idx) {
+    return mem[idx - 1];
+  }
+
+  void print_nodes_on_level(unsigned level) {
+    unsigned all_nodes_count = 1 << level;
+    unsigned leftmost_idx = 1 << level, rightmost_idx = (1 << (level + 1)) - 1;
+    std::cout << "Jump Start : " << chunk->jump_tree_first_index[level] << " ";
+    for (int i = leftmost_idx; i <= rightmost_idx; i++) {
+      std::cout << i - 32 << "(p=" << chunk->jump_tree[i - 1].prev
+                << ", n=" << chunk->jump_tree[i - 1].next << ")" << " ";
+    }
+    std::cout << '\n';
+  }
+
+  void validate_free_list_on_level(unsigned level,
+                                   unsigned expected_free_count) {
+    unsigned all_nodes_count = 1 << level;
+    unsigned leftmost_idx = 1 << level, rightmost_idx = (1 << (level + 1)) - 1;
+    unsigned free_count = chunk->avail_nodes_count[level];
+    unsigned actual_free_count, idx;
+    jump_node_t node;
+    std::vector<int> is_free_idx;
+    is_free_idx.reserve(all_nodes_count);
+    for (int i = 0; i < all_nodes_count; i++) {
+      is_free_idx[i] = false;
+    }
+    EXPECT_EQ(free_count, expected_free_count);
+
+    // Validate first free idx
+    idx = chunk->jump_tree_first_index[level];
+    EXPECT_TRUE(idx >= leftmost_idx);
+    EXPECT_TRUE(idx <= rightmost_idx);
+
+    // Validate actual free count
+    if (expected_free_count > 1) {
+      idx = chunk->jump_tree_first_index[level];
+      actual_free_count = 1;
+      for (node = get_jt_item(chunk->jump_tree, idx); node.next != 0;
+           node = get_jt_item(chunk->jump_tree, idx)) {
+        actual_free_count++;
+        idx += node.next;
+        EXPECT_TRUE(idx >= leftmost_idx);
+        EXPECT_TRUE(idx <= rightmost_idx);
+      }
+      EXPECT_EQ(actual_free_count, expected_free_count);
+    }
+
+    // Validate node metadata
+    if (expected_free_count > 1) {
+      idx = chunk->jump_tree_first_index[level];
+      for (node = get_jt_item(chunk->jump_tree, idx); node.next != 0;
+           node = get_jt_item(chunk->jump_tree, idx)) {
+        is_free_idx[idx - leftmost_idx] = true;
+        idx += node.next;
+      }
+      // add the last one
+      is_free_idx[idx - leftmost_idx] = true;
+
+      for (idx = leftmost_idx; idx <= rightmost_idx; idx++) {
+        node = get_jt_item(chunk->jump_tree, idx);
+        if (is_free_idx[idx - leftmost_idx]) {
+          EXPECT_TRUE(node.prev != 0 || node.next != 0)
+              << "Failed at idx " << idx - leftmost_idx;
+        } else {
+          EXPECT_EQ(node.prev, 0) << "Failed at idx " << idx - leftmost_idx;
+          EXPECT_EQ(node.next, 0) << "Failed at idx " << idx - leftmost_idx;
+        }
+      }
+    } else {
+      for (idx = leftmost_idx; idx <= rightmost_idx; idx++) {
+        node = get_jt_item(chunk->jump_tree, idx);
+        EXPECT_EQ(node.prev, 0);
+        EXPECT_EQ(node.next, 0);
+      }
+    }
+  }
 };
 
 typedef enum chunk_node {
@@ -35,10 +113,6 @@ typedef enum chunk_node {
 inline unsigned get_mask(unsigned bits) { return (1 << bits) - 1; }
 
 inline unsigned min(unsigned a, unsigned b) { return a > b ? b : a; }
-
-static jump_node_t get_jt_item(jump_node_t *mem, unsigned idx) {
-  return mem[idx - 1];
-}
 
 static chunk_node_t get_buddy_tree_item(uint8_t *mem, size_t idx) {
   size_t word = (idx - 1) / 4;
@@ -206,6 +280,62 @@ TEST_F(ChunkUtilsTest, ChunkDeallocateRunLarge) {
   chunk_deallocate_run(chunk, alloc1);
 }
 
+TEST_F(ChunkUtilsTest, ChunkAllocateAllNodesLarge) {
+  constexpr unsigned CHUNKS = 32;
+  constexpr unsigned START_IDX = 32;
+  constexpr unsigned LEVEL = 5;
+  std::vector<void *> chunks;
+  jump_node_t node;
+  unsigned free_count, idx;
+  chunks.reserve(CHUNKS);
+  for (int i = 0; i < CHUNKS; i++) {
+    chunks[i] =
+        chunk_allocate_run(chunk, LARGE_SIZE_MAX_REGION, LARGE_SIZE_MAX_REGION);
+    EXPECT_NE(chunks[i], nullptr);
+    EXPECT_EQ(chunk->avail_nodes_count[LEVEL], CHUNKS - i - 1);
+    validate_free_list_on_level(LEVEL, CHUNKS - i - 1);
+    print_nodes_on_level(LEVEL);
+  }
+  validate_free_list_on_level(LEVEL, 0);
+  EXPECT_TRUE(all_unique(chunks));
+}
+
+TEST_F(ChunkUtilsTest, ChunkAllocateAllNodesMedium) {
+  constexpr unsigned CHUNKS = 4096;
+  constexpr unsigned START_IDX = 4096;
+  constexpr unsigned LEVEL = 12;
+  std::vector<void *> chunks;
+  jump_node_t node;
+  unsigned free_count, idx;
+  chunks.reserve(CHUNKS);
+  for (int i = 0; i < CHUNKS; i++) {
+    chunks[i] = chunk_allocate_run(chunk, run_size_small, 2048);
+    EXPECT_NE(chunks[i], nullptr);
+    EXPECT_EQ(chunk->avail_nodes_count[LEVEL], CHUNKS - i - 1);
+    validate_free_list_on_level(LEVEL, CHUNKS - i - 1);
+  }
+  validate_free_list_on_level(LEVEL, 0);
+  EXPECT_TRUE(all_unique(chunks));
+}
+
+TEST_F(ChunkUtilsTest, ChunkAllocateAllNodesSmall) {
+  constexpr unsigned CHUNKS = 4096;
+  constexpr unsigned START_IDX = 4096;
+  constexpr unsigned LEVEL = 12;
+  std::vector<void *> chunks;
+  jump_node_t node;
+  unsigned free_count, idx;
+  chunks.reserve(CHUNKS);
+  for (int i = 0; i < CHUNKS; i++) {
+    chunks[i] = chunk_allocate_run(chunk, run_size_small, 16);
+    EXPECT_NE(chunks[i], nullptr);
+    EXPECT_EQ(chunk->avail_nodes_count[LEVEL], CHUNKS - i - 1);
+    validate_free_list_on_level(LEVEL, CHUNKS - i - 1);
+  }
+  validate_free_list_on_level(LEVEL,0);
+  EXPECT_TRUE(all_unique(chunks));
+}
+
 TEST_F(ChunkUtilsTest, ChunkAllocationPlacementSmall) {
   void *alloc1, *alloc2, *alloc3;
   alloc1 = chunk_allocate_run(chunk, run_size_small, 16);
@@ -219,23 +349,34 @@ TEST_F(ChunkUtilsTest, ChunkAllocationPlacementSmall) {
 }
 
 TEST_F(ChunkUtilsTest, ChunkCoalesceDepletedUnmappingLarge) {
+  constexpr int CHUNKS = 32;
   void *alloc1;
-  for (int i = 0; i < 32; i++) {
+  bool is_unmapped;
+  for (int i = 0; i < CHUNKS; i++) {
     alloc1 =
         chunk_allocate_run(chunk, LARGE_SIZE_MAX_REGION, LARGE_SIZE_MAX_REGION);
     EXPECT_NE(alloc1, nullptr);
-    chunk_deallocate_run(chunk, alloc1);
+    is_unmapped = chunk_deallocate_run(chunk, alloc1);
+    if (i + 1 == CHUNKS)
+      EXPECT_TRUE(is_unmapped);
+    else
+      EXPECT_FALSE(is_unmapped);
   }
   EXPECT_EQ(get_buddy_tree_item(chunk->buddy_tree, 1), NODE_UNMAPPED);
 }
 
 TEST_F(ChunkUtilsTest, ChunkCoalesceDepletedUnmappingSmall) {
+  constexpr int CHUNKS = 4096;
   void *alloc1;
-  chunk_init(chunk, heap);
-
-  for (int i = 0; i < 4096; i++) {
-    alloc1 = chunk_allocate_run(chunk, CHUNK_LEAST_REGION_SIZE_BYTES, 16);
-    chunk_deallocate_run(chunk, alloc1);
+  bool is_unmapped;
+  for (int i = 0; i < CHUNKS; i++) {
+    alloc1 = chunk_allocate_run(chunk, run_size_small, 16);
+    EXPECT_NE(alloc1, nullptr);
+    is_unmapped = chunk_deallocate_run(chunk, alloc1);
+    if (i + 1 == CHUNKS)
+      EXPECT_TRUE(is_unmapped);
+    else
+      EXPECT_FALSE(is_unmapped);
   }
   EXPECT_EQ(get_buddy_tree_item(chunk->buddy_tree, 1), NODE_UNMAPPED);
 }

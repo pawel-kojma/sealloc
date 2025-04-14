@@ -172,9 +172,13 @@ void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node,
       set_jt_item_next(chunk->jump_tree, current_global_idx - current_node.prev,
                        0);
     } else if (current_node.prev == 0) {
-      // Left side of the tree, set starting point to next
+      // Left side of the tree
+      // Set starting point to next
+      // Set prev of next to 0 since none on the left are free
       chunk->jump_tree_first_index[current_level] =
           current_global_idx + current_node.next;
+      set_jt_item_prev(chunk->jump_tree, current_global_idx + current_node.next,
+                       0);
     } else {
       next_node_global_idx = current_global_idx + current_node.next;
       prev_node_global_idx = current_global_idx - current_node.prev;
@@ -280,9 +284,11 @@ void *chunk_allocate_run(chunk_t *chunk, unsigned run_size, unsigned reg_size) {
     for (uint8_t i = 0; i < RANDOM_LOOKUP_TRIES; i++) {
       rand_idx = splitmix32() % all_nodes;
       node = get_jt_item(chunk->jump_tree, level_base_idx + rand_idx);
-      if (node.prev != 0 || node.next != 0)
+      if (node.prev != 0 || node.next != 0) {
+        se_debug("(guess) rand_idx: %u", rand_idx);
         return chunk_allocate_with_node(chunk, node, level_base_idx + rand_idx,
                                         level, reg_size);
+      }
     }
   }
   // Get random node index
@@ -294,6 +300,7 @@ void *chunk_allocate_run(chunk_t *chunk, unsigned run_size, unsigned reg_size) {
     current_idx += node.next;
     node = get_jt_item(chunk->jump_tree, current_idx);
   }
+  se_debug("(manual) rand_idx: %u", current_idx - level_base_idx);
   return chunk_allocate_with_node(chunk, node, current_idx, level, reg_size);
 }
 
