@@ -391,44 +391,51 @@ void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
   assert(*run_ptr == NULL);
   assert(*run_size == 0);
   assert(*reg_size == 0);
-
-  uintptr_t ptr_dest = (uintptr_t)ptr;
-  chunk_node_t node;
-  buddy_ctx_t ctx = {
-      .idx = 1,
-      .state = DOWN,
-      .depth_to_leaf = CHUNK_BUDDY_TREE_DEPTH,
-      .cur_size = CHUNK_SIZE_BYTES,
-      .ptr = (uintptr_t)chunk->entry.key,
-  };
-  node = get_buddy_tree_item(chunk->buddy_tree, ctx.idx);
-  while (node == NODE_FREE) {
-    if (IS_LEAF(ctx.idx)) {
-      return;
-    }
-    if (ptr_dest >= ctx.ptr + (ctx.cur_size / 2))
-      buddy_state_go_right(&ctx);
-    else
-      buddy_state_go_left(&ctx);
-    node = get_buddy_tree_item(chunk->buddy_tree, ctx.idx);
+  const uintptr_t chunk_ptr = (uintptr_t)chunk->entry.key;
+  if ((uintptr_t)ptr < chunk_ptr ||
+      chunk_ptr + CHUNK_SIZE_BYTES <= (uintptr_t)ptr) {
+    return;
   }
+  const uintptr_t rel_ptr = (uintptr_t)ptr - chunk_ptr;
+  const uintptr_t block_offset = rel_ptr / CHUNK_LEAST_REGION_SIZE_BYTES;
+  const unsigned first_leaf_idx = (CHUNK_NO_NODES + 1) / 2;
+  uintptr_t target_run_ptr =
+      chunk_ptr + (block_offset * CHUNK_LEAST_REGION_SIZE_BYTES);
 
-  if (node != NODE_USED) return;
-  *run_ptr = (void *)ctx.ptr;
-  *run_size = ctx.cur_size;
+  chunk_node_t node;
+  unsigned cur_size = CHUNK_LEAST_REGION_SIZE_BYTES;
+  unsigned idx = first_leaf_idx + block_offset;
 
-  unsigned base = (CHUNK_NO_NODES + 1) / 2;
-  unsigned idx = ctx.idx - base;
-  uint8_t compressed_reg_size;
+  node = get_buddy_tree_item(chunk->buddy_tree, idx);
 
-  if (IS_LEAF(ctx.idx)) {
-    if (chunk->reg_size_small_medium[idx] != REG_MARK_BAD_VALUE) {
-      compressed_reg_size = chunk->reg_size_small_medium[idx];
-      if (compressed_reg_size == 0)
-        *reg_size = (UINT8_MAX + 1) * SMALL_SIZE_CLASS_ALIGNMENT;
-      else
-        *reg_size = compressed_reg_size * SMALL_SIZE_CLASS_ALIGNMENT;
+  // This case is not that common
+  if (node != NODE_USED) {
+    while (node != NODE_USED) {
+      if (IS_ROOT(idx) || IS_RIGHT_CHILD(idx)) {
+        return;
+      }
+      if (node == NODE_DEPLETED) {
+        se_error("run is depleted?");
+      }
+      idx = PARENT(idx);
+      cur_size *= 2;
+      node = get_buddy_tree_item(chunk->buddy_tree, idx);
     }
+
+    *run_ptr = (void *)target_run_ptr;
+    *run_size = cur_size;
+    return;
+  }
+  *run_ptr = (void *)target_run_ptr;
+  *run_size = cur_size;
+
+  unsigned compressed_reg_size;
+  if (chunk->reg_size_small_medium[block_offset] != REG_MARK_BAD_VALUE) {
+    compressed_reg_size = chunk->reg_size_small_medium[block_offset];
+    if (compressed_reg_size == 0)
+      *reg_size = (UINT8_MAX + 1) * SMALL_SIZE_CLASS_ALIGNMENT;
+    else
+      *reg_size = compressed_reg_size * SMALL_SIZE_CLASS_ALIGNMENT;
   }
 }
 
