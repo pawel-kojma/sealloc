@@ -23,4 +23,5 @@
 
 uint32_t str2u32(const char *str);
 unsigned msg_len(const char *msg);
+unsigned ctz(unsigned x);
 #endif /* SEALLOC_UTILS_H_ */

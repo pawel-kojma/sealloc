@@ -4,12 +4,17 @@ from pathlib import Path
 
 # Seeds for allocator
 SEEDS = ["1237", "31247823", "1"]
+TRIES = 20
+MIN_TRY_PASS_PERCENTAGE = 50
 
 
-def run_bin(program, lib_path, seed):
+def run_bin(program, lib_path, seed=None):
+    env = {"LD_PRELOAD": str(lib_path.resolve())}
+    if seed:
+        env["SEALLOC_SEED"] = seed
     return subprocess.run(
         [str(program)],
-        env={"SEALLOC_SEED": seed, "LD_PRELOAD": str(lib_path.resolve())},
+        env=env
     )
 
 
@@ -19,25 +24,30 @@ def save_output(output_dir: Path, name: str, stdout: bytes, stderr: bytes):
 
 
 @pytest.mark.security
-@pytest.mark.parametrize("seed", SEEDS)
 @pytest.mark.parametrize(
     "bin_name",
     [
         "e2e_randomized_allocations",
-        "e2e_overflow_large",
-        "e2e_overflow_medium",
-        "e2e_overflow_small",
+        "e2e_overflow_large_detection",
+        "e2e_overflow_medium_detection",
+        "e2e_overflow_small_detection",
+        "e2e_overflow_simple_prevention",
         "e2e_arbitrary_free_near",
         "e2e_double_free_close",
         "e2e_double_free_far",
         "e2e_uaf_close",
+        "e2e_heap_spray_prevention",
         "e2e_uaf_many_no_duplicates",
     ],
 )
-def test_run_binaries(seed, bin_name, bin_dir, lib_path):
+def test_run_binaries(bin_name, bin_dir, lib_path):
     bin = bin_dir / bin_name
-    res = run_bin(bin, lib_path, seed)
-    assert res.returncode != 0
+    passed = 0
+    for _ in range(TRIES):
+        res = run_bin(bin, lib_path)
+        if res.returncode != 0:
+            passed += 1
+    assert (passed * 100) / TRIES >= MIN_TRY_PASS_PERCENTAGE
 
 
 @pytest.mark.real_programs

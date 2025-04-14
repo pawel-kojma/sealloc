@@ -1,18 +1,10 @@
 #include "sealloc/size_class.h"
+#include "sealloc/utils.h"
 
 #include <stdbool.h>
 
 static inline unsigned ceil_div(unsigned a, unsigned b) {
   return (a / b) + (a % b == 0 ? 0 : 1);
-}
-
-static unsigned ctz(unsigned x) {
-  unsigned cnt = 0;
-  while (x > 1) {
-    cnt++;
-    x >>= 1;
-  }
-  return cnt;
 }
 
 static unsigned npow2(unsigned n) {

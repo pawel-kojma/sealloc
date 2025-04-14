@@ -10,7 +10,7 @@
 #define RIGHT_CHILD(idx) (idx * 2 + 1)
 #define LEFT_CHILD(idx) (idx * 2)
 #define PARENT(idx) (idx / 2)
-#define IS_ROOT(idx) (idx != 1)
+#define IS_ROOT(idx) (idx == 1)
 #define IS_LEAF(idx) (idx >= ((INTERNAL_ALLOC_NO_NODES + 1) / 2))
 #define IS_RIGHT_CHILD(idx) (idx & 1)
 

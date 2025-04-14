@@ -5,23 +5,22 @@
 
 #include "sealloc/logging.h"
 #include "sealloc/platform_api.h"
+#include "sealloc/random.h"
 #include "sealloc/size_class.h"
+#include "sealloc/utils.h"
 
-#define RIGHT_CHILD(idx) (idx * 2 + 1)
-#define LEFT_CHILD(idx) (idx * 2)
-#define PARENT(idx) (idx / 2)
-#define IS_ROOT(idx) (idx != 1)
-#define IS_LEAF(idx) (idx >= ((CHUNK_NO_NODES + 1) / 2))
-#define IS_RIGHT_CHILD(idx) (idx & 1)
+#define RIGHT_CHILD(idx) (((idx) * 2) + 1)
+#define LEFT_CHILD(idx) ((idx) * 2)
+#define PARENT(idx) ((idx) / 2)
+#define IS_ROOT(idx) ((idx) == 1)
+#define IS_LEAF(idx) ((idx) >= ((CHUNK_NO_NODES + 1) / 2))
+#define IS_RIGHT_CHILD(idx) ((idx) & 1)
 
 typedef enum chunk_node {
   NODE_FREE = 0,
-  NODE_SPLIT = 1,
-  NODE_USED = 2,
-  NODE_FULL = 3,
-  NODE_GUARD = 4,
-  NODE_DEPLETED = 5,
-  NODE_UNMAPPED = 6
+  NODE_USED = 1,
+  NODE_DEPLETED = 2,
+  NODE_UNMAPPED = 3,
 } chunk_node_t;
 
 typedef enum search_state {
@@ -42,71 +41,43 @@ static inline unsigned get_mask(unsigned bits) { return (1 << bits) - 1; }
 
 static inline unsigned min(unsigned a, unsigned b) { return a > b ? b : a; }
 
+static inline void set_jt_item_next(jump_node_t *mem, unsigned idx,
+                                    unsigned short val) {
+  mem[idx - 1].next = val;
+}
+static inline void set_jt_item_prev(jump_node_t *mem, unsigned idx,
+                                    unsigned short val) {
+  mem[idx - 1].prev = val;
+}
+static inline void incr_jt_item_next(jump_node_t *mem, unsigned idx,
+                                     unsigned short val) {
+  mem[idx - 1].next += val;
+}
+static inline void incr_jt_item_prev(jump_node_t *mem, unsigned idx,
+                                     unsigned short val) {
+  mem[idx - 1].prev += val;
+}
+static inline jump_node_t get_jt_item(jump_node_t *mem, unsigned idx) {
+  return mem[idx - 1];
+}
+
 // Get tree node type at given index
-static chunk_node_t get_tree_item(uint8_t *mem, unsigned idx) {
-  unsigned bits_to_skip = (idx - 1) * NODE_STATE_BITS;
-  unsigned word_idx = bits_to_skip / 8, off = bits_to_skip % 8;
-  uint8_t fst_part = (mem[word_idx] >> off) & get_mask(min(8 - off, 3));
-  uint8_t snd_part = 0;
-  if (NODE_STATE_BITS + off > 8) {
-    snd_part = mem[word_idx + 1] & get_mask(off + NODE_STATE_BITS - 8);
-    return (chunk_node_t)((snd_part << (8 - off)) | fst_part);
-  }
-  return (chunk_node_t)fst_part;
+static inline chunk_node_t get_buddy_tree_item(uint8_t *mem, size_t idx) {
+  size_t word = (idx - 1) / 4;
+  size_t off = (idx - 1) % 4;
+  return (chunk_node_t)(mem[word] >> (2 * off)) & 3;
 }
 
 // Set tree node type to given type at index
-static void set_tree_item(uint8_t *mem, unsigned idx, chunk_node_t node_state) {
-  unsigned bits_to_skip = (idx - 1) * NODE_STATE_BITS;
-  unsigned word_idx = bits_to_skip / 8, off = bits_to_skip % 8;
-  unsigned remaining, fst_bits;
-  uint8_t state = (uint8_t)node_state;
-
-  if (NODE_STATE_BITS + off > 8) {
-    remaining = NODE_STATE_BITS + off - 8;
-    fst_bits = NODE_STATE_BITS - remaining;
-
-    // Set bits in the first word
-    mem[word_idx] =
-        (mem[word_idx] & ~(get_mask(fst_bits) << off)) | (state << off);
-    // Set remaining bits in the second word
-    mem[word_idx + 1] =
-        (mem[word_idx + 1] & ~get_mask(remaining)) | (state >> fst_bits);
-  } else {
-    // First, clear the bits we want to set in mem[word]
-    // Second, set two node_state bits in their place
-    mem[word_idx] = (mem[word_idx] & ~(get_mask(NODE_STATE_BITS) << off)) |
-                    ((uint8_t)node_state << off);
-  }
-}
-
-// Mark nodes as split up the tree when setting guard page on allocation
-static void mark_nodes_split_guard(uint8_t *mem, unsigned idx) {
-  chunk_node_t state;
-  // Here we want to also change the root to split
-  while (idx > 0) {
-    state = get_tree_item(mem, idx);
-    if (state == NODE_SPLIT) break;
-    set_tree_item(mem, idx, NODE_SPLIT);
-    idx = PARENT(idx);
-  }
-}
-
-// Coalesce nodes up the tree during allocation to indicate that this branch is
-// full
-static void coalesce_full_nodes(uint8_t *mem, unsigned idx) {
-  unsigned neigh_idx;
-  chunk_node_t state;
-  while (idx > 1) {
-    neigh_idx = IS_RIGHT_CHILD(idx) ? idx - 1 : idx + 1;
-    state = get_tree_item(mem, neigh_idx);
-    if (state == NODE_FULL || state == NODE_USED || state == NODE_GUARD ||
-        state == NODE_DEPLETED || state == NODE_UNMAPPED) {
-      set_tree_item(mem, PARENT(idx), NODE_FULL);
-    } else
-      break;
-    idx = PARENT(idx);
-  }
+static inline void set_buddy_tree_item(uint8_t *mem, size_t idx,
+                                       chunk_node_t node_state) {
+  size_t word = (idx - 1) / 4;
+  size_t off = (idx - 1) % 4;
+  uint8_t erase_bits = 3;  // 0b11
+  // First, clear the bits we want to set in mem[word]
+  // Second, set two node_state bits in their place
+  mem[word] = (mem[word] & ~(erase_bits << (off * 2))) |
+              ((uint8_t)node_state << (off * 2));
 }
 
 static inline unsigned get_rightmost_idx(unsigned idx, unsigned depth) {
@@ -124,9 +95,22 @@ void chunk_init(chunk_t *chunk, void *heap) {
   chunk->entry.link.bk = NULL;
   memset(chunk->reg_size_small_medium, REG_MARK_BAD_VALUE,
          sizeof(chunk->reg_size_small_medium));
-  set_tree_item(chunk->buddy_tree, 1, NODE_FREE);
-  chunk->free_mem = CHUNK_SIZE_BYTES;
+  set_buddy_tree_item(chunk->buddy_tree, 1, NODE_FREE);
   memset(&chunk->buddy_tree, 0, sizeof(chunk->buddy_tree));
+  for (int i = 0; i < CHUNK_NO_NODES; i++) {
+    chunk->jump_tree[i].next = 1;
+    chunk->jump_tree[i].prev = 1;
+  }
+  unsigned short l = 1;
+  for (int i = 0; i < CHUNK_BUDDY_TREE_DEPTH + 1; i++) {
+    chunk->jump_tree_first_index[i] = l;
+    set_jt_item_prev(chunk->jump_tree, l, 0);
+    set_jt_item_next(chunk->jump_tree, 2 * l - 1, 0);
+    chunk->avail_nodes_count[i] = l;
+    l *= 2;
+  }
+  chunk->avail_nodes_count[0] = 0;
+  chunk->jump_tree_first_index[0] = 0;
 }
 
 void buddy_state_go_up(buddy_ctx_t *ctx) {
@@ -151,146 +135,142 @@ void buddy_state_go_left(buddy_ctx_t *ctx) {
   ctx->depth_to_leaf--;
 }
 
-// Sets info about what region size is allocated at which run ptr
-void mark_reg_size(buddy_ctx_t *ctx, chunk_t *chunk, unsigned reg_size) {
-  if (!IS_SIZE_SMALL(reg_size) && !IS_SIZE_MEDIUM(reg_size)) return;
-  unsigned base = (CHUNK_NO_NODES + 1) / 2;
-  // We know that if reg_size is small or medium, then we allocated at the leaf
-  // 0-based index
-  unsigned idx = ctx->idx - base;
-  // Note that reg_size 4096 will eval to 0
-  chunk->reg_size_small_medium[idx] =
-      (reg_size / SMALL_SIZE_CLASS_ALIGNMENT) & UINT8_MAX;
+unsigned size2idx(unsigned run_size) {
+  return ctz(run_size / CHUNK_LEAST_REGION_SIZE_BYTES);
 }
 
-void *visit_leaf_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned reg_size) {
-  unsigned neigh_idx = ctx->idx + 1;
-  chunk_node_t neigh, node = get_tree_item(chunk->buddy_tree, ctx->idx);
-  platform_status_code_t code;
-  switch (node) {
-    case NODE_FREE:
-      // Check if we can place a guard page.
-      if (neigh_idx > CHUNK_NO_NODES)
-        neigh = NODE_GUARD;
-      else
-        neigh = get_tree_item(chunk->buddy_tree, neigh_idx);
-      if (neigh != NODE_USED) {
-        if (neigh == NODE_FREE) {
-          set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED);
-          // Guard neighbor
-          if ((code = platform_guard((void *)(ctx->ptr + ctx->cur_size),
-                                     CHUNK_LEAST_REGION_SIZE_BYTES)) !=
-              PLATFORM_STATUS_OK) {
-            se_error("Failed to guard page (ptr : %p, size : %zu): %s",
-                     (void *)(ctx->ptr + ctx->cur_size),
-                     CHUNK_LEAST_REGION_SIZE_BYTES, platform_strerror(code));
-          }
-          set_tree_item(chunk->buddy_tree, neigh_idx, NODE_GUARD);
-          mark_nodes_split_guard(chunk->buddy_tree, PARENT(neigh_idx));
-          chunk->free_mem -= (ctx->cur_size + CHUNK_LEAST_REGION_SIZE_BYTES);
-        } else {
-          set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED);
-          chunk->free_mem -= ctx->cur_size;
-        }
-        mark_reg_size(ctx, chunk, reg_size);
-        coalesce_full_nodes(chunk->buddy_tree, ctx->idx);
-        return (void *)ctx->ptr;
-      }
-      buddy_state_go_up(ctx);
-      break;
-    case NODE_GUARD:
-    case NODE_USED:
-    case NODE_DEPLETED:
-      // Node is used/guarded, nothing we can do, go up.
-      buddy_state_go_up(ctx);
-      break;
-    // Invalid states, leaf node cannot be split/unmapped/full.
-    case NODE_SPLIT:
-      se_error("Leaf node state is NODE_SPLIT");
-    case NODE_FULL:
-      se_error("Leaf node state is NODE_FULL");
-    case NODE_UNMAPPED:
-      se_error("Leaf node state is NODE_UNMAPPED");
-  }
-  return NULL;
-}
+void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node,
+                               const unsigned idx, const unsigned level,
+                               const unsigned reg_size) {
+  // State of current node being unlinked
+  jump_node_t current_node = node;
 
-void *visit_regular_node(buddy_ctx_t *ctx, chunk_t *chunk, unsigned run_size) {
-  unsigned neigh_idx = get_rightmost_idx(ctx->idx, ctx->depth_to_leaf) + 1;
-  chunk_node_t neigh, node = get_tree_item(chunk->buddy_tree, ctx->idx);
-  platform_status_code_t code;
-  switch (node) {
-    case NODE_SPLIT:
-      // If this is the deepest node that can satisfy request
-      // but is split, so backtrack
-      if (ctx->cur_size / 2 < run_size && run_size <= ctx->cur_size)
-        buddy_state_go_up(ctx);
-      // If size still fits, but node is split, then go to left child.
-      else
-        buddy_state_go_left(ctx);
-      break;
-    case NODE_FREE:
-      // Let arena handle guard pages between chunks
-      if (neigh_idx > CHUNK_NO_NODES)
-        neigh = NODE_GUARD;
-      else
-        neigh = get_tree_item(chunk->buddy_tree, neigh_idx);
-      // If run size still overfits, search deeper
-      if (run_size <= ctx->cur_size / 2) {
-        set_tree_item(chunk->buddy_tree, ctx->idx, NODE_SPLIT);
-        set_tree_item(chunk->buddy_tree, LEFT_CHILD(ctx->idx), NODE_FREE);
-        set_tree_item(chunk->buddy_tree, RIGHT_CHILD(ctx->idx), NODE_FREE);
-        buddy_state_go_left(ctx);
-      }
-      // We cannot go deeper because cur_size / 2 < run_size
-      // If anything we have to allocate here
-      // Make sure neighbor node is guarded or free
-      else if (neigh != NODE_USED) {
-        if (neigh == NODE_FREE) {
-          set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED);
-          set_tree_item(chunk->buddy_tree,
-                        get_leftmost_idx(ctx->idx, ctx->depth_to_leaf),
-                        NODE_USED);
-          // Guard neighbor
-          if ((code = platform_guard((void *)(ctx->ptr + ctx->cur_size),
-                                     CHUNK_LEAST_REGION_SIZE_BYTES)) !=
-              PLATFORM_STATUS_OK) {
-            se_error("Failed to guard page (ptr : %p, size : %zu): %s",
-                     (void *)(ctx->ptr + ctx->cur_size),
-                     CHUNK_LEAST_REGION_SIZE_BYTES, platform_strerror(code));
-          }
+  // Global index of the current node
+  unsigned current_global_idx = idx;
 
-          set_tree_item(chunk->buddy_tree, neigh_idx, NODE_GUARD);
-          mark_nodes_split_guard(chunk->buddy_tree, PARENT(neigh_idx));
-          chunk->free_mem -= (ctx->cur_size + CHUNK_LEAST_REGION_SIZE_BYTES);
-        } else {
-          set_tree_item(chunk->buddy_tree, ctx->idx, NODE_USED);
-          set_tree_item(chunk->buddy_tree,
-                        get_leftmost_idx(ctx->idx, ctx->depth_to_leaf),
-                        NODE_USED);
-          chunk->free_mem -= ctx->cur_size;
-        }
-        coalesce_full_nodes(chunk->buddy_tree, ctx->idx);
-        return (void *)ctx->ptr;
-      } else {
-        // We cannot guard a neighbor node and deeper nodes are too small
-        // Go up
-        buddy_state_go_up(ctx);
-      }
-      break;
-    // Node is used, nothing we can do, go up.
-    case NODE_USED:
-    // Node is full, meaning it comprises of many allocations
-    // but there is no free memory, so go back
-    case NODE_FULL:
-    // Unavaliable memory, either guarded, already used or unmapped
-    case NODE_DEPLETED:
-    case NODE_GUARD:
-    case NODE_UNMAPPED:
-      buddy_state_go_up(ctx);
-      break;
+  // Global index of first element on current level
+  unsigned base_level_idx = 1 << level;
+
+  // Global indexes of next and previous free nodes in current level
+  unsigned next_node_global_idx, prev_node_global_idx;
+
+  // 0-based level index
+  unsigned current_level = level;
+
+  // Update up the tree
+  while ((current_node.next != 0 || current_node.prev != 0) ||
+         (chunk->jump_tree_first_index[current_level] == current_global_idx)) {
+    if (current_node.next == 0) {
+      // Right side of the tree, just set prev to 0
+      set_jt_item_next(chunk->jump_tree, current_global_idx - current_node.prev,
+                       0);
+    } else if (current_node.prev == 0) {
+      // Left side of the tree
+      // Set starting point to next
+      // Set prev of next to 0 since none on the left are free
+      chunk->jump_tree_first_index[current_level] =
+          current_global_idx + current_node.next;
+      set_jt_item_prev(chunk->jump_tree, current_global_idx + current_node.next,
+                       0);
+    } else {
+      next_node_global_idx = current_global_idx + current_node.next;
+      prev_node_global_idx = current_global_idx - current_node.prev;
+
+      // Increment next field of previous free node to point to the next
+      incr_jt_item_next(chunk->jump_tree, prev_node_global_idx,
+                        current_node.next);
+      // Increment prev field of next free node to point to the prev
+      incr_jt_item_prev(chunk->jump_tree, next_node_global_idx,
+                        current_node.prev);
+    }
+    // Clear pointers in current node
+    set_jt_item_next(chunk->jump_tree, current_global_idx, 0);
+    set_jt_item_prev(chunk->jump_tree, current_global_idx, 0);
+
+    // Update available nodes count
+    chunk->avail_nodes_count[current_level]--;
+    if (chunk->avail_nodes_count[current_level] == 0)
+      chunk->jump_tree_first_index[current_level] = 0;
+
+    // Go up
+    current_level--;
+    current_global_idx = PARENT(current_global_idx);
+    current_node = get_jt_item(chunk->jump_tree, current_global_idx);
   }
-  return NULL;
+
+  // If idx is a leaf node then job is done
+  if (IS_LEAF(idx)) {
+    if (reg_size != CHUNK_LEAST_REGION_SIZE_BYTES)
+      chunk->reg_size_small_medium[idx - base_level_idx] =
+          (reg_size / SMALL_SIZE_CLASS_ALIGNMENT) & UINT8_MAX;
+    set_buddy_tree_item(chunk->buddy_tree, idx, NODE_USED);
+    return (void *)((uintptr_t)chunk->entry.key +
+                    (idx - base_level_idx) * CHUNK_LEAST_REGION_SIZE_BYTES);
+  }
+
+  // In this case, we are higher up the tree so we have to invalidate nodes
+  // below us
+  // 1. Set pointers in jump tree to skip all nodes in current subtree
+  // 2. memset 0 entire subtree
+
+  // Indexes of the leftmost and rightmost node on current level in the subtree
+  unsigned left_idx = LEFT_CHILD(idx);
+  unsigned right_idx = RIGHT_CHILD(idx);
+  unsigned current_level_nodes_span = 2;
+  current_level = level + 1;
+  jump_node_t node_left, node_right;
+  while (current_level <= CHUNK_BUDDY_TREE_DEPTH) {
+    node_left = get_jt_item(chunk->jump_tree, left_idx);
+    node_right = get_jt_item(chunk->jump_tree, right_idx);
+
+    if (node_left.prev == 0 && node_right.next == 0) {
+      // Entire level is cleared, invalidate start idx
+      chunk->jump_tree_first_index[current_level] = 0;
+    } else if (node_left.prev == 0) {
+      // node_left was the first free node on this level
+      // point first indxes to after right node
+      // set prev of after right node to 0 since there are none free nodes on
+      // the left
+      chunk->jump_tree_first_index[current_level] = right_idx + node_right.next;
+      set_jt_item_prev(chunk->jump_tree, right_idx + node_right.next, 0);
+    } else if (node_right.next == 0) {
+      // node_right was the last free node on this level
+      // set next of before left node to 0
+      set_jt_item_next(chunk->jump_tree, left_idx - node_left.prev, 0);
+    } else {
+      incr_jt_item_next(chunk->jump_tree, left_idx - node_left.prev,
+                        (current_level_nodes_span - 1) + node_right.next);
+      incr_jt_item_prev(chunk->jump_tree, right_idx + node_right.next,
+                        (current_level_nodes_span - 1) + node_left.prev);
+    }
+
+    // Update available nodes
+    chunk->avail_nodes_count[current_level] -= current_level_nodes_span;
+
+    left_idx = LEFT_CHILD(left_idx);
+    right_idx = RIGHT_CHILD(right_idx);
+    current_level++;
+    current_level_nodes_span *= 2;
+  }
+
+  // Purging subtree
+  unsigned start_clear_idx = LEFT_CHILD(idx);
+  current_level_nodes_span = 2;
+  // memset 0 entire subtree
+  for (current_level = level + 1; current_level <= CHUNK_BUDDY_TREE_DEPTH;
+       current_level++) {
+    memset((void *)&chunk->jump_tree[start_clear_idx - 1], 0,
+           current_level_nodes_span * sizeof(jump_node_t));
+    current_level_nodes_span *= 2;
+    start_clear_idx = LEFT_CHILD(start_clear_idx);
+  }
+
+  // Update buddy and return ptr
+  set_buddy_tree_item(chunk->buddy_tree, idx, NODE_USED);
+  unsigned offset = get_leftmost_idx(idx, CHUNK_BUDDY_TREE_DEPTH - level) -
+                    ((CHUNK_NO_NODES + 1) / 2);
+  return (void *)((uintptr_t)chunk->entry.key +
+                  offset * CHUNK_LEAST_REGION_SIZE_BYTES);
 }
 
 void *chunk_allocate_run(chunk_t *chunk, unsigned run_size, unsigned reg_size) {
@@ -298,70 +278,36 @@ void *chunk_allocate_run(chunk_t *chunk, unsigned run_size, unsigned reg_size) {
   assert(run_size <= CHUNK_SIZE_BYTES);
   assert(is_size_aligned(reg_size));
 
-  void *ptr;
-  buddy_ctx_t ctx = {
-      .idx = 1,
-      .state = DOWN,
-      .depth_to_leaf = CHUNK_BUDDY_TREE_DEPTH,
-      .cur_size = CHUNK_SIZE_BYTES,
-      .ptr = (uintptr_t)chunk->entry.key,
-  };
-  if (chunk->free_mem < run_size) return NULL;
+  // Check if we can allocate in this chunk
+  const unsigned level = CHUNK_BUDDY_TREE_DEPTH - size2idx(run_size);
+  const unsigned avail_nodes = chunk->avail_nodes_count[level];
+  const unsigned all_nodes = 1 << level;
+  const unsigned level_base_idx = all_nodes;
+  jump_node_t node;
+  if (avail_nodes == 0) return NULL;
 
-  // Search stops when we come back to the root from the right child
-  while (!(ctx.idx == 1 && ctx.state == UP_RIGHT)) {
-    // If we are in a leaf node, visit and go up if needed.
-    if (IS_LEAF(ctx.idx)) {
-      ptr = visit_leaf_node(&ctx, chunk, reg_size);
-      if (ptr != NULL) return ptr;
-      continue;
-    }
-    switch (ctx.state) {
-      case DOWN:
-        ptr = visit_regular_node(&ctx, chunk, run_size);
-        if (ptr != NULL) return ptr;
-        break;
-      case UP_LEFT:
-        buddy_state_go_right(&ctx);
-        break;
-      case UP_RIGHT:
-        buddy_state_go_up(&ctx);
-        break;
+  unsigned rand_idx, current_idx;
+  // Try to hit a free node
+  if (((avail_nodes * 100) / all_nodes) > RANDOM_LOOKUP_TRESHOLD_PERCENTAGE) {
+    for (uint8_t i = 0; i < RANDOM_LOOKUP_TRIES; i++) {
+      rand_idx = splitmix32() % all_nodes;
+      node = get_jt_item(chunk->jump_tree, level_base_idx + rand_idx);
+      if (node.prev != 0 || node.next != 0) {
+        return chunk_allocate_with_node(chunk, node, level_base_idx + rand_idx,
+                                        level, reg_size);
+      }
     }
   }
-  return NULL;
-}
-
-// Mark nodes as split up the tree when coalescing free nodes ends
-static void mark_nodes_split(uint8_t *mem, unsigned idx) {
-  chunk_node_t state;
-  // Here we want to also change the root to split
-  while (idx > 0) {
-    state = get_tree_item(mem, idx);
-    if (state == NODE_FULL) {
-      set_tree_item(mem, idx, NODE_SPLIT);
-    } else
-      break;
-    idx = PARENT(idx);
+  // Get random node index
+  rand_idx = splitmix32() % avail_nodes;
+  current_idx = chunk->jump_tree_first_index[level];
+  node = get_jt_item(chunk->jump_tree, current_idx);
+  while (rand_idx > 0) {
+    rand_idx--;
+    current_idx += node.next;
+    node = get_jt_item(chunk->jump_tree, current_idx);
   }
-}
-
-// Coalesce nodes up the tree during deallocate to indicate that this branch is
-// free, change full nodes to split ones
-static void coalesce_free_nodes(uint8_t *mem, unsigned idx) {
-  unsigned neigh_idx;
-  chunk_node_t state;
-  while (idx > 1) {
-    neigh_idx = IS_RIGHT_CHILD(idx) ? idx - 1 : idx + 1;
-    state = get_tree_item(mem, neigh_idx);
-    if (state == NODE_FREE) {
-      set_tree_item(mem, PARENT(idx), NODE_FREE);
-    } else {
-      mark_nodes_split(mem, PARENT(idx));
-      break;
-    }
-    idx = PARENT(idx);
-  }
+  return chunk_allocate_with_node(chunk, node, current_idx, level, reg_size);
 }
 
 // Merge unmapped nodes to indicate that the pages corresponding to those nodes
@@ -371,26 +317,24 @@ static void coalesce_unmapped_nodes(buddy_ctx_t *ctx, chunk_t *chunk) {
   chunk_node_t node;
   while (ctx->idx > 1) {
     neigh_idx = IS_RIGHT_CHILD(ctx->idx) ? ctx->idx - 1 : ctx->idx + 1;
-    node = get_tree_item(chunk->buddy_tree, neigh_idx);
+    node = get_buddy_tree_item(chunk->buddy_tree, neigh_idx);
     if (node == NODE_UNMAPPED) {
-      set_tree_item(chunk->buddy_tree, PARENT(ctx->idx), NODE_UNMAPPED);
+      set_buddy_tree_item(chunk->buddy_tree, PARENT(ctx->idx), NODE_UNMAPPED);
     } else
       break;
     buddy_state_go_up(ctx);
   }
 }
 
-// Coalesce nodes up the tree during allocation to indicate that this branch is
-// free, change full node to split ones
 static void coalesce_depleted_nodes(buddy_ctx_t *ctx, chunk_t *chunk) {
   unsigned neigh_idx;
   chunk_node_t node;
   platform_status_code_t code;
   while (ctx->idx > 1) {
     neigh_idx = IS_RIGHT_CHILD(ctx->idx) ? ctx->idx - 1 : ctx->idx + 1;
-    node = get_tree_item(chunk->buddy_tree, neigh_idx);
+    node = get_buddy_tree_item(chunk->buddy_tree, neigh_idx);
     if (node == NODE_DEPLETED) {
-      set_tree_item(chunk->buddy_tree, PARENT(ctx->idx), NODE_DEPLETED);
+      set_buddy_tree_item(chunk->buddy_tree, PARENT(ctx->idx), NODE_DEPLETED);
     } else
       break;
     buddy_state_go_up(ctx);
@@ -405,78 +349,38 @@ static void coalesce_depleted_nodes(buddy_ctx_t *ctx, chunk_t *chunk) {
       se_error("Failed unmap page (ptr : %p, size : %u): %s.", (void *)ctx->ptr,
                ctx->cur_size, platform_strerror(code));
     }
-    set_tree_item(chunk->buddy_tree, ctx->idx, NODE_UNMAPPED);
+    set_buddy_tree_item(chunk->buddy_tree, ctx->idx, NODE_UNMAPPED);
     coalesce_unmapped_nodes(ctx, chunk);
   }
 }
 
 bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
   uintptr_t ptr_dest = (uintptr_t)run_ptr;
-  chunk_node_t node, neigh;
-  buddy_ctx_t ctx = {
-      .idx = 1,
-      .state = DOWN,
-      .depth_to_leaf = CHUNK_BUDDY_TREE_DEPTH,
-      .cur_size = CHUNK_SIZE_BYTES,
-      .ptr = (uintptr_t)chunk->entry.key,
-  };
-  node = get_tree_item(chunk->buddy_tree, ctx.idx);
-  while (!(ptr_dest == ctx.ptr && node == NODE_USED)) {
-    if (IS_LEAF(ctx.idx)) {
+  chunk_node_t node;
+  unsigned first_leaf_idx = (CHUNK_NO_NODES + 1) / 2;
+  unsigned ptr_offset = ((ptr_dest - (uintptr_t)chunk->entry.key) /
+                         CHUNK_LEAST_REGION_SIZE_BYTES);
+  unsigned idx = first_leaf_idx + ptr_offset;
+  unsigned depth_to_leaf = 0;
+  node = get_buddy_tree_item(chunk->buddy_tree, idx);
+  while (node != NODE_USED) {
+    if (IS_ROOT(idx) || IS_RIGHT_CHILD(idx)) {
       se_error("No run found");
     }
-    // Go to right child
-    if (ptr_dest >= ctx.ptr + (ctx.cur_size / 2)) {
-      buddy_state_go_right(&ctx);
+    if (node == NODE_DEPLETED) {
+      se_error("run is depleted?");
     }
-    // Go to left child
-    else {
-      buddy_state_go_left(&ctx);
-    }
-    node = get_tree_item(chunk->buddy_tree, ctx.idx);
+    idx = PARENT(idx);
+    depth_to_leaf++;
+    node = get_buddy_tree_item(chunk->buddy_tree, idx);
   }
-  // Mark the node as depleted as we wont be using this memory again
-  set_tree_item(chunk->buddy_tree, ctx.idx, NODE_DEPLETED);
-  // Set leftmost as guarded to indicate that other allocations do not need to
-  // guard pages
-  // Note that leaf node will be just NODE_DEPLETED since leftmost of leaf ==
-  // leaf
-  set_tree_item(chunk->buddy_tree, get_leftmost_idx(ctx.idx, ctx.depth_to_leaf),
-                NODE_DEPLETED);
-
-  // Guard the memory region, may be unnecessary because we might be unmapping
-  // it later
-  platform_status_code_t code;
-  if ((code = platform_guard((void *)ctx.ptr, ctx.cur_size) !=
-              PLATFORM_STATUS_OK)) {
-    se_error("Failed to guard page (ptr : %p, size : %zu): %s", (void *)ctx.ptr,
-             ctx.cur_size, platform_strerror(code));
-  }
-
-  unsigned neigh_idx = get_rightmost_idx(ctx.idx, ctx.depth_to_leaf) + 1;
-  if (neigh_idx <= CHUNK_NO_NODES) {
-    neigh = get_tree_item(chunk->buddy_tree, neigh_idx);
-    if (neigh == NODE_GUARD) {
-      // That means the guard page was not used before
-      // Unguard it and make it free
-      if ((code = platform_unguard((void *)(ctx.ptr + ctx.cur_size),
-                                   CHUNK_LEAST_REGION_SIZE_BYTES)) !=
-          PLATFORM_STATUS_OK) {
-        se_error("Failed to unguard page (ptr : %p, size : %zu): %s",
-                 (void *)(ctx.ptr + ctx.cur_size),
-                 CHUNK_LEAST_REGION_SIZE_BYTES, platform_strerror(code));
-      }
-      set_tree_item(chunk->buddy_tree, neigh_idx, NODE_FREE);
-      chunk->free_mem += CHUNK_LEAST_REGION_SIZE_BYTES;
-      coalesce_free_nodes(chunk->buddy_tree, neigh_idx);
-    }
-  }
-
+  set_buddy_tree_item(chunk->buddy_tree, idx, NODE_DEPLETED);
+  buddy_ctx_t ctx = {.idx = idx,
+                     .cur_size = CHUNK_LEAST_REGION_SIZE_BYTES << depth_to_leaf,
+                     .depth_to_leaf = depth_to_leaf,
+                     .ptr = ptr_dest,
+                     .state = DOWN};
   coalesce_depleted_nodes(&ctx, chunk);
-  // Check if we unmapped the entire mapping to return information to delete
-  // the chunk metadata
-  // If idx is root (idx == 1) after coalescing, we definetely unmapped the
-  // entire chunk
   if (ctx.idx == 1) return true;
   return false;
 }
@@ -487,48 +391,57 @@ void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
   assert(*run_ptr == NULL);
   assert(*run_size == 0);
   assert(*reg_size == 0);
-
-  uintptr_t ptr_dest = (uintptr_t)ptr;
-  chunk_node_t node;
-  buddy_ctx_t ctx = {
-      .idx = 1,
-      .state = DOWN,
-      .depth_to_leaf = CHUNK_BUDDY_TREE_DEPTH,
-      .cur_size = CHUNK_SIZE_BYTES,
-      .ptr = (uintptr_t)chunk->entry.key,
-  };
-  node = get_tree_item(chunk->buddy_tree, ctx.idx);
-  while (node == NODE_SPLIT || node == NODE_FULL) {
-    if (IS_LEAF(ctx.idx)) {
-      return;
-    }
-    if (ptr_dest >= ctx.ptr + (ctx.cur_size / 2))
-      buddy_state_go_right(&ctx);
-    else
-      buddy_state_go_left(&ctx);
-    node = get_tree_item(chunk->buddy_tree, ctx.idx);
+  const uintptr_t chunk_ptr = (uintptr_t)chunk->entry.key;
+  if ((uintptr_t)ptr < chunk_ptr ||
+      chunk_ptr + CHUNK_SIZE_BYTES <= (uintptr_t)ptr) {
+    return;
   }
+  const uintptr_t rel_ptr = (uintptr_t)ptr - chunk_ptr;
+  const uintptr_t block_offset = rel_ptr / CHUNK_LEAST_REGION_SIZE_BYTES;
+  const unsigned first_leaf_idx = (CHUNK_NO_NODES + 1) / 2;
+  uintptr_t target_run_ptr =
+      chunk_ptr + (block_offset * CHUNK_LEAST_REGION_SIZE_BYTES);
 
-  if (node != NODE_USED) return;
-  *run_ptr = (void *)ctx.ptr;
-  *run_size = ctx.cur_size;
+  chunk_node_t node;
+  unsigned cur_size = CHUNK_LEAST_REGION_SIZE_BYTES;
+  unsigned idx = first_leaf_idx + block_offset;
 
-  unsigned base = (CHUNK_NO_NODES + 1) / 2;
-  unsigned idx = ctx.idx - base;
-  uint8_t compressed_reg_size;
+  node = get_buddy_tree_item(chunk->buddy_tree, idx);
 
-  if (IS_LEAF(ctx.idx)) {
-    if (chunk->reg_size_small_medium[idx] != REG_MARK_BAD_VALUE) {
-      compressed_reg_size = chunk->reg_size_small_medium[idx];
-      if (compressed_reg_size == 0)
-        *reg_size = (UINT8_MAX + 1) * SMALL_SIZE_CLASS_ALIGNMENT;
-      else
-        *reg_size = compressed_reg_size * SMALL_SIZE_CLASS_ALIGNMENT;
+  // This case is not that common
+  if (node != NODE_USED) {
+    while (node != NODE_USED) {
+      if (IS_ROOT(idx) || IS_RIGHT_CHILD(idx)) {
+        return;
+      }
+      if (node == NODE_DEPLETED) {
+        se_error("run is depleted?");
+      }
+      idx = PARENT(idx);
+      cur_size *= 2;
+      node = get_buddy_tree_item(chunk->buddy_tree, idx);
     }
+
+    *run_ptr = (void *)target_run_ptr;
+    *run_size = cur_size;
+    return;
+  }
+  *run_ptr = (void *)target_run_ptr;
+  *run_size = cur_size;
+
+  unsigned compressed_reg_size;
+  if (chunk->reg_size_small_medium[block_offset] != REG_MARK_BAD_VALUE) {
+    compressed_reg_size = chunk->reg_size_small_medium[block_offset];
+    if (compressed_reg_size == 0)
+      *reg_size = (UINT8_MAX + 1) * SMALL_SIZE_CLASS_ALIGNMENT;
+    else
+      *reg_size = compressed_reg_size * SMALL_SIZE_CLASS_ALIGNMENT;
   }
 }
 
 bool chunk_is_unmapped(chunk_t *chunk) {
-  return get_tree_item(chunk->buddy_tree, 1) == NODE_UNMAPPED;
+  return get_buddy_tree_item(chunk->buddy_tree, 1) == NODE_UNMAPPED;
 }
-bool chunk_is_full(chunk_t *chunk) { return chunk->free_mem == 0; }
+bool chunk_is_full(chunk_t *chunk) {
+  return chunk->avail_nodes_count[CHUNK_BUDDY_TREE_DEPTH] == 0;
+}

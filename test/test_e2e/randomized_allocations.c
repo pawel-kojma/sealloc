@@ -6,21 +6,21 @@
 #define REG_SIZE 16
 
 unsigned get_off(void* ptr) { return (unsigned)((size_t)ptr & (RUN_SIZE - 1)); }
-ptrdiff_t diff(void* a, void* b) {
+ptrdiff_t diff(volatile void* a, volatile void* b) {
   return (ptrdiff_t)((ptrdiff_t)a - (ptrdiff_t)b);
 }
 
 int main(void) {
-  void* a = malloc(REG_SIZE);
-  void* b = malloc(REG_SIZE);
-  void* c;
+  volatile void* a = malloc(REG_SIZE);
+  volatile void* b = malloc(REG_SIZE);
+  volatile void* c;
 
   // Fill the rest of the run
   for (int i = 2; i < RUN_SIZE / REG_SIZE; i++) {
     c = malloc(REG_SIZE);
   }
-  void* aa = malloc(REG_SIZE);
-  void* bb = malloc(REG_SIZE);
+  volatile void* aa = malloc(REG_SIZE);
+  volatile void* bb = malloc(REG_SIZE);
 
   if (diff(a, b) != diff(aa, bb)) {
     return 1;

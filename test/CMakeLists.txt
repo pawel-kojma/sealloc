@@ -60,15 +60,18 @@ list(APPEND test_srcs
 
 
 list(APPEND tests_e2e
-        randomized_allocations
-        overflow_large
-        overflow_medium
-        overflow_small
-        arbitrary_free_near
-        double_free_close
-        double_free_far
-        uaf_close
-        uaf_many_no_duplicates
+            arbitrary_free_near             
+            double_free_close               
+            double_free_far                 
+            heap_spray_prevention           
+            overflow_bigger_alloc_prevention
+            overflow_large_detection        
+            overflow_medium_detection       
+            overflow_simple_prevention      
+            overflow_small_detection        
+            randomized_allocations          
+            uaf_close                       
+            uaf_many_no_duplicates
 )
 
 include(GoogleTest)
