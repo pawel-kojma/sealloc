@@ -71,15 +71,16 @@ struct chunk_state {
       avail_nodes_count[CHUNK_BUDDY_TREE_DEPTH + 1]; /*!< i-th element tells how
                                                     many nodes are available for
                                                     allocation in i-th row of
-                                                    the tree */
+                                                    the tree, if 0 then corresponding jump_tree_first_index is also 0*/
   uint8_t
       reg_size_small_medium[CHUNK_NO_NODES_LAST_LAYER]; /*!<  Stores (reg_size /
                                                            16) for small and
                                                            medium size class
                                                            ONLY */
   unsigned jump_tree_first_index[CHUNK_BUDDY_TREE_DEPTH +
-                                1]; /*!< Array of starting global indexes of
-                                       free nodes in each level */
+                                 1]; /*!< Array of starting global indexes of
+                                        free nodes in each level, 0 if level
+                                        does not have any free nodes */
   jump_node_t
       jump_tree[CHUNK_NO_NODES]; /*!< Tree where each node has prev
               and next pointing at prev/next free element in the same row */

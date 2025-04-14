@@ -62,15 +62,15 @@ static inline jump_node_t get_jt_item(jump_node_t *mem, unsigned idx) {
 }
 
 // Get tree node type at given index
-static chunk_node_t get_buddy_tree_item(uint8_t *mem, size_t idx) {
+static inline chunk_node_t get_buddy_tree_item(uint8_t *mem, size_t idx) {
   size_t word = (idx - 1) / 4;
   size_t off = (idx - 1) % 4;
   return (chunk_node_t)(mem[word] >> (2 * off)) & 3;
 }
 
 // Set tree node type to given type at index
-static void set_buddy_tree_item(uint8_t *mem, size_t idx,
-                                chunk_node_t node_state) {
+static inline void set_buddy_tree_item(uint8_t *mem, size_t idx,
+                                       chunk_node_t node_state) {
   size_t word = (idx - 1) / 4;
   size_t off = (idx - 1) % 4;
   uint8_t erase_bits = 3;  // 0b11
@@ -110,6 +110,7 @@ void chunk_init(chunk_t *chunk, void *heap) {
     l *= 2;
   }
   chunk->avail_nodes_count[0] = 0;
+  chunk->jump_tree_first_index[0] = 0;
 }
 
 void buddy_state_go_up(buddy_ctx_t *ctx) {
@@ -156,13 +157,9 @@ void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node,
   // 0-based level index
   unsigned current_level = level;
 
-  // handle edge case when this is the last free node
-  // since both pointers will be 0
-  if (chunk->avail_nodes_count[current_level] == 1)
-    chunk->avail_nodes_count[current_level] = 0;
-
   // Update up the tree
-  while (current_node.next != 0 || current_node.prev != 0) {
+  while ((current_node.next != 0 || current_node.prev != 0) ||
+         (chunk->jump_tree_first_index[current_level] == current_global_idx)) {
     if (current_node.next == 0) {
       // Right side of the tree, just set prev to 0
       set_jt_item_next(chunk->jump_tree, current_global_idx - current_node.prev,
@@ -192,6 +189,8 @@ void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node,
 
     // Update available nodes count
     chunk->avail_nodes_count[current_level]--;
+    if (chunk->avail_nodes_count[current_level] == 0)
+      chunk->jump_tree_first_index[current_level] = 0;
 
     // Go up
     current_level--;
@@ -225,7 +224,8 @@ void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node,
     node_right = get_jt_item(chunk->jump_tree, right_idx);
 
     if (node_left.prev == 0 && node_right.next == 0) {
-      // Entire level is cleared do nothing, available_nodes_count should be 0
+      // Entire level is cleared, invalidate start idx
+      chunk->jump_tree_first_index[current_level] = 0;
     } else if (node_left.prev == 0) {
       // node_left was the first free node on this level
       // point first indxes to after right node
@@ -293,7 +293,6 @@ void *chunk_allocate_run(chunk_t *chunk, unsigned run_size, unsigned reg_size) {
       rand_idx = splitmix32() % all_nodes;
       node = get_jt_item(chunk->jump_tree, level_base_idx + rand_idx);
       if (node.prev != 0 || node.next != 0) {
-        se_debug("(guess) rand_idx: %u", rand_idx);
         return chunk_allocate_with_node(chunk, node, level_base_idx + rand_idx,
                                         level, reg_size);
       }
@@ -308,7 +307,6 @@ void *chunk_allocate_run(chunk_t *chunk, unsigned run_size, unsigned reg_size) {
     current_idx += node.next;
     node = get_jt_item(chunk->jump_tree, current_idx);
   }
-  se_debug("(manual) rand_idx: %u", current_idx - level_base_idx);
   return chunk_allocate_with_node(chunk, node, current_idx, level, reg_size);
 }
 

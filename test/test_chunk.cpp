@@ -55,8 +55,14 @@ class ChunkUtilsTest : public ::testing::Test {
 
     // Validate first free idx
     idx = chunk->jump_tree_first_index[level];
-    EXPECT_TRUE(idx >= leftmost_idx);
-    EXPECT_TRUE(idx <= rightmost_idx);
+    if (idx == 0) {
+      EXPECT_EQ(free_count, 0);
+    } else {
+      EXPECT_TRUE(idx >= leftmost_idx);
+      EXPECT_TRUE(idx <= rightmost_idx);
+    }
+
+    if (free_count == 0) EXPECT_EQ(idx, 0);
 
     // Validate actual free count
     if (expected_free_count > 1) {
@@ -202,7 +208,8 @@ TEST_F(ChunkUtilsTest, ChunkManyAllocations) {
   for (int i = 0; i < CHUNKS; i++) {
     auto [run_size, reg_size] = run_reg_sizes[rand() % run_reg_sizes.size()];
     chunks[i] = chunk_allocate_run(chunk, run_size, reg_size);
-    EXPECT_NE(chunks[i], nullptr) << "Failed at " << i << " idx\n";
+    EXPECT_NE(chunks[i], nullptr) << "Failed at idx " << i;
+    validate_entire_tree();
   }
   EXPECT_TRUE(all_unique(chunks));
 }
@@ -305,6 +312,24 @@ TEST_F(ChunkUtilsTest, ChunkValidateTreeLarge) {
   alloc =
       chunk_allocate_run(chunk, LARGE_SIZE_MAX_REGION, LARGE_SIZE_MAX_REGION);
   validate_entire_tree();
+}
+
+TEST_F(ChunkUtilsTest, ReturnsNullWhenFull) {
+  constexpr unsigned CHUNKS = 4095;
+  for (int i = 0; i < CHUNKS; i++) {
+    EXPECT_NE(chunk_allocate_run(chunk, run_size_small, 16), nullptr);
+  }
+  EXPECT_EQ(chunk_allocate_run(chunk, CHUNK_LEAST_REGION_SIZE_BYTES * 2,
+                               CHUNK_LEAST_REGION_SIZE_BYTES * 2),
+            nullptr);
+  EXPECT_EQ(
+      chunk_allocate_run(chunk, LARGE_SIZE_MAX_REGION, LARGE_SIZE_MAX_REGION),
+      nullptr);
+  EXPECT_NE(chunk_allocate_run(chunk, run_size_small, 16), nullptr);
+  EXPECT_EQ(chunk_allocate_run(chunk, run_size_small, 16), nullptr);
+  for (int i = 0; i <= CHUNK_BUDDY_TREE_DEPTH; i++) {
+    EXPECT_EQ(chunk->jump_tree_first_index[i], 0);
+  }
 }
 
 TEST_F(ChunkUtilsTest, ChunkAllocateAllNodesLarge) {
