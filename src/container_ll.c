@@ -38,6 +38,8 @@ void ll_del(ll_head_t *head, ll_entry_t *item) {
   }
   if (item->link.fd != NULL) item->link.fd->link.bk = item->link.bk;
   if (item->link.bk != NULL) item->link.bk->link.fd = item->link.fd;
+  item->link.fd = NULL;
+  item->link.bk = NULL;
 }
 ll_entry_t *ll_find(const ll_head_t *head, const void *key) {
   ll_entry_t *res = head->ll;

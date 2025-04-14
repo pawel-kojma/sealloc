@@ -51,10 +51,10 @@ typedef struct huge_chunk huge_chunk_t;
  * chosen randomly.
  */
 struct arena_state {
-  int is_initialized;  /*!< Holds 1 if arena was initialized, 0 otherwise. */
-  uint32_t secret;     /*!< 32-bit PRNG seed used to randomize allocation of
-                          structures or user allocations. */
-  uintptr_t brk; /*!< Initial program break */
+  int is_initialized; /*!< Holds 1 if arena was initialized, 0 otherwise. */
+  uint32_t secret;    /*!< 32-bit PRNG seed used to randomize allocation of
+                         structures or user allocations. */
+  uintptr_t brk;      /*!< Initial program break */
   unsigned
       chunks_left; /*!< Indicate how many chunks are left in current mapping */
   ll_head_t chunk_list;      /*!< Head to list of linkage entries within chunk_t
@@ -116,6 +116,20 @@ void arena_internal_free(arena_t *arena, void *ptr);
  * @pre bin is initialized
  */
 run_t *arena_allocate_run(arena_t *arena, bin_t *bin);
+
+/*!
+ * @brief Initially pumps runs into the bin to prepare for allocation.
+ *
+ * It uses bin metadata to allocate correct amount of memory for runs.
+ * It allocates chunks if needed.
+ *
+ * @param[in,out] arena Pointer to the allocated arena structure.
+ * @param[in,out] bin Pointer to the allocated arena structure.
+ * @return true if bin is prepared for allocation, false otherwise.
+ * @pre arena is initialized
+ * @pre bin is initialized
+ */
+bool arena_supply_runs(arena_t *arena, bin_t *bin);
 
 /*!
  * @brief Allocates a chunk and assigns it to arena.

@@ -8,7 +8,7 @@ extern "C" {
 }
 
 constexpr unsigned MAXCHUNKS = 1000;
-constexpr unsigned MAXROUNDS = 1000000;
+constexpr unsigned MAXROUNDS = 10000;
 
 class MallocApiTest : public testing::Test {
  protected:

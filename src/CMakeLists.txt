@@ -12,8 +12,11 @@ elseif(BuildType MATCHES "Debug")
     set(Debug ON)
 endif()
 
-cmake_print_variables(CMAKE_BUILD_TYPE Log BuildType Tests Debug)
+if(NOT Assert)
+    target_compile_definitions(sealloc PRIVATE NDEBUG)
+endif()
 
+cmake_print_variables(CMAKE_BUILD_TYPE Log BuildType Tests Debug Assert)
 
 target_sources(sealloc
     PRIVATE malloc_api.c sealloc.c platform.c chunk.c bin.c internal_allocator.c random.c run.c container_ll.c arena.c size_class.c logging.c
@@ -27,7 +30,7 @@ target_compile_options(sealloc
 )
 target_compile_definitions(sealloc PRIVATE
     "$<$<BOOL:${Log}>:LOGGING>"
-    "$<IF:$<BOOL:${Debug}>,DEBUG,NDEBUG>"
+    "$<$<BOOL:${Debug}>:DEBUG>"
 )
 
 include(GenerateExportHeader)

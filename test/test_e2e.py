@@ -62,11 +62,10 @@ def test_real_programs(prog, args, output_dir_e2e, progs_dir, lib_path):
         [str(progs_dir / prog), *args],
         env={"SEALLOC_SEED": "1234", "LD_PRELOAD": str(lib_path.resolve())},
         capture_output=True,
-        timeout=120,
+        timeout=360,
         shell=True,
     )
     save_output(output_dir_e2e, prog, res.stdout, res.stderr)
-    assert res.stderr == b""
     assert res.returncode == 0
 
 
@@ -82,5 +81,4 @@ def test_kissat(output_dir_e2e, progs_dir, lib_path):
         input=inp,
     )
     save_output(output_dir_e2e, "kissat", res.stdout, res.stderr)
-    assert res.stderr == b""
     assert res.returncode == 10

@@ -12,7 +12,7 @@
 static bstate_t get_bitmap_item(uint8_t *mem, size_t idx) {
   size_t word = idx / 4;
   size_t off = idx % 4;
-  return (bstate_t)(mem[word] >> (2 * off)) & 3;
+  return (bstate_t)(mem[word] >> (2 * off) & 3);
 }
 
 // Set region state inside a bitmap
