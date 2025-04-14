@@ -17,9 +17,9 @@ void bin_init(bin_t *bin, unsigned reg_size) {
   ll_init(&bin->run_list_inactive);
   ll_init(&bin->run_list_active);
   if (IS_SIZE_SMALL(reg_size)) {
-    bin->run_size_pages = 2;
+    bin->run_size_pages = RUN_SIZE_SMALL_PAGES;
   } else if (IS_SIZE_MEDIUM(reg_size)) {
-    bin->run_size_pages = 2;
+    bin->run_size_pages = RUN_SIZE_MEDIUM_PAGES;
   } else {
     // Assuming large size class
     bin->run_size_pages = reg_size / PAGE_SIZE;

@@ -29,15 +29,15 @@ typedef struct run_state run_t;
 #define CHUNK_SIZE_BYTES 33554432
 
 /*!
- * @brief Size of the leaf in a tree spans 2*PAGE_SIZE == 8192 bytes
+ * @brief Size of the leaf in a tree spans 4*PAGE_SIZE == 16384 bytes
  */
-#define CHUNK_LEAST_REGION_SIZE_BYTES (PAGE_SIZE * 2)
+#define CHUNK_LEAST_REGION_SIZE_BYTES (PAGE_SIZE * 4)
 #define CHUNK_NO_NODES_LAST_LAYER \
   (CHUNK_SIZE_BYTES / CHUNK_LEAST_REGION_SIZE_BYTES)
 #define CHUNK_NO_NODES \
   (CHUNK_NO_NODES_LAST_LAYER + (CHUNK_NO_NODES_LAST_LAYER - 1))
 #define CHUNK_BUDDY_TREE_SIZE_BITS (CHUNK_NO_NODES * NODE_STATE_BITS)
-#define CHUNK_BUDDY_TREE_DEPTH 12
+#define CHUNK_BUDDY_TREE_DEPTH 11
 #define CHUNK_JUMP_NODE_SIZE_BYTES 4
 #define CHUNK_JUMP_TREE_SIZE_BYTES (CHUNK_JUMP_NODE_SIZE_BYTES * CHUNK_NO_NODES)
 /*!
@@ -51,7 +51,7 @@ typedef struct run_state run_t;
 /*!
  * @brief Indicates that reg_size_small_medium field does not contain valid data
  */
-#define REG_MARK_BAD_VALUE 0xFF
+#define REG_MARK_BAD_VALUE 65535
 
 #define RANDOM_LOOKUP_TRESHOLD_PERCENTAGE 25
 #define RANDOM_LOOKUP_TRIES 4
@@ -72,7 +72,7 @@ struct chunk_state {
                                                     many nodes are available for
                                                     allocation in i-th row of
                                                     the tree, if 0 then corresponding jump_tree_first_index is also 0*/
-  uint8_t
+  uint16_t
       reg_size_small_medium[CHUNK_NO_NODES_LAST_LAYER]; /*!<  Stores (reg_size /
                                                            16) for small and
                                                            medium size class

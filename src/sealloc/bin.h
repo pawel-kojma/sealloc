@@ -20,7 +20,7 @@ struct run_state;
 typedef struct run_state run_t;
 
 /*!
- * Number of minumum regions that must be available for allocation in the runs
+ * Number of minimum regions that must be available for allocation in the runs
  * of some bin
  */
 #define BIN_MINIMUM_REGIONS 32

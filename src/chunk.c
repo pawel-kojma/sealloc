@@ -201,8 +201,7 @@ void *chunk_allocate_with_node(chunk_t *chunk, jump_node_t node,
   // If idx is a leaf node then job is done
   if (IS_LEAF(idx)) {
     if (reg_size != CHUNK_LEAST_REGION_SIZE_BYTES)
-      chunk->reg_size_small_medium[idx - base_level_idx] =
-          (reg_size / SMALL_SIZE_CLASS_ALIGNMENT) & UINT8_MAX;
+      chunk->reg_size_small_medium[idx - base_level_idx] = reg_size;
     set_buddy_tree_item(chunk->buddy_tree, idx, NODE_USED);
     return (void *)((uintptr_t)chunk->entry.key +
                     (idx - base_level_idx) * CHUNK_LEAST_REGION_SIZE_BYTES);
@@ -429,13 +428,8 @@ void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
   *run_ptr = (void *)target_run_ptr;
   *run_size = cur_size;
 
-  unsigned compressed_reg_size;
   if (chunk->reg_size_small_medium[block_offset] != REG_MARK_BAD_VALUE) {
-    compressed_reg_size = chunk->reg_size_small_medium[block_offset];
-    if (compressed_reg_size == 0)
-      *reg_size = (UINT8_MAX + 1) * SMALL_SIZE_CLASS_ALIGNMENT;
-    else
-      *reg_size = compressed_reg_size * SMALL_SIZE_CLASS_ALIGNMENT;
+      *reg_size = chunk->reg_size_small_medium[block_offset];
   }
 }
 
