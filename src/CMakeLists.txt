@@ -12,6 +12,10 @@ elseif(BuildType MATCHES "Debug")
     set(Debug ON)
 endif()
 
+if(Memtags)
+    target_compile_options(sealloc PRIVATE $<${gcc_like_c}: -march=armv8.5-a+memtag>)
+endif()
+
 if(NOT Assert)
     target_compile_definitions(sealloc PRIVATE NDEBUG)
 endif()
@@ -20,7 +24,7 @@ if(Statistics)
     target_compile_definitions(sealloc PRIVATE STATISTICS)
 endif()
 
-cmake_print_variables(CMAKE_BUILD_TYPE Log BuildType Tests Debug Assert Statistics)
+cmake_print_variables(CMAKE_BUILD_TYPE Log BuildType Tests Debug Assert Memtags Statistics)
 
 target_sources(sealloc
     PRIVATE malloc_api.c sealloc.c platform.c chunk.c bin.c internal_allocator.c random.c run.c container_ll.c arena.c size_class.c logging.c

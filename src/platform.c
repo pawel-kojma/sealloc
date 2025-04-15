@@ -26,11 +26,12 @@ __attribute__((constructor)) void init_aarch64(void) {
   unsigned long hwcap2 = getauxval(AT_HWCAP2);
   if (hwcap2 & HWCAP2_MTE) {
     if (prctl(PR_SET_TAGGED_ADDR_CTRL,
-              PR_TAGGED_ADDR_ENABLE | PR_MTE_TCF_SYNC | PR_MTE_TCF_ASYNC |
+              PR_TAGGED_ADDR_ENABLE | PR_MTE_TCF_SYNC |
                   (PLATFORM_AARCH64_TAGS << PR_MTE_TAG_SHIFT),
               0, 0, 0)) {
       se_debug("MTE supported but prctl() failed");
     } else {
+      se_debug("MTE support activated");
       additional_prot_flags = PROT_MTE;
       is_mte_enabled = 1;
     }
@@ -74,8 +75,8 @@ const char *platform_strerror(platform_status_code_t code) {
 
 platform_status_code_t platform_map(void *hint, size_t len, void **result) {
   assert(len > 0);
-  void *map = mmap(hint, len, PROT_READ | PROT_WRITE,
-                   MAP_PRIVATE | MAP_ANONYMOUS | additional_prot_flags, -1, 0);
+  void *map = mmap(hint, len, PROT_READ | PROT_WRITE | additional_prot_flags,
+                   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (map == MAP_FAILED) return get_error_from_errno();
   *result = map;
   se_debug("Mapping (hint : %p, len : %zu, result : %p)", hint, len, *result);
@@ -83,8 +84,8 @@ platform_status_code_t platform_map(void *hint, size_t len, void **result) {
 }
 
 platform_status_code_t platform_get_program_break(void **result) {
-  se_debug("Getting program break");
   *result = sbrk(0);
+  se_debug("Getting program break : %p", *result);
   if (*result == (void *)-1) {
     return get_error_from_errno();
   }
@@ -102,10 +103,9 @@ platform_status_code_t platform_map_probe(volatile uintptr_t *probe, uintptr_t c
     return PLATFORM_STATUS_CEILING_HIT;
   }
   while (map == NULL) {
-    map = mmap((void *)new_probe, len, PROT_READ | PROT_WRITE,
-               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE |
-                   additional_prot_flags,
-               -1, 0);
+    map = mmap((void *)new_probe, len,
+               PROT_READ | PROT_WRITE | additional_prot_flags,
+               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
     se_debug("Mapping (probe : %p, len : %zu, result : %p)", (void *)new_probe,
              len, map);
     if (map == MAP_FAILED) {

@@ -1,12 +1,19 @@
+#include "sealloc/run.h"
+
+#include <stdbool.h>
+#include <string.h>
+
 #include "sealloc/bin.h"
 #include "sealloc/generator.h"
 #include "sealloc/logging.h"
 #include "sealloc/random.h"
-#include "sealloc/run.h"
 #include "sealloc/size_class.h"
 #include "sealloc/utils.h"
-#include <stdbool.h>
-#include <string.h>
+
+#ifdef __aarch64__
+#include "sealloc/arch/aarch64.h"
+#include "sealloc/platform_api.h"
+#endif
 
 // Get state of a region from bitmap
 static bstate_t get_bitmap_item(uint8_t *mem, size_t idx) {
@@ -61,6 +68,7 @@ void *run_allocate(run_t *run, bin_t *bin) {
 
   uintptr_t heap = (uintptr_t)run->entry.key;
   unsigned elems = (unsigned)(bin->reg_mask_size_bits / 2);
+  void *ptr;
 
   // Get next item from generator
   run->current_idx = (run->gen + run->current_idx) % elems;
@@ -82,7 +90,22 @@ void *run_allocate(run_t *run, bin_t *bin) {
   run->navail--;
   se_debug("Allocating region at current_idx %u, next is %u", run->current_idx,
            (run->gen + run->current_idx) % elems);
-  return (void *)(heap + (run->current_idx * bin->reg_size));
+  ptr = (void *)(heap + (run->current_idx * bin->reg_size));
+
+#if __aarch64__ && __ARM_FEATURE_MEMORY_TAGGING
+  if (is_mte_enabled) {
+    se_debug("Setting random tag");
+    // Tag pointer
+    void *new_ptr;
+    insert_random_tag(new_ptr, ptr);
+    // Insert a random tag for 1 granule
+    set_tag(new_ptr);
+    return new_ptr;
+  } else
+    return ptr;
+#else
+  return ptr;
+#endif
 }
 
 size_t run_validate_ptr(run_t *run, bin_t *bin, void *ptr) {
@@ -108,8 +131,7 @@ size_t run_validate_ptr(run_t *run, bin_t *bin, void *ptr) {
 bool run_deallocate(run_t *run, bin_t *bin, void *ptr) {
   // Sanity check, if it passes we get region index in the bitmap
   size_t bitmap_idx = run_validate_ptr(run, bin, ptr);
-  if(bitmap_idx == SIZE_MAX)
-      return false;
+  if (bitmap_idx == SIZE_MAX) return false;
 
   // Mark as freed
   set_bitmap_item(run->reg_bitmap, bitmap_idx, STATE_ALLOC_FREE);
