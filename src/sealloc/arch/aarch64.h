@@ -14,17 +14,5 @@
  * @brief Size of memory granule
  */
 #define MEMORY_GRANULE_SIZE 16
+#define MEMORY_2_GRANULE_SIZE 32
 
-/*!
- * @brief Tags the pointer with random tag.
- */
-#define insert_random_tag(res_ptr, src_ptr) \
-  __asm__("irg %0, %1" : "=r"(res_ptr) : "r"(src_ptr))
-
-/*!
- * @brief Tags the memory granule (16-byte) with same tag as the tagged_addr.
- */
-#define set_tag(tagged_addr)                                          \
-  do {                                                                \
-    __asm__ volatile("stg %0, [%0]" : : "r"(tagged_addr) : "memory"); \
-  } while (0)
