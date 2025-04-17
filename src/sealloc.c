@@ -77,11 +77,20 @@ static metadata_t locate_metadata_for_ptr(arena_t *arena, void *ptr,
                                           chunk_t **chunk_ret, run_t **run_ret,
                                           bin_t **bin_ret,
                                           huge_chunk_t **huge_ret) {
-  chunk_t *chunk;
+  chunk_t *chunk = NULL;
   void *run_ptr = NULL;
   unsigned run_size = 0, reg_size = 0;
   se_debug("Getting chunk from pointer");
-  chunk = arena_get_chunk_from_ptr(arena, ptr);
+  chunk = arena_get_chunk_from_ptr(arena, ptr, chunk);
+  while (chunk != NULL) {
+    *chunk_ret = chunk;
+    se_debug("Found chunk metadata at %p", (void *)chunk);
+    chunk_get_run_ptr(chunk, ptr, &run_ptr, &run_size, &reg_size);
+    if (run_ptr != NULL) {
+      break;
+    }
+    chunk = arena_get_chunk_from_ptr(arena, ptr, chunk);
+  }
   if (chunk == NULL) {
     se_debug("No chunk found, checking huge allocations.");
     huge_chunk_t *huge_chunk;
@@ -91,12 +100,6 @@ static metadata_t locate_metadata_for_ptr(arena_t *arena, void *ptr,
     }
     *huge_ret = huge_chunk;
     return METADATA_HUGE;
-  }
-  *chunk_ret = chunk;
-  se_debug("Found chunk metadata at %p", (void *)chunk);
-  chunk_get_run_ptr(chunk, ptr, &run_ptr, &run_size, &reg_size);
-  if (run_ptr == NULL) {
-    return METADATA_INVALID;
   }
   se_debug("Found run (run_ptr : %p)", run_ptr);
   if (reg_size > 0) {

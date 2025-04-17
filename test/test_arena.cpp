@@ -7,8 +7,8 @@
 extern "C" {
 #include <sealloc/arena.h>
 #include <sealloc/chunk.h>
-#include <sealloc/platform_api.h>
 #include <sealloc/internal_allocator.h>
+#include <sealloc/platform_api.h>
 #include <sealloc/size_class.h>
 #include <sealloc/utils.h>
 }
@@ -82,16 +82,31 @@ TEST_F(ArenaUtilsTest, ArenaGetChunkFromPtr) {
   EXPECT_NE(chunk1, nullptr);
   EXPECT_NE(chunk2, nullptr);
   EXPECT_NE(chunk3, nullptr);
-  EXPECT_EQ(arena_get_chunk_from_ptr(&arena, chunk1->entry.key), chunk1);
-  EXPECT_EQ(arena_get_chunk_from_ptr(&arena, chunk2->entry.key), chunk2);
-  EXPECT_EQ(arena_get_chunk_from_ptr(&arena, chunk3->entry.key), chunk3);
+  EXPECT_EQ(arena_get_chunk_from_ptr(&arena, chunk1->entry.key, NULL), chunk1);
+  EXPECT_EQ(arena_get_chunk_from_ptr(&arena, chunk2->entry.key, NULL), chunk2);
+  EXPECT_EQ(arena_get_chunk_from_ptr(&arena, chunk3->entry.key, NULL), chunk3);
   EXPECT_EQ(arena_get_chunk_from_ptr(
-                &arena, (void *)((uintptr_t)chunk1->entry.key + 42)),
+                &arena, (void *)((uintptr_t)chunk1->entry.key + 42), NULL),
             chunk1);
   EXPECT_NE(arena_get_chunk_from_ptr(
-                &arena, (void *)((uintptr_t)chunk3->entry.key - 1)),
+                &arena, (void *)((uintptr_t)chunk3->entry.key - 1), NULL),
             chunk3);
-  EXPECT_EQ(arena_get_chunk_from_ptr(&arena, (void *)(0x42)), nullptr);
+  EXPECT_EQ(arena_get_chunk_from_ptr(&arena, (void *)(0x42), NULL), nullptr);
+}
+
+TEST_F(ArenaUtilsTest, ArenaGetChunkFromPtrMultiSearch) {
+  chunk_t *chunk1, *chunk2, *chunk3, *chunk_mock, *chunk_found;
+
+  chunk1 = arena_allocate_chunk(&arena);
+  chunk2 = arena_allocate_chunk(&arena);
+  chunk3 = arena_allocate_chunk(&arena);
+  chunk_mock = (chunk_t *)malloc(sizeof(chunk_t));
+  chunk_mock->entry.key = (void *)((uintptr_t)chunk2->entry.key + PAGE_SIZE);
+  ll_add(&arena.chunk_list, &chunk_mock->entry);
+  chunk_found = arena_get_chunk_from_ptr(&arena, chunk_mock->entry.key, NULL);
+  EXPECT_EQ(chunk_found, chunk_mock);
+  EXPECT_EQ(arena_get_chunk_from_ptr(&arena, chunk2->entry.key, chunk_found),
+            chunk2);
 }
 
 TEST_F(ArenaUtilsTest, ArenaGetBinByRegSize) {

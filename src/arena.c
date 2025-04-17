@@ -229,13 +229,15 @@ void arena_deallocate_chunk(arena_t *arena, chunk_t *chunk) {
   arena_internal_free(arena, chunk);
 }
 
-chunk_t *arena_get_chunk_from_ptr(const arena_t *arena, const void *const ptr) {
+chunk_t *arena_get_chunk_from_ptr(const arena_t *arena, const void *ptr,
+                                  chunk_t *start_chunk) {
   assert(arena->is_initialized == 1);
 
   chunk_t *chunk = NULL;
   ptrdiff_t target = (ptrdiff_t)ptr;
-  for (ll_entry_t *entry = arena->chunk_list.ll; entry != NULL;
-       entry = entry->link.fd) {
+  ll_entry_t *entry =
+      (start_chunk == NULL) ? arena->chunk_list.ll : &start_chunk->entry;
+  for (; entry != NULL; entry = entry->link.fd) {
     se_debug("Trying entry entry=%p, entry->key=%p", (void *)entry, entry->key);
     assert(IS_ALIGNED((ptrdiff_t)entry->key, PAGE_SIZE));
     if ((ptrdiff_t)entry->key <= target &&

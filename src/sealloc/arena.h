@@ -65,9 +65,10 @@ struct arena_state {
                                internal allocator nodes. */
   uintptr_t chunk_alloc_ptr;     /*!< A pointer where arena will start probing
                                     system for more memory for chunks. */
-  uintptr_t chunk_ptr;            /*!< If chunks_left > 0, this points to next chunk allocation point */
-  uintptr_t huge_alloc_ptr;      /*!< A pointer where arena will start probing
-                                     system for more memory for huge mappings. */
+  uintptr_t chunk_ptr;      /*!< If chunks_left > 0, this points to next chunk
+                               allocation point */
+  uintptr_t huge_alloc_ptr; /*!< A pointer where arena will start probing
+                                system for more memory for huge mappings. */
   uintptr_t
       internal_alloc_ptr; /*!< A pointer where arena will start probing system
                              for more memory for internal allocator nodes. */
@@ -170,11 +171,13 @@ void arena_deallocate_chunk(arena_t *arena, chunk_t *chunk);
  *
  * @param[in] arena Pointer to the allocated arena structure
  * @param[in] ptr Pointer to possibly a chunk in this arena
+ * @param[in] start_chunk Pointer to chunk from which search will start. Start from beginning if NULL.
  * @return Pointer to chunk metadata which corresponds to ptr or NULL if no
  * chunk was found
  * @pre arena is initialized
  */
-chunk_t *arena_get_chunk_from_ptr(const arena_t *arena, const void *const ptr);
+chunk_t *arena_get_chunk_from_ptr(const arena_t *arena, const void *ptr,
+                                  chunk_t *start_chunk);
 
 /*!
  * @brief Returns bin for reg_size
