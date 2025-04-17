@@ -65,6 +65,7 @@ struct arena_state {
                                internal allocator nodes. */
   uintptr_t chunk_alloc_ptr;     /*!< A pointer where arena will start probing
                                     system for more memory for chunks. */
+  uintptr_t chunk_ptr;            /*!< If chunks_left > 0, this points to next chunk allocation point */
   uintptr_t huge_alloc_ptr;      /*!< A pointer where arena will start probing
                                      system for more memory for huge mappings. */
   uintptr_t

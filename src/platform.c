@@ -35,6 +35,8 @@ const char *platform_strerror(platform_status_code_t code) {
       return "No error";
     case PLATFORM_STATUS_CEILING_HIT:
       return "Maximum address hit";
+    case PLATFORM_DIFFERENT_ADDRESS:
+      return "kernel created mapping under different address than specified";
   }
   return NULL;
 }
@@ -57,7 +59,7 @@ platform_status_code_t platform_get_program_break(void **result) {
   }
   return PLATFORM_STATUS_OK;
 }
-platform_status_code_t platform_map_probe(uintptr_t *probe, uintptr_t ceiling,
+platform_status_code_t platform_map_probe(volatile uintptr_t *probe, uintptr_t ceiling,
                                           size_t len) {
   assert(len > 0);
   assert(IS_ALIGNED(len, PAGE_SIZE));
@@ -87,7 +89,10 @@ platform_status_code_t platform_map_probe(uintptr_t *probe, uintptr_t ceiling,
     }
   }
   if ((uintptr_t)map != new_probe) {
-    se_error("map : %p, new_probe %p", map, (void *)new_probe);
+    // Kernel seems to ignore MAP_FIXED_NOREPLACE, but rarely
+    se_debug("map : %p, new_probe %p", map, (void *)new_probe);
+    *probe = (uintptr_t)map;
+    return PLATFORM_DIFFERENT_ADDRESS;
   }
   *probe = (uintptr_t)map;
   return PLATFORM_STATUS_OK;

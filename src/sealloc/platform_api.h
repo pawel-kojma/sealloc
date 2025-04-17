@@ -15,7 +15,8 @@ typedef enum status_code {
   PLATFORM_STATUS_ERR_NOMEM,
   PLATFORM_STATUS_ERR_INVAL,
   PLATFORM_STATUS_OK,
-  PLATFORM_STATUS_CEILING_HIT
+  PLATFORM_STATUS_CEILING_HIT,
+  PLATFORM_DIFFERENT_ADDRESS
 } platform_status_code_t;
 
 /*!
@@ -59,7 +60,7 @@ platform_status_code_t platform_get_program_break(void **result);
  * @pre probe is page-aligned
  * @pre len is page-aligned
  */
-platform_status_code_t platform_map_probe(uintptr_t *probe, uintptr_t ceiling,
+platform_status_code_t platform_map_probe(volatile uintptr_t *probe, uintptr_t ceiling,
                                           size_t len);
 
 /*!
