@@ -235,8 +235,8 @@ chunk_t *arena_get_chunk_from_ptr(const arena_t *arena, const void *ptr,
 
   chunk_t *chunk = NULL;
   ptrdiff_t target = (ptrdiff_t)ptr;
-  ll_entry_t *entry =
-      (start_chunk == NULL) ? arena->chunk_list.ll : &start_chunk->entry;
+  ll_entry_t *entry = (start_chunk == NULL) ? arena->chunk_list.ll
+                                            : start_chunk->entry.link.fd;
   for (; entry != NULL; entry = entry->link.fd) {
     se_debug("Trying entry entry=%p, entry->key=%p", (void *)entry, entry->key);
     assert(IS_ALIGNED((ptrdiff_t)entry->key, PAGE_SIZE));

@@ -102,11 +102,13 @@ TEST_F(ArenaUtilsTest, ArenaGetChunkFromPtrMultiSearch) {
   chunk3 = arena_allocate_chunk(&arena);
   chunk_mock = (chunk_t *)malloc(sizeof(chunk_t));
   chunk_mock->entry.key = (void *)((uintptr_t)chunk2->entry.key + PAGE_SIZE);
+  void *target = (void *)((uintptr_t)chunk_mock->entry.key + 16);
   ll_add(&arena.chunk_list, &chunk_mock->entry);
-  chunk_found = arena_get_chunk_from_ptr(&arena, chunk_mock->entry.key, NULL);
+  chunk_found = arena_get_chunk_from_ptr(&arena, target, NULL);
   EXPECT_EQ(chunk_found, chunk_mock);
-  EXPECT_EQ(arena_get_chunk_from_ptr(&arena, chunk2->entry.key, chunk_found),
-            chunk2);
+  chunk_found = arena_get_chunk_from_ptr(&arena, target, chunk_found);
+  EXPECT_EQ(chunk_found, chunk2);
+  EXPECT_EQ(arena_get_chunk_from_ptr(&arena, target, chunk_found), nullptr);
 }
 
 TEST_F(ArenaUtilsTest, ArenaGetBinByRegSize) {
