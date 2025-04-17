@@ -42,6 +42,8 @@ typedef struct run_state run_t;
 #define CHUNK_JUMP_TREE_SIZE_BYTES (CHUNK_JUMP_NODE_SIZE_BYTES * CHUNK_NO_NODES)
 /*!
  * @brief Arbitrary point where we unmap part of the chunk
+ *
+ * Right now we are unmapping at least 32 pages
  */
 #define CHUNK_UNMAP_THRESHOLD 3
 

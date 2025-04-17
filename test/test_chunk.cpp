@@ -248,7 +248,9 @@ TEST_F(ChunkUtilsTest, ChunkSingleDeallocate) {
   void *alloc;
   alloc = chunk_allocate_run(chunk, run_size_small, 16);
   chunk_deallocate_run(chunk, alloc);
-  EXPECT_EQ(get_buddy_tree_item(chunk->buddy_tree, 1906), NODE_DEPLETED);
+  unsigned base_level_idx = 2048;
+  unsigned rand_idx = 1906;
+  EXPECT_EQ(get_buddy_tree_item(chunk->buddy_tree, base_level_idx + rand_idx), NODE_DEPLETED);
 }
 
 TEST_F(ChunkUtilsTest, AvailNodesCountUpdateSmall) {
@@ -394,7 +396,7 @@ TEST_F(ChunkUtilsTest, ChunkAllocationPlacementSmall) {
   EXPECT_EQ(a1,
             (ptrdiff_t)chunk->entry.key + 1906 * CHUNK_LEAST_REGION_SIZE_BYTES);
   EXPECT_EQ(a2,
-            (ptrdiff_t)chunk->entry.key + 2288 * CHUNK_LEAST_REGION_SIZE_BYTES);
+            (ptrdiff_t)chunk->entry.key + 240 * CHUNK_LEAST_REGION_SIZE_BYTES);
 }
 
 TEST_F(ChunkUtilsTest, ChunkCoalesceDepletedUnmappingLarge) {

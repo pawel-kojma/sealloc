@@ -151,7 +151,7 @@ class RunUtilsTestMedium : public ::testing::Test {
     ll_init(&bin->run_list_active);
     bin->run_list_active_cnt = 0;
     bin->avail_regs = 0;
-    bin->reg_size = 1024;
+    bin->reg_size = MEDIUM_SIZE_MIN_REGION;
     bin->run_size_pages = RUN_SIZE_MEDIUM_PAGES;
     bin->reg_mask_size_bits =
         ((bin->run_size_pages * PAGE_SIZE) / bin->reg_size) * 2;
@@ -254,7 +254,7 @@ class RunUtilsTestLarge : public ::testing::Test {
     ll_init(&bin->run_list_active);
     bin->run_list_active_cnt = 0;
     bin->avail_regs = 0;
-    bin->reg_size = 16384;
+    bin->reg_size = LARGE_SIZE_MIN_REGION;
     bin->run_size_pages = 4;
     bin->reg_mask_size_bits = 2;
     run = (run_t *)malloc(sizeof(run_t) +
