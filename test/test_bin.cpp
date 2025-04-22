@@ -18,9 +18,9 @@ TEST(BinUtils, BinInitSmall) {
   bin_t *bin = (bin_t *)malloc(sizeof(bin_t));
 
   bin_init(bin, 16);
-  EXPECT_EQ(bin->reg_mask_size_bits, 1024);
+  EXPECT_EQ(bin->reg_mask_size_bits, (RUN_SIZE_SMALL_BYTES / 16) * 2);
   EXPECT_EQ(bin->reg_size, 16);
-  EXPECT_EQ(bin->run_size_pages, 2);
+  EXPECT_EQ(bin->run_size_pages, RUN_SIZE_SMALL_PAGES);
   EXPECT_EQ(bin->run_list_inactive.ll, nullptr);
   EXPECT_EQ(bin->run_list_active.ll, nullptr);
   EXPECT_EQ(bin->avail_regs, 0);
@@ -31,9 +31,9 @@ TEST(BinUtils, BinInitMedium) {
   bin_t *bin = (bin_t *)malloc(sizeof(bin_t));
 
   bin_init(bin, 2048);
-  EXPECT_EQ(bin->reg_mask_size_bits, 8);
+  EXPECT_EQ(bin->reg_mask_size_bits, (RUN_SIZE_MEDIUM_BYTES / 2048) * 2);
   EXPECT_EQ(bin->reg_size, 2048);
-  EXPECT_EQ(bin->run_size_pages, 2);
+  EXPECT_EQ(bin->run_size_pages, RUN_SIZE_MEDIUM_PAGES);
   EXPECT_EQ(bin->run_list_inactive.ll, nullptr);
   EXPECT_EQ(bin->run_list_active.ll, nullptr);
   EXPECT_EQ(bin->avail_regs, 0);
@@ -132,5 +132,5 @@ TEST(BinUtils, BinGetRunForAllocationMulti) {
     bin_add_run(bin, runs[i]);
   }
   init_splitmix32(1);
-  EXPECT_EQ(bin_get_run_for_allocation(bin), runs[30-7]);
+  EXPECT_EQ(bin_get_run_for_allocation(bin), runs[30 - 7]);
 }

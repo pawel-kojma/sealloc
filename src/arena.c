@@ -60,6 +60,7 @@ static uintptr_t arena_morecore(arena_t *arena, volatile uintptr_t *probe_ptr,
 }
 
 void arena_init(arena_t *arena) {
+  assert(arena->is_initialized == 0);
   platform_status_code_t code;
   void *ptr;
 #ifdef DEBUG
@@ -235,8 +236,8 @@ chunk_t *arena_get_chunk_from_ptr(const arena_t *arena, const void *ptr,
 
   chunk_t *chunk = NULL;
   ptrdiff_t target = (ptrdiff_t)ptr;
-  ll_entry_t *entry = (start_chunk == NULL) ? arena->chunk_list.ll
-                                            : start_chunk->entry.link.fd;
+  ll_entry_t *entry =
+      (start_chunk == NULL) ? arena->chunk_list.ll : start_chunk->entry.link.fd;
   for (; entry != NULL; entry = entry->link.fd) {
     se_debug("Trying entry entry=%p, entry->key=%p", (void *)entry, entry->key);
     assert(IS_ALIGNED((ptrdiff_t)entry->key, PAGE_SIZE));

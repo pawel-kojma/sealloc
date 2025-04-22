@@ -9,6 +9,7 @@ extern "C" {
 #include <sealloc/chunk.h>
 #include <sealloc/random.h>
 #include <sealloc/run.h>
+#include <sealloc/size_class.h>
 #include <sealloc/utils.h>
 }
 
@@ -48,9 +49,10 @@ class RunUtilsTestSmall : public ::testing::Test {
     ll_init(&bin->run_list_active);
     bin->run_list_active_cnt = 0;
     bin->avail_regs = 0;
-    bin->reg_size = 16;
-    bin->run_size_pages = 2;
-    bin->reg_mask_size_bits = (PAGE_SIZE / bin->reg_size) * 2;
+    bin->reg_size = SMALL_SIZE_MIN_REGION;
+    bin->run_size_pages = RUN_SIZE_SMALL_PAGES;
+    bin->reg_mask_size_bits =
+        ((bin->run_size_pages * PAGE_SIZE) / bin->reg_size) * 2;
     run = (run_t *)malloc(sizeof(run_t) +
                           BITS2BYTES_CEIL(bin->reg_mask_size_bits));
   }
@@ -59,10 +61,10 @@ class RunUtilsTestSmall : public ::testing::Test {
 TEST_F(RunUtilsTestSmall, RunInit) {
   heap = malloc(1);
   run_init(run, bin, heap);
-  EXPECT_EQ(run->navail, 256);
+  EXPECT_EQ(run->navail, 1024);
   EXPECT_EQ(run->entry.key, heap);
   EXPECT_EQ(run->nfreed, 0);
-  EXPECT_EQ(run->gen, 229);
+  EXPECT_EQ(run->gen, 741);
   EXPECT_EQ(run->current_idx, 240);
   for (int i = 0; i < BITS2BYTES_CEIL(bin->reg_mask_size_bits); i++) {
     EXPECT_EQ(run->reg_bitmap[i], 0x0);
@@ -101,7 +103,7 @@ TEST_F(RunUtilsTestSmall, RunDeallocate) {
 }
 
 TEST_F(RunUtilsTestSmall, MemoryIntegrity) {
-  void *heap = malloc(CHUNK_LEAST_REGION_SIZE_BYTES);
+  void *heap = malloc(RUN_SIZE_SMALL_BYTES);
   run_init(run, bin, heap);
   std::independent_bits_engine<std::default_random_engine, 8, unsigned char>
       engine{1};
@@ -149,9 +151,10 @@ class RunUtilsTestMedium : public ::testing::Test {
     ll_init(&bin->run_list_active);
     bin->run_list_active_cnt = 0;
     bin->avail_regs = 0;
-    bin->reg_size = 1024;
-    bin->run_size_pages = 2;
-    bin->reg_mask_size_bits = (PAGE_SIZE / bin->reg_size) * 2;
+    bin->reg_size = MEDIUM_SIZE_MIN_REGION;
+    bin->run_size_pages = RUN_SIZE_MEDIUM_PAGES;
+    bin->reg_mask_size_bits =
+        ((bin->run_size_pages * PAGE_SIZE) / bin->reg_size) * 2;
     run = (run_t *)malloc(sizeof(run_t) +
                           BITS2BYTES_CEIL(bin->reg_mask_size_bits));
   }
@@ -160,7 +163,7 @@ class RunUtilsTestMedium : public ::testing::Test {
 TEST_F(RunUtilsTestMedium, RunInit) {
   heap = malloc(1);
   run_init(run, bin, heap);
-  EXPECT_EQ(run->navail, 4);
+  EXPECT_EQ(run->navail, 16);
   EXPECT_EQ(run->entry.key, heap);
   EXPECT_EQ(run->nfreed, 0);
   EXPECT_EQ(run->gen, 5);
@@ -202,7 +205,7 @@ TEST_F(RunUtilsTestMedium, RunDeallocate) {
 }
 
 TEST_F(RunUtilsTestMedium, MemoryIntegrity) {
-  heap = malloc(CHUNK_LEAST_REGION_SIZE_BYTES);
+  heap = malloc(RUN_SIZE_MEDIUM_BYTES);
   run_init(run, bin, heap);
   int elems = run->navail;
   std::independent_bits_engine<std::default_random_engine, 8, unsigned char>
@@ -251,8 +254,8 @@ class RunUtilsTestLarge : public ::testing::Test {
     ll_init(&bin->run_list_active);
     bin->run_list_active_cnt = 0;
     bin->avail_regs = 0;
-    bin->reg_size = 8192;
-    bin->run_size_pages = 2;
+    bin->reg_size = LARGE_SIZE_MIN_REGION;
+    bin->run_size_pages = 4;
     bin->reg_mask_size_bits = 2;
     run = (run_t *)malloc(sizeof(run_t) +
                           BITS2BYTES_CEIL(bin->reg_mask_size_bits));

@@ -2,8 +2,8 @@
 
 #include <stdint.h>
 
-#ifndef GENERATOR_H
-#define GENERATOR_H
+#ifndef SEALLOC_GENERATOR_H_
+#define SEALLOC_GENERATOR_H_
 
 static unsigned GENERATORS_SMALL_LENGTHS[] ={
     {% for generators in sc_small_gen %}
@@ -29,5 +29,5 @@ static uint16_t GENERATORS_MEDIUM[{{len(sc_medium_gen)}}][{{ max_gens_medium }}]
     {% endfor %}
 };
 
-#endif
+#endif // SEALLOC_GENERATOR_H_
 

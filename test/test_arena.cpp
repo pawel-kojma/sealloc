@@ -9,6 +9,7 @@ extern "C" {
 #include <sealloc/chunk.h>
 #include <sealloc/internal_allocator.h>
 #include <sealloc/platform_api.h>
+#include <sealloc/run.h>
 #include <sealloc/size_class.h>
 #include <sealloc/utils.h>
 }
@@ -17,19 +18,13 @@ namespace {
 class ArenaUtilsTest : public ::testing::Test {
  protected:
   arena_t arena;
-  unsigned run_size_small = 2 * PAGE_SIZE;
+  unsigned run_size_small = RUN_SIZE_SMALL_BYTES;
   size_t huge_chunk_size = 2097152;  // 2MB
   void SetUp() override { arena_init(&arena); }
 
   void exhaust_chunk(chunk_t *chunk) {
-    unsigned chunks_to_alloc = CHUNK_NO_NODES_LAST_LAYER / 2;
+    unsigned chunks_to_alloc = CHUNK_NO_NODES_LAST_LAYER;
     void *chunk_alloc[chunks_to_alloc];
-    for (int i = 0; i < chunks_to_alloc; i++) {
-      chunk_alloc[i] = chunk_allocate_run(chunk, run_size_small, 16);
-    }
-    for (int i = 0; i < chunks_to_alloc; i++) {
-      chunk_deallocate_run(chunk, chunk_alloc[i]);
-    }
     for (int i = 0; i < chunks_to_alloc; i++) {
       chunk_alloc[i] = chunk_allocate_run(chunk, run_size_small, 16);
     }
@@ -115,8 +110,9 @@ TEST_F(ArenaUtilsTest, ArenaGetBinByRegSize) {
   bin_t *small, *medium, *large1, *large2;
   small = arena_get_bin_by_reg_size(&arena, SMALL_SIZE_MIN_REGION);
   medium = arena_get_bin_by_reg_size(&arena, MEDIUM_SIZE_MIN_REGION);
-  large1 = arena_get_bin_by_reg_size(&arena, 2 * PAGE_SIZE);
-  large2 = arena_get_bin_by_reg_size(&arena, 4 * PAGE_SIZE);
+  large1 = arena_get_bin_by_reg_size(&arena, LARGE_SIZE_MIN_REGION);
+  large2 = arena_get_bin_by_reg_size(
+      &arena, alignup_large_size(LARGE_SIZE_MIN_REGION + 1));
   EXPECT_EQ(get_bin_idx(small), 0);
   EXPECT_EQ(get_bin_idx(medium), NO_SMALL_SIZE_CLASSES);
   EXPECT_EQ(get_bin_idx(large1),

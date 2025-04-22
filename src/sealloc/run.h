@@ -1,14 +1,21 @@
 /* Run management API */
 
-
 #ifndef SEALLOC_RUN_H_
 #define SEALLOC_RUN_H_
 
-#include "container_ll.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "container_ll.h"
+#include "utils.h"
+
 struct bin_state;
+
+#define RUN_SIZE_SMALL_BYTES 16384
+#define RUN_SIZE_MEDIUM_BYTES 16384
+#define RUN_SIZE_SMALL_PAGES (RUN_SIZE_SMALL_BYTES / PAGE_SIZE)
+#define RUN_SIZE_MEDIUM_PAGES (RUN_SIZE_MEDIUM_BYTES / PAGE_SIZE)
 
 typedef struct bin_state bin_t;
 
