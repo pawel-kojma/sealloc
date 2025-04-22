@@ -18,9 +18,10 @@ def run_bin(program, lib_path, seed=None):
     )
 
 
-def save_output(output_dir: Path, name: str, stdout: bytes, stderr: bytes):
+def save_output(output_dir: Path, name: str, stdout: bytes, stderr: bytes, subproc):
     Path(output_dir / f"{name}_stdout").write_bytes(stdout)
     Path(output_dir / f"{name}_stderr").write_bytes(stderr)
+    Path(output_dir / f"{name}_subproc").write_text(subproc.__str__())
 
 
 @pytest.mark.security
@@ -65,7 +66,7 @@ def test_real_programs(prog, args, output_dir_e2e, progs_dir, lib_path):
         timeout=360,
         shell=True,
     )
-    save_output(output_dir_e2e, prog, res.stdout, res.stderr)
+    save_output(output_dir_e2e, prog, res.stdout, res.stderr, res)
     assert res.returncode == 0
 
 
@@ -80,5 +81,5 @@ def test_kissat(output_dir_e2e, progs_dir, lib_path):
         shell=True,
         input=inp,
     )
-    save_output(output_dir_e2e, "kissat", res.stdout, res.stderr)
+    save_output(output_dir_e2e, "kissat", res.stdout, res.stderr, res)
     assert res.returncode == 10
