@@ -184,7 +184,7 @@ void *run_allocate(run_t *run, bin_t *bin) {
     excludes = add_to_excludes(nptr, excludes);
   }
   ptr = (void *)tag_pointer((uint64_t)ptr, excludes);
-    set_tag_n((uint64_t)ptr, (uint64_t)ptr, bin->reg_size);
+  set_tag_n((uint64_t)ptr, (uint64_t)ptr, bin->reg_size);
   return ptr;
 #else
   return ptr;
@@ -192,6 +192,13 @@ void *run_allocate(run_t *run, bin_t *bin) {
 }
 
 size_t run_validate_ptr(run_t *run, bin_t *bin, void *ptr) {
+#if __aarch64__ && __ARM_FEATURE_MEMORY_TAGGING
+#include "sealloc/arch/aarch64.h"
+  if (is_mte_enabled) {
+    // Clear tag bits, so that we can do pointer arithmetics
+    ptr = (void *)((uintptr_t)ptr & ((1ULL << TAG_OFFSET_BITS) - 1));
+  }
+#endif
   // Here, we trust that ptr is in range of current run
   ptrdiff_t rel_ptr = (uintptr_t)ptr - (uintptr_t)run->entry.key;
   size_t bitmap_idx = rel_ptr / bin->reg_size;

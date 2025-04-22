@@ -16,10 +16,10 @@ class MallocApiTest : public testing::Test {
 TEST_F(MallocApiTest, CallocSimple) {
   int *reg = (int *)sealloc_calloc(&arena, 2, 16);
   EXPECT_NE(reg, nullptr);
-  for (int i = 0; i < 32; i++) {
+  for (int i = 0; i < 8; i++) {
     reg[i] = i + 1;
   }
-  for (int i = 0; i < 32; i++) {
+  for (int i = 0; i < 8; i++) {
     EXPECT_EQ(reg[i], i + 1);
   }
 }

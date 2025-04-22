@@ -10,6 +10,8 @@
  */
 #define PLATFORM_AARCH64_TAGS 0xfffe
 
+#define TAG_OFFSET_BITS 56
+
 /*!
  * @brief Size of memory granule
  */
