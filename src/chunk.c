@@ -414,7 +414,9 @@ void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
         return;
       }
       if (node == NODE_DEPLETED) {
-        se_error("run is depleted?");
+        // This may happen when we have chunk-in-chunk or huge-in-chunk case
+        // We have to return and check rest of chunks/huge allocs
+        return;
       }
       idx = PARENT(idx);
       cur_size *= 2;
@@ -429,7 +431,7 @@ void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
   *run_size = cur_size;
 
   if (chunk->reg_size_small_medium[block_offset] != REG_MARK_BAD_VALUE) {
-      *reg_size = chunk->reg_size_small_medium[block_offset];
+    *reg_size = chunk->reg_size_small_medium[block_offset];
   }
 }
 

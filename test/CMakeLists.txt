@@ -54,6 +54,7 @@ list(APPEND tests_integration
             realloc_multi
             calloc
             fuzz_api
+            locate_metadata
 )
 list(APPEND test_srcs
     test_ia test_run test_container_ll test_bin test_chunk test_arena test_size_class)
