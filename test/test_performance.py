@@ -26,7 +26,7 @@ def prepare_env(dir: Path, prog: Path, library: Path):
      '--massif-out-file=massif.kissat', '--pages-as-heap=yes']
 ])
 def test_performance_on_kissat(cmd, output_dir_performance, tmp_path, lib_path, progs_dir):
-    input_file = Path("./test/assets/cnf.out")
+    input_file = Path("./test/assets/kissat_cnf.out")
     shutil.copyfile(input_file, tmp_path / input_file.name)
     prepared_kissat = prepare_env(tmp_path, progs_dir / "kissat", lib_path)
     res = subprocess.run(cmd + [
@@ -41,6 +41,60 @@ def test_performance_on_kissat(cmd, output_dir_performance, tmp_path, lib_path, 
         shutil.copyfile(
             report_file, output_dir_performance / "kissat" / report_file.name)
     assert res.returncode == 10
+
+@pytest.mark.performance
+@pytest.mark.parametrize("cmd", [
+    ['/usr/bin/time', '-v', '--output=time.espresso'],
+    ['/usr/bin/strace', '-c', '--output=strace.espresso'],
+    ['/usr/bin/valgrind', '--tool=callgrind',
+     '--callgrind-out-file=callgrind.espresso'],
+    ['/usr/bin/valgrind', '--tool=massif',
+     '--massif-out-file=massif.espresso', '--pages-as-heap=yes']
+])
+def test_performance_on_espresso(cmd, output_dir_performance, tmp_path, lib_path, progs_dir):
+    input_file = Path("./test/assets/largest.espresso")
+    shutil.copyfile(input_file, tmp_path / input_file.name)
+    prepared_espresso = prepare_env(tmp_path, progs_dir / "espresso", lib_path)
+    res = subprocess.run(cmd + [
+        str(prepared_espresso), input_file.name],
+        env={"SEALLOC_SEED": "1234"},
+        capture_output=True,
+        cwd=tmp_path
+    )
+    report_file = next(tmp_path.glob('*.espresso'), Path())
+    if report_file.exists():
+        (output_dir_performance / "espresso").mkdir(exist_ok=True)
+        shutil.copyfile(
+            report_file, output_dir_performance / "espresso" / report_file.name)
+    assert res.returncode == 0
+
+
+@pytest.mark.performance
+@pytest.mark.parametrize("cmd", [
+    ['/usr/bin/time', '-v', '--output=time.barnes'],
+    ['/usr/bin/strace', '-c', '--output=strace.barnes'],
+    ['/usr/bin/valgrind', '--tool=callgrind',
+     '--callgrind-out-file=callgrind.barnes'],
+    ['/usr/bin/valgrind', '--tool=massif',
+     '--massif-out-file=massif.barnes', '--pages-as-heap=yes']
+])
+def test_performance_on_barnes(cmd, output_dir_performance, tmp_path, lib_path, progs_dir):
+    input_file = Path("./test/assets/barnes_input")
+    shutil.copyfile(input_file, tmp_path / input_file.name)
+    prepared_barnes = prepare_env(tmp_path, progs_dir / "barnes", lib_path)
+    res = subprocess.run(cmd + [
+        str(prepared_barnes)],
+        env={"SEALLOC_SEED": "1234"},
+        capture_output=True,
+        input=input_file.read_bytes(),
+        cwd=tmp_path
+    )
+    report_file = next(tmp_path.glob('*.barnes'), Path())
+    if report_file.exists():
+        (output_dir_performance / "barnes").mkdir(exist_ok=True)
+        shutil.copyfile(
+            report_file, output_dir_performance / "barnes" / report_file.name)
+    assert res.returncode == 0
 
 
 @pytest.mark.performance
