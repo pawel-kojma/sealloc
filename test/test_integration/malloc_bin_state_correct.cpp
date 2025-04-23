@@ -11,6 +11,7 @@ extern "C" {
 
 TEST(MallocApiTest, CorrectBinStateSmall) {
   arena_t arena;
+  arena.is_initialized = 0;
   arena_init(&arena);
   unsigned chunks = CHUNK_LEAST_REGION_SIZE_BYTES / SMALL_SIZE_MIN_REGION;
   void *reg;
@@ -35,6 +36,7 @@ TEST(MallocApiTest, CorrectBinStateSmall) {
 
 TEST(MallocApiTest, CorrectBinStateMedium) {
   arena_t arena;
+  arena.is_initialized = 0;
   arena_init(&arena);
   unsigned chunks = CHUNK_LEAST_REGION_SIZE_BYTES / MEDIUM_SIZE_MIN_REGION;
   void *reg;
@@ -54,6 +56,7 @@ TEST(MallocApiTest, CorrectBinStateMedium) {
 
 TEST(MallocApiTest, CorrectBinStateLarge) {
   arena_t arena;
+  arena.is_initialized = 0;
   arena_init(&arena);
   void *reg;
   size_t base = NO_SMALL_SIZE_CLASSES + NO_MEDIUM_SIZE_CLASSES;

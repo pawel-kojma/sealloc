@@ -7,6 +7,7 @@ extern "C" {
 
 TEST(MallocApiTest, ReallocInvalidRegion) {
   arena_t arena;
+  arena.is_initialized = 0;
   arena_init(&arena);
   ASSERT_DEATH(
       { void *reg = sealloc_realloc(&arena, (void *)42, 16); },
@@ -15,6 +16,7 @@ TEST(MallocApiTest, ReallocInvalidRegion) {
 
 TEST(MallocApiTest, ReallocFreedRegion) {
   arena_t arena;
+  arena.is_initialized = 0;
   arena_init(&arena);
   void *reg = sealloc_malloc(&arena, 16);
   sealloc_free(&arena, reg);
@@ -25,6 +27,7 @@ TEST(MallocApiTest, ReallocFreedRegion) {
 
 TEST(MallocApiTest, ReallocUnallocatedRegion) {
   arena_t arena;
+  arena.is_initialized = 0;
   arena_init(&arena);
   void *reg = sealloc_malloc(&arena, 48);
   ASSERT_DEATH(
