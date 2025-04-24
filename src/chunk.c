@@ -341,16 +341,16 @@ static void coalesce_depleted_nodes(buddy_ctx_t *ctx, chunk_t *chunk) {
 
   // We've merged as much depleted nodes as possible
   // Check if depth passed the unmap threshold
-  if (ctx->depth_to_leaf >= CHUNK_UNMAP_THRESHOLD) {
-    // We passed the threshold, unmap
-    if ((code = platform_unmap((void *)ctx->ptr, ctx->cur_size)) !=
-        PLATFORM_STATUS_OK) {
-      se_error("Failed unmap page (ptr : %p, size : %u): %s.", (void *)ctx->ptr,
-               ctx->cur_size, platform_strerror(code));
-    }
-    set_buddy_tree_item(chunk->buddy_tree, ctx->idx, NODE_UNMAPPED);
-    coalesce_unmapped_nodes(ctx, chunk);
+  // if (ctx->depth_to_leaf >= CHUNK_UNMAP_THRESHOLD) {
+  // We passed the threshold, unmap
+  if ((code = platform_unmap((void *)ctx->ptr, ctx->cur_size)) !=
+      PLATFORM_STATUS_OK) {
+    se_error("Failed unmap page (ptr : %p, size : %u): %s.", (void *)ctx->ptr,
+             ctx->cur_size, platform_strerror(code));
   }
+  set_buddy_tree_item(chunk->buddy_tree, ctx->idx, NODE_UNMAPPED);
+  coalesce_unmapped_nodes(ctx, chunk);
+  //}
 }
 
 bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
@@ -416,7 +416,8 @@ void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
       if (node == NODE_DEPLETED || node == NODE_UNMAPPED) {
         // This may happen when we have huge-in-chunk case or just invalid free
         // We have to return and check rest of chunks huge allocs
-        // If it is invalid free, we will detect it once we know that this isnt a huge allocation
+        // If it is invalid free, we will detect it once we know that this isnt
+        // a huge allocation
         return;
       }
       idx = PARENT(idx);

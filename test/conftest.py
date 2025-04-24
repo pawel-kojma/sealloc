@@ -8,7 +8,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--lib-path",
         action="store",
-        default="./build/src/libsealloc.so",
+        default="NO_LIB_SELECTED",
         help="Path to library implementing malloc interface",
     )
     parser.addoption(
@@ -32,6 +32,9 @@ def bin_dir(request):
 
 @pytest.fixture(autouse=True)
 def lib_path(request):
+    path = request.config.getoption("--lib-path")
+    if path == "NO_LIB_SELECTED":
+        return None
     return Path(request.config.getoption("--lib-path")).resolve()
 
 

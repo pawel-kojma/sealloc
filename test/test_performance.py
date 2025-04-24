@@ -9,10 +9,11 @@ def prepare_env(dir: Path, prog: Path, library: Path):
     patched_prog = dir / prog_name
     shutil.copyfile(prog, patched_prog, follow_symlinks=True)
     shutil.copystat(prog, patched_prog, follow_symlinks=True)
-    subprocess.run(["patchelf", "--add-needed",
-                   library.name, str(patched_prog)])
-    subprocess.run(["patchelf", "--add-rpath",
-                   library.parent, str(patched_prog)])
+    if library:
+        subprocess.run(["patchelf", "--add-needed",
+                       library.name, str(patched_prog)])
+        subprocess.run(["patchelf", "--add-rpath",
+                       library.parent, str(patched_prog)])
     return patched_prog
 
 
@@ -52,7 +53,7 @@ def test_performance_on_kissat(cmd, output_dir_performance, tmp_path, lib_path, 
      '--massif-out-file=massif.espresso', '--pages-as-heap=yes']
 ])
 def test_performance_on_espresso(cmd, output_dir_performance, tmp_path, lib_path, progs_dir):
-    input_file = Path("./test/assets/largest.espresso")
+    input_file = Path("./test/assets/largest_espresso")
     shutil.copyfile(input_file, tmp_path / input_file.name)
     prepared_espresso = prepare_env(tmp_path, progs_dir / "espresso", lib_path)
     res = subprocess.run(cmd + [
