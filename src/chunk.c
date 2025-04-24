@@ -366,8 +366,8 @@ bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
     if (IS_ROOT(idx) || IS_RIGHT_CHILD(idx)) {
       se_error("No run found");
     }
-    if (node == NODE_DEPLETED) {
-      se_error("run is depleted?");
+    if (node == NODE_DEPLETED || node == NODE_UNMAPPED) {
+      se_error("run is depleted/unmapped?");
     }
     idx = PARENT(idx);
     depth_to_leaf++;
@@ -413,9 +413,10 @@ void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
       if (IS_ROOT(idx) || IS_RIGHT_CHILD(idx)) {
         return;
       }
-      if (node == NODE_DEPLETED) {
-        // This may happen when we have chunk-in-chunk or huge-in-chunk case
-        // We have to return and check rest of chunks/huge allocs
+      if (node == NODE_DEPLETED || node == NODE_UNMAPPED) {
+        // This may happen when we have huge-in-chunk case or just invalid free
+        // We have to return and check rest of chunks huge allocs
+        // If it is invalid free, we will detect it once we know that this isnt a huge allocation
         return;
       }
       idx = PARENT(idx);

@@ -311,28 +311,6 @@ huge_chunk_t *arena_find_huge_mapping(const arena_t *arena,
   return huge;
 }
 
-static void create_huge_mapping(arena_t *arena, size_t len) {
-  platform_status_code_t code;
-  if ((code = platform_map_probe(&arena->huge_alloc_ptr, MAX_USERSPACE_ADDR64,
-                                 len)) != PLATFORM_STATUS_OK) {
-    if (code == PLATFORM_STATUS_CEILING_HIT) {
-      // We hit top of address space, highly unlikely
-      // Reset huge_alloc_ptr and try one more time
-
-      reset_huge_alloc_ptr_start(arena);
-      code =
-          platform_map_probe(&arena->huge_alloc_ptr, MAX_USERSPACE_ADDR64, len);
-      if (code != PLATFORM_STATUS_OK) {
-        se_error(
-            "Failed to allocate mapping after reseting the huge_alloc_ptr "
-            "(size : %zu): "
-            "%s",
-            len, platform_strerror(code));
-      }
-    }
-  }
-}
-
 huge_chunk_t *arena_allocate_huge_mapping(arena_t *arena, size_t len) {
   assert(IS_ALIGNED(len, PAGE_SIZE));
   assert(arena->is_initialized == 1);
@@ -344,7 +322,6 @@ huge_chunk_t *arena_allocate_huge_mapping(arena_t *arena, size_t len) {
   huge->len = len;
   huge->entry.link.fd = NULL;
   huge->entry.link.bk = NULL;
-  create_huge_mapping(arena, len);
   map = arena_morecore(arena, &arena->huge_alloc_ptr,
                        reset_huge_alloc_ptr_start, len, &ceil_addr);
   huge->entry.key = (void *)map;
