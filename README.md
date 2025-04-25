@@ -46,5 +46,5 @@ To generate performance reports you need:
 - a directory with kissat, cfrac, espresso, barnes, ghostscript and gcc
 - installed programs - strace, time, valgrind
 ```
-$ pytest -m performance ./test/ --bin-dir ./build/test/ --lib-path ./build/src/libsealloc.so --progs-dir <programs_dir>
+$ pytest -m performance ./test/ --lib-path ./build/src/libsealloc.so --progs-dir <programs_dir>
 ```
