@@ -1,0 +1,11 @@
+[project]
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+
+[tool.isort]
+atomic = true
+profile = "black"
+line_length = 88
+skip_gitignore = true

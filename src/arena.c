@@ -63,6 +63,18 @@ void arena_init(arena_t *arena) {
   assert(arena->is_initialized == 0);
   platform_status_code_t code;
   void *ptr;
+#ifdef STATISTICS
+#include <fcntl.h>
+  int perms = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+  int fd = open("./heap_stats.sealloc", O_WRONLY | O_APPEND | O_CREAT, perms);
+  if (fd < 0) {
+    se_log("Couldn't open file to write heap statistics to\n");
+    arena->stats_fd = -1;
+  } else {
+    se_log("Opened heap_stats.sealloc file for statistics\n");
+    arena->stats_fd = fd;
+  }
+#endif
 #ifdef DEBUG
   char *user_rand = getenv("SEALLOC_SEED");
   if (user_rand != NULL) {

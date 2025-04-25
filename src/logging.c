@@ -55,20 +55,18 @@ static size_t p2str(void* ptr, char buf[BUFSIZE], char** begin) {
   return (BUFSIZE - idx);
 }
 
-void se_log(const char* msg, ...) {
-  va_list args;
+void vfse_log(int fd, const char* msg, va_list args) {
   const char* begin = msg;
   char c, next, *buf_begin, *str_va;
   char buf[BUFSIZE];
   size_t len;
   if (msg == NULL) return;
-  va_start(args, msg);
   while ((c = *msg) != '\0') {
     if (c == '%') {
-      write(STDERR_FILENO, begin, (size_t)(msg - begin));
+      write(fd, begin, (size_t)(msg - begin));
       next = msg[1];
       if (next == '%') {
-        write(STDERR_FILENO, "%", 1);
+        write(fd, "%", 1);
         msg += 2;
         begin = msg;
         continue;
@@ -76,20 +74,20 @@ void se_log(const char* msg, ...) {
       switch (next) {
         case 'u':
           len = u2str(va_arg(args, unsigned), buf, &buf_begin);
-          write(STDERR_FILENO, buf_begin, len);
+          write(fd, buf_begin, len);
           msg += 2;
           begin = msg;
           break;
         case 'p':
           len = p2str(va_arg(args, void*), buf, &buf_begin);
-          write(STDERR_FILENO, buf_begin, len);
+          write(fd, buf_begin, len);
           msg += 2;
           begin = msg;
           break;
         case 'z':
           if (msg[2] == 'u') {
             len = zu2str(va_arg(args, size_t), buf, &buf_begin);
-            write(STDERR_FILENO, buf_begin, len);
+            write(fd, buf_begin, len);
             msg += 3;
             begin = msg;
           } else {
@@ -99,7 +97,7 @@ void se_log(const char* msg, ...) {
           break;
         case 's':
           str_va = va_arg(args, char*);
-          write(STDERR_FILENO, str_va, msg_len(str_va));
+          write(fd, str_va, msg_len(str_va));
           msg += 2;
           begin = msg;
           break;
@@ -113,7 +111,20 @@ void se_log(const char* msg, ...) {
     }
   }
   if (begin < msg) {
-    write(STDERR_FILENO, begin, (size_t)(msg - begin));
+    write(fd, begin, (size_t)(msg - begin));
   }
+}
+
+void se_log(const char* msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  vfse_log(STDERR_FILENO, msg, args);
+  va_end(args);
+}
+
+void fse_log(int fd, const char* msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  vfse_log(fd, msg, args);
   va_end(args);
 }

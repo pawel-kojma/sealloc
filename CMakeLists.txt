@@ -10,6 +10,7 @@ option(BuildType "Type of the build (Release, Debug)" "Release")
 option(Log "Enable logging" "OFF")
 option(Tests "Build tests (ON/OFF)" "OFF")
 option(Assert "Build with assertions (ON/OFF)" "OFF")
+option(Statistics "Build with statistics (ON/OFF)" "OFF")
 
 # Build sources
 add_subdirectory(./src)
