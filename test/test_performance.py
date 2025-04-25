@@ -46,9 +46,9 @@ def run_test(tmp_path, output_dir_performance, progs_dir, lib_path, prog_name, c
 @pytest.mark.parametrize("cmd", [
     ['/usr/bin/time', '-v', '--output=time.kissat'],
     ['/usr/bin/strace', '-c', '--output=strace.kissat'],
-    ['/usr/bin/valgrind', '--tool=callgrind',
+    ['/usr/bin/valgrind-3.24.0-more_vg_n_segments', '--tool=callgrind',
      '--callgrind-out-file=callgrind.kissat'],
-    ['/usr/bin/valgrind', '--tool=massif',
+    ['/usr/bin/valgrind-3.24.0-more_vg_n_segments', '--tool=massif',
      '--massif-out-file=massif.kissat', '--pages-as-heap=yes']
 ])
 def test_performance_on_kissat(cmd, output_dir_performance, tmp_path, lib_path, progs_dir):
@@ -62,9 +62,9 @@ def test_performance_on_kissat(cmd, output_dir_performance, tmp_path, lib_path, 
 @pytest.mark.parametrize("cmd", [
     ['/usr/bin/time', '-v', '--output=time.espresso'],
     ['/usr/bin/strace', '-c', '--output=strace.espresso'],
-    ['/usr/bin/valgrind', '--tool=callgrind',
+    ['/usr/bin/valgrind-3.24.0-more_vg_n_segments', '--tool=callgrind',
      '--callgrind-out-file=callgrind.espresso'],
-    ['/usr/bin/valgrind', '--tool=massif',
+    ['/usr/bin/valgrind-3.24.0-more_vg_n_segments', '--tool=massif',
      '--massif-out-file=massif.espresso', '--pages-as-heap=yes']
 ])
 def test_performance_on_espresso(cmd, output_dir_performance, tmp_path, lib_path, progs_dir):
@@ -78,9 +78,9 @@ def test_performance_on_espresso(cmd, output_dir_performance, tmp_path, lib_path
 @pytest.mark.parametrize("cmd", [
     ['/usr/bin/time', '-v', '--output=time.barnes'],
     ['/usr/bin/strace', '-c', '--output=strace.barnes'],
-    ['/usr/bin/valgrind', '--tool=callgrind',
+    ['/usr/bin/valgrind-3.24.0-more_vg_n_segments', '--tool=callgrind',
      '--callgrind-out-file=callgrind.barnes'],
-    ['/usr/bin/valgrind', '--tool=massif',
+    ['/usr/bin/valgrind-3.24.0-more_vg_n_segments', '--tool=massif',
      '--massif-out-file=massif.barnes', '--pages-as-heap=yes']
 ])
 def test_performance_on_barnes(cmd, output_dir_performance, tmp_path, lib_path, progs_dir):
@@ -94,9 +94,9 @@ def test_performance_on_barnes(cmd, output_dir_performance, tmp_path, lib_path, 
 @pytest.mark.parametrize("cmd", [
     ['/usr/bin/time', '-v', '--output=time.cfrac'],
     ['/usr/bin/strace', '-c', '--output=strace.cfrac'],
-    ['/usr/bin/valgrind', '--tool=callgrind',
+    ['/usr/bin/valgrind-3.24.0-more_vg_n_segments', '--tool=callgrind',
      '--callgrind-out-file=callgrind.cfrac'],
-    ['/usr/bin/valgrind', '--tool=massif',
+    ['/usr/bin/valgrind-3.24.0-more_vg_n_segments', '--tool=massif',
      '--massif-out-file=massif.cfrac', '--pages-as-heap=yes']
 ])
 def test_performance_on_cfrac(cmd, output_dir_performance, tmp_path, lib_path, progs_dir):
@@ -110,9 +110,9 @@ def test_performance_on_cfrac(cmd, output_dir_performance, tmp_path, lib_path, p
 @pytest.mark.parametrize("cmd", [
     ['/usr/bin/time', '-v', '--output=time.ghostscript'],
     ['/usr/bin/strace', '-c', '--output=strace.ghostscript'],
-    ['/usr/bin/valgrind', '--tool=callgrind',
+    ['/usr/bin/valgrind-3.24.0-more_vg_n_segments', '--tool=callgrind',
      '--callgrind-out-file=callgrind.ghostscript'],
-    ['/usr/bin/valgrind', '--tool=massif',
+    ['/usr/bin/valgrind-3.24.0-more_vg_n_segments', '--tool=massif',
      '--massif-out-file=massif.ghostscript', '--pages-as-heap=yes']
 ])
 def test_performance_on_ghostscript(cmd, output_dir_performance, tmp_path, lib_path, progs_dir):
@@ -127,20 +127,26 @@ def test_performance_on_ghostscript(cmd, output_dir_performance, tmp_path, lib_p
 @pytest.mark.parametrize("cmd", [
     ['/usr/bin/time', '-v', '--output=time.gcc'],
     ['/usr/bin/strace', '-c', '--output=strace.gcc'],
-    ['/usr/bin/valgrind', '--tool=callgrind',
+    ['/usr/bin/valgrind-3.24.0-more_vg_n_segments', '--tool=callgrind',
      '--callgrind-out-file=callgrind.gcc'],
-    ['/usr/bin/valgrind', '--tool=massif',
+    ['/usr/bin/valgrind-3.24.0-more_vg_n_segments', '--tool=massif',
      '--massif-out-file=massif.gcc', '--pages-as-heap=yes']
 ])
 def test_performance_on_gcc(cmd, output_dir_performance, tmp_path, lib_path, progs_dir):
     """GCC compiling lua interpreter source code."""
     input_dir = Path("./test/assets/lua/")
+    work_dir = tmp_path
+    gcc_libs_dir = work_dir / "lib" / "gcc" / "x86_64-linux-gnu"
+    gcc_libs_dir.mkdir(parents=True, exist_ok=True)
+    gcc_bin_dir = work_dir / "bin"
+    gcc_bin_dir.mkdir(parents=True, exist_ok=True)
     prepare_env(
-        tmp_path, progs_dir / "cc", lib_path)
-    lua_path = tmp_path / "lua"
+        gcc_bin_dir, progs_dir / "gcc", lib_path)
+    lua_path = work_dir / "lua"
     shutil.copytree(input_dir, lua_path)
+    shutil.copytree(Path('/usr/lib/gcc/x86_64-linux-gnu/12/'), gcc_libs_dir / "12")
     res = subprocess.run(cmd + [
-        str(tmp_path / "cc"), "-S", "-O2", "-std=c99", "-o", "lua", "onelua.c", "-lm"],
+        str(gcc_bin_dir / "gcc"), "-S", "-O2", "-std=c99", "-o", "lua", "onelua.c"],
         env={"SEALLOC_SEED": "1234"},
         capture_output=True,
         cwd=lua_path
