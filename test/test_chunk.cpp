@@ -250,7 +250,7 @@ TEST_F(ChunkUtilsTest, ChunkSingleDeallocate) {
   chunk_deallocate_run(chunk, alloc);
   unsigned base_level_idx = 2048;
   unsigned rand_idx = 1906;
-  EXPECT_EQ(get_buddy_tree_item(chunk->buddy_tree, base_level_idx + rand_idx), NODE_DEPLETED);
+  EXPECT_EQ(get_buddy_tree_item(chunk->buddy_tree, base_level_idx + rand_idx), NODE_UNMAPPED);
 }
 
 TEST_F(ChunkUtilsTest, AvailNodesCountUpdateSmall) {
