@@ -135,14 +135,17 @@ def test_performance_on_ghostscript(cmd, output_dir_performance, tmp_path, lib_p
 def test_performance_on_gcc(cmd, output_dir_performance, tmp_path, lib_path, progs_dir):
     """GCC compiling lua interpreter source code."""
     input_dir = Path("./test/assets/lua/")
-    shutil.copytree(input_dir, tmp_path / "lua")
+    prepare_env(
+        tmp_path, progs_dir / "cc", lib_path)
+    lua_path = tmp_path / "lua"
+    shutil.copytree(input_dir, lua_path)
     res = subprocess.run(cmd + [
-        "/usr/bin/gcc", "-S", "-O2", "-std=c99", "-o", "lua", "onelua.c", "-lm"],
-        env={"SEALLOC_SEED": "1234", "LD_PRELOAD": str(lib_path)},
+        str(tmp_path / "cc"), "-S", "-O2", "-std=c99", "-o", "lua", "onelua.c", "-lm"],
+        env={"SEALLOC_SEED": "1234"},
         capture_output=True,
-        cwd=tmp_path / "lua"
+        cwd=lua_path
     )
-    report_file = next(tmp_path.glob('*.gcc'), None)
+    report_file = next(lua_path.glob('*.gcc'), None)
     if report_file:
         (output_dir_performance / "gcc").mkdir(exist_ok=True)
         shutil.copyfile(
