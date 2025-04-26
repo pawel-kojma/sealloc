@@ -4,9 +4,10 @@ import re
 from datetime import datetime
 from itertools import chain
 from pathlib import Path
-import numpy as np
+
 import click
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def flatten(list_of_lists):
@@ -21,8 +22,7 @@ class TimeStats:
     def __init__(self, path):
         g = filter(
             lambda x: len(x) == 2,
-            [line.strip().split(": ")
-             for line in path.read_text().splitlines()],
+            [line.strip().split(": ") for line in path.read_text().splitlines()],
         )
         self.data_dict = dict(g)
         dt = datetime.strptime(self.data_dict[self.TIME], "%M:%S.%f")
@@ -53,36 +53,34 @@ class StraceStats:
 
 
 def get_strace_stats(strace_stats, syscall):
-    return (np.array([s.call_data.get(syscall, 0) for s in strace_stats]),
-            np.array([s.errors.get(syscall, 0) for s in strace_stats]))
+    return (
+        np.array([s.call_data.get(syscall, 0) for s in strace_stats]),
+        np.array([s.errors.get(syscall, 0) for s in strace_stats]),
+    )
 
 
 def create_plot(data_dirs, allocator_names, program_name):
     time_stats = [TimeStats(dir / f"time.{program_name}") for dir in data_dirs]
-    strace_stats = [StraceStats(
-        dir / f"strace.{program_name}") for dir in data_dirs]
-
+    strace_stats = [StraceStats(dir / f"strace.{program_name}") for dir in data_dirs]
     fig, (ax_time, ax_rss, ax_syscalls) = plt.subplots(
         3, 1, figsize=(7, 15), layout="constrained"
     )
-    fig.suptitle(
-        f"Porównanie alokatorów dla programu: {program_name}", fontsize=16)
-    rects = ax_time.bar(allocator_names, [
-        t.elapsed_time for t in time_stats], width=0.1)
+    fig.suptitle(f"Porównanie alokatorów dla programu: {program_name}", fontsize=16)
+    rects = ax_time.bar(
+        allocator_names, [t.elapsed_time for t in time_stats], width=0.1
+    )
     ax_time.bar_label(rects, padding=3)
     ax_time.set_ylabel("Czas (s)")
     ax_time.set_title("Czas wykonania")
-    rects = ax_rss.bar(allocator_names, [
-                       t.max_rss for t in time_stats], width=0.1)
+    rects = ax_rss.bar(allocator_names, [t.max_rss for t in time_stats], width=0.1)
     ax_rss.bar_label(rects, padding=3)
     ax_rss.set_ylabel("Max. zbiór rezydentny (Kb)")
     ax_rss.set_title("Maksymalne zużycie pamięci")
-
     syscall_stats = {
-        'mmap': get_strace_stats(strace_stats, 'mmap'),
-        'munmap': get_strace_stats(strace_stats, 'munmap'),
-        'mprotect': get_strace_stats(strace_stats, 'mprotect'),
-        'madvise': get_strace_stats(strace_stats, 'madvise'),
+        "mmap": get_strace_stats(strace_stats, "mmap"),
+        "munmap": get_strace_stats(strace_stats, "munmap"),
+        "mprotect": get_strace_stats(strace_stats, "mprotect"),
+        "madvise": get_strace_stats(strace_stats, "madvise"),
     }
     x = np.arange(len(allocator_names))
     idx = 0
@@ -92,17 +90,18 @@ def create_plot(data_dirs, allocator_names, program_name):
         success_calls = call_data - errors_calls
         bottom = np.zeros(len(allocator_names))
         offset = width * idx
-        ax_syscalls.bar(x + offset, success_calls,
-                        width=width, label=scall_name, bottom=bottom)
+        ax_syscalls.bar(
+            x + offset, success_calls, width=width, label=scall_name, bottom=bottom
+        )
         bottom += success_calls
-        rects = ax_syscalls.bar(x + offset, errors_calls,
-                                width=width, label=scall_name, bottom=bottom)
+        rects = ax_syscalls.bar(
+            x + offset, errors_calls, width=width, label=scall_name, bottom=bottom
+        )
         ax_syscalls.bar_label(rects, padding=3)
         idx += 1
-    ax_syscalls.set_ylabel('Ilość wywołań')
+    ax_syscalls.set_ylabel("Ilość wywołań")
     ax_syscalls.set_xticks(x + width, allocator_names)
-    ax_syscalls.set_title(
-        'Ilość wykonanych wywołań systemowych')
+    ax_syscalls.set_title("Ilość wykonanych wywołań systemowych")
     return fig
 
 
@@ -117,17 +116,18 @@ def create_plot(data_dirs, allocator_names, program_name):
 @click.argument("test_dirs", nargs=-1, type=click.Path(file_okay=False, path_type=Path))
 def main(test_dirs: list[Path], output_dir: Path):
     print("Detected dirs:\n" + "\n".join(map(str, test_dirs)))
-    allocator_names = [test_dir.name.replace(
-        "test_out_", "") for test_dir in test_dirs]
+    allocator_names = [test_dir.name.replace("test_out_", "") for test_dir in test_dirs]
     test_dirs = [dir / "performance" for dir in test_dirs]
     h = flatten(map(lambda path: path.iterdir(), test_dirs))
     all_programs = set(path.name for path in h)
     output_dir.mkdir(exist_ok=True)
     for program in all_programs:
-        m = [dir / program for dir in test_dirs]
-        fig = create_plot(
-            list(filter(lambda dir: dir.exists(), m)), allocator_names, program
-        )
+        program_appended = [dir / program for dir in test_dirs]
+        existing_dirs = [dir for dir in program_appended if dir.exists()]
+        allocator_names = [
+            dir.parents[1].name.replace("test_out_", "") for dir in existing_dirs
+        ]
+        fig = create_plot(existing_dirs, allocator_names, program)
         fig.savefig(output_dir / program)
 
 

@@ -50,8 +50,7 @@ def main():
         # Set scatter chart
         plt.yscale("log")
         scatter = axs.scatter(x=x_axis, y=sizes, c=colors, s=0.1)
-        legend = axs.legend(
-            handles=HANDLES, loc="upper left", title="Klasa alokacji")
+        legend = axs.legend(handles=HANDLES, loc="upper left", title="Klasa alokacji")
         axs.add_artist(legend)
         axs.set_xlabel("Czas (w alokacjach)")
         axs.set_ylabel("Rozmiar")
