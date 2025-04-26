@@ -7,6 +7,7 @@ extern "C" {
 
 TEST(MallocApiTest, FreeHuge) {
   arena_t arena;
+  arena.is_initialized = 0;
   arena_init(&arena);
   size_t huge_size = 2097152;  // 2MB
   void *reg = sealloc_malloc(&arena, huge_size);

@@ -13,6 +13,7 @@ extern "C" {
 
 TEST(MallocApiTest, MemoryIntegrity) {
   arena_t arena;
+  arena.is_initialized = 0;
   arena_init(&arena);
   constexpr unsigned CHUNKS = 10000;
   void *a, *b, *full;

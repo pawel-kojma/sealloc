@@ -39,12 +39,12 @@ To run E2E tests, you have to run:
 $ python -m venv venv
 $ . venv/bin/activate
 $ pip install pytest
-$ pytest ./test/test_e2e.py --bin-dir ./build/test/ --lib-path ./build/src/libsealloc.so
+$ pytest ./test/test_e2e.py --bin-dir ./build/test/ --lib-path ./build/src/libsealloc.so --progs-dir <programs_dir>
 ```
 
-To generate performance reports you need a directory:
-- a directory with kissat, cfrac programs
-- installed programs: strace, time, valgrind
+To generate performance reports you need:
+- a directory with kissat, cfrac, espresso, barnes, ghostscript and gcc
+- installed programs - strace, time, valgrind
 ```
-$ pytest -m performance ./test/ --bin-dir ./build/test/ --lib-path ./build/src/libsealloc.so --progs-dir <programs_dir>
+$ pytest -m performance ./test/ --lib-path ./build/src/libsealloc.so --progs-dir <programs_dir>
 ```

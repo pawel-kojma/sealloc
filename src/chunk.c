@@ -341,16 +341,16 @@ static void coalesce_depleted_nodes(buddy_ctx_t *ctx, chunk_t *chunk) {
 
   // We've merged as much depleted nodes as possible
   // Check if depth passed the unmap threshold
-  if (ctx->depth_to_leaf >= CHUNK_UNMAP_THRESHOLD) {
-    // We passed the threshold, unmap
-    if ((code = platform_unmap((void *)ctx->ptr, ctx->cur_size)) !=
-        PLATFORM_STATUS_OK) {
-      se_error("Failed unmap page (ptr : %p, size : %u): %s.", (void *)ctx->ptr,
-               ctx->cur_size, platform_strerror(code));
-    }
-    set_buddy_tree_item(chunk->buddy_tree, ctx->idx, NODE_UNMAPPED);
-    coalesce_unmapped_nodes(ctx, chunk);
+  // if (ctx->depth_to_leaf >= CHUNK_UNMAP_THRESHOLD) {
+  // We passed the threshold, unmap
+  if ((code = platform_unmap((void *)ctx->ptr, ctx->cur_size)) !=
+      PLATFORM_STATUS_OK) {
+    se_error("Failed unmap page (ptr : %p, size : %u): %s.", (void *)ctx->ptr,
+             ctx->cur_size, platform_strerror(code));
   }
+  set_buddy_tree_item(chunk->buddy_tree, ctx->idx, NODE_UNMAPPED);
+  coalesce_unmapped_nodes(ctx, chunk);
+  //}
 }
 
 bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
@@ -366,8 +366,8 @@ bool chunk_deallocate_run(chunk_t *chunk, void *run_ptr) {
     if (IS_ROOT(idx) || IS_RIGHT_CHILD(idx)) {
       se_error("No run found");
     }
-    if (node == NODE_DEPLETED) {
-      se_error("run is depleted?");
+    if (node == NODE_DEPLETED || node == NODE_UNMAPPED) {
+      se_error("run is depleted/unmapped?");
     }
     idx = PARENT(idx);
     depth_to_leaf++;
@@ -413,8 +413,12 @@ void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
       if (IS_ROOT(idx) || IS_RIGHT_CHILD(idx)) {
         return;
       }
-      if (node == NODE_DEPLETED) {
-        se_error("run is depleted?");
+      if (node == NODE_DEPLETED || node == NODE_UNMAPPED) {
+        // This may happen when we have huge-in-chunk case or just invalid free
+        // We have to return and check rest of chunks huge allocs
+        // If it is invalid free, we will detect it once we know that this isnt
+        // a huge allocation
+        return;
       }
       idx = PARENT(idx);
       cur_size *= 2;
@@ -429,7 +433,7 @@ void chunk_get_run_ptr(chunk_t *chunk, void *ptr, void **run_ptr,
   *run_size = cur_size;
 
   if (chunk->reg_size_small_medium[block_offset] != REG_MARK_BAD_VALUE) {
-      *reg_size = chunk->reg_size_small_medium[block_offset];
+    *reg_size = chunk->reg_size_small_medium[block_offset];
   }
 }
 

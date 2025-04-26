@@ -1,0 +1,3 @@
+[submodule "test/assets/lua"]
+	path = test/assets/lua
+	url = https://github.com/lua/lua

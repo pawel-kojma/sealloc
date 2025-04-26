@@ -73,7 +73,7 @@ void *sealloc_malloc(arena_t *arena, size_t size) {
   return sealloc_allocate_with_bin(arena, bin);
 }
 
-static metadata_t locate_metadata_for_ptr(arena_t *arena, void *ptr,
+metadata_t locate_metadata_for_ptr(arena_t *arena, void *ptr,
                                           chunk_t **chunk_ret, run_t **run_ret,
                                           bin_t **bin_ret,
                                           huge_chunk_t **huge_ret) {

@@ -1,14 +1,15 @@
 """Pytest config file"""
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 
 def pytest_addoption(parser):
     parser.addoption(
         "--lib-path",
         action="store",
-        default="./build/src/libsealloc.so",
+        default="NO_LIB_SELECTED",
         help="Path to library implementing malloc interface",
     )
     parser.addoption(
@@ -23,32 +24,46 @@ def pytest_addoption(parser):
         default="./bin",
         help="Directory with programs for real program tests",
     )
+    parser.addoption(
+        "--out-dir",
+        action="store",
+        default="./test_output",
+        help="Output directory of the tests",
+    )
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(scope="session")
 def bin_dir(request):
     return Path(request.config.getoption("--bin-dir")).resolve()
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(scope="session")
 def lib_path(request):
+    path = request.config.getoption("--lib-path")
+    if path == "NO_LIB_SELECTED":
+        return None
     return Path(request.config.getoption("--lib-path")).resolve()
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(scope="session")
 def progs_dir(request):
     return Path(request.config.getoption("--progs-dir")).resolve()
 
 
 @pytest.fixture(scope="session")
-def output_dir_e2e():
-    path = Path("./test_output/e2e")
+def out_dir(request):
+    return Path(request.config.getoption("--out-dir")).resolve()
+
+
+@pytest.fixture(scope="session")
+def output_dir_e2e(out_dir):
+    path = out_dir / "e2e"
     path.mkdir(exist_ok=True, parents=True)
     return path
 
 
 @pytest.fixture(scope="session")
-def output_dir_performance():
-    path = Path("./test_output/performance")
+def output_dir_performance(out_dir):
+    path = out_dir / "performance"
     path.mkdir(exist_ok=True, parents=True)
     return path

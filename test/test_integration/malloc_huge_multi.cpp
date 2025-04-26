@@ -10,6 +10,7 @@ extern "C" {
 
 TEST(MallocApiTest, MallocHugeMulti) {
   arena_t arena;
+  arena.is_initialized = 0;
   arena_init(&arena);
   std::mt19937 gen{1};
   std::uniform_real_distribution<> dist{1, 10 * PAGE_SIZE};

@@ -7,6 +7,7 @@ extern "C" {
 
 TEST(MallocApiTest, FreeInvalid) {
   arena_t arena;
+  arena.is_initialized = 0;
   arena_init(&arena);
   void *reg = sealloc_malloc(&arena, 16);
   ASSERT_NE(reg, nullptr);

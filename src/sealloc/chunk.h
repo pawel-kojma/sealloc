@@ -45,7 +45,7 @@ typedef struct run_state run_t;
  *
  * Right now we are unmapping at least 32 pages
  */
-#define CHUNK_UNMAP_THRESHOLD 3
+#define CHUNK_UNMAP_THRESHOLD 0
 
 #define CHUNK_BUDDY_TREE_SIZE_BYTES \
   ((((CHUNK_BUDDY_TREE_SIZE_BITS) + 7) & ~7) / 8)

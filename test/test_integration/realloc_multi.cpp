@@ -7,6 +7,7 @@ extern "C" {
 
 TEST(MallocApiTest, ReallocRegularMulti) {
   arena_t arena;
+  arena.is_initialized = 0;
   arena_init(&arena);
   constexpr unsigned CHUNKS = 100;
   void *a, *b, *full;

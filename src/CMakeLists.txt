@@ -16,7 +16,11 @@ if(NOT Assert)
     target_compile_definitions(sealloc PRIVATE NDEBUG)
 endif()
 
-cmake_print_variables(CMAKE_BUILD_TYPE Log BuildType Tests Debug Assert)
+if(Statistics)
+    target_compile_definitions(sealloc PRIVATE STATISTICS)
+endif()
+
+cmake_print_variables(CMAKE_BUILD_TYPE Log BuildType Tests Debug Assert Statistics)
 
 target_sources(sealloc
     PRIVATE malloc_api.c sealloc.c platform.c chunk.c bin.c internal_allocator.c random.c run.c container_ll.c arena.c size_class.c logging.c
