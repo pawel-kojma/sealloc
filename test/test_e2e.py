@@ -1,6 +1,7 @@
 import subprocess
-import pytest
 from pathlib import Path
+
+import pytest
 
 # Seeds for allocator
 SEEDS = ["1237", "31247823", "1"]
@@ -12,10 +13,7 @@ def run_bin(program, lib_path, seed=None):
     env = {"LD_PRELOAD": str(lib_path.resolve())}
     if seed:
         env["SEALLOC_SEED"] = seed
-    return subprocess.run(
-        [str(program)],
-        env=env
-    )
+    return subprocess.run([str(program)], env=env)
 
 
 def save_output(output_dir: Path, name: str, stdout: bytes, stderr: bytes, subproc):

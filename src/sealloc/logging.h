@@ -36,4 +36,5 @@
   }
 
 void se_log(const char* msg, ...);
+void fse_log(int fd, const char* msg, ...);
 #endif /* SEALLOC_LOGGING_H_ */

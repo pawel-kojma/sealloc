@@ -74,6 +74,9 @@ struct arena_state {
                              for more memory for internal allocator nodes. */
   bin_t bins[ARENA_NO_BINS]; /*!< Array of bin_t structures for SMALL, MEDIUM or
                                 LARGE size classes. */
+#ifdef STATISTICS
+  int stats_fd; /*!< Descriptor to stats file */
+#endif
 };
 typedef struct arena_state arena_t;
 
@@ -171,7 +174,8 @@ void arena_deallocate_chunk(arena_t *arena, chunk_t *chunk);
  *
  * @param[in] arena Pointer to the allocated arena structure
  * @param[in] ptr Pointer to possibly a chunk in this arena
- * @param[in] start_chunk Pointer to chunk from which search will start. Start from beginning if NULL.
+ * @param[in] start_chunk Pointer to chunk from which search will start. Start
+ * from beginning if NULL.
  * @return Pointer to chunk metadata which corresponds to ptr or NULL if no
  * chunk was found
  * @pre arena is initialized
