@@ -15,27 +15,53 @@
 #include "sealloc/utils.h"
 
 static void reset_ia_ptr_start(arena_t *arena) {
+  se_debug("Resetting ia_ptr (current : %p)",
+           (void *)arena->internal_alloc_ptr);
   arena->internal_alloc_ptr =
       arena->brk + (splitmix64() % (MAX_USERSPACE_ADDR64 - arena->brk));
   arena->internal_alloc_ptr = ALIGNUP_PAGE(arena->internal_alloc_ptr);
+  se_debug("After reset %p", (void *)arena->internal_alloc_ptr);
 }
 
 static void reset_huge_alloc_ptr_start(arena_t *arena) {
+  se_debug("Resetting huge_alloc_ptr (current : %p)",
+           (void *)arena->huge_alloc_ptr);
   arena->huge_alloc_ptr =
       arena->brk + (splitmix64() % (MAX_USERSPACE_ADDR64 - arena->brk));
   arena->huge_alloc_ptr = ALIGNUP_PAGE(arena->huge_alloc_ptr);
+  se_debug("After reset %p", (void *)arena->huge_alloc_ptr);
 }
 
 static void reset_chunk_ptr_start(arena_t *arena) {
   // Make sure program break is reasonably large (at least 45 bits) to be our
   // separation point between regular chunks and huge/internal mappings
+  se_debug("Resetting chunk_alloc_ptr (current : %p)",
+           (void *)arena->chunk_alloc_ptr);
   arena->chunk_alloc_ptr = ALIGNUP_PAGE(splitmix32());
   if (arena->brk <= MASK_44_BITS) {
     arena->brk = ALIGNUP_PAGE(splitmix64() & MASK_45_BITS);
   }
+  se_debug("After reset %p", (void *)arena->chunk_alloc_ptr);
 }
 typedef void (*reset_fun)(arena_t *);
 
+/*!
+ * @brief Wrapper around platform_map_probe that additionally handles mapping at
+ * different address by the kernel.
+ *
+ * @param[in,out] arena Pointer to the allocated arena structure.
+ * @param[in,out] probe_ptr Pointer to a probe pointer where map probbing will
+ * start.
+ * @param[in]     reset Function that resets the probe in case ceiling
+ * was hit or mapping at different address occured.
+ * @param[in]     size Requested size of mapping
+ * @param[in]     ceil Pointer to ceiling pointer which the upper bound for the
+ * probe.
+ * @returns Returns address of the mapping.
+ * @sideeffect May call reset(arena) which will update the probe.
+ * @warning Returned address of the mapping may be different from probe because
+ * reset function might've been called.
+ */
 static uintptr_t arena_morecore(arena_t *arena, volatile uintptr_t *probe_ptr,
                                 reset_fun reset, size_t size,
                                 volatile uintptr_t *ceil) {
@@ -129,7 +155,7 @@ void *arena_internal_alloc(arena_t *arena, size_t size) {
       arena, &arena->internal_alloc_ptr, reset_ia_ptr_start,
       ALIGNUP_PAGE(sizeof(int_alloc_t)), &ceil_addr);
 
-  // Update pointer for next mapping
+  // If this is true, update pointer for next mapping to avoid clashing with current one
   if ((uintptr_t)map == arena->internal_alloc_ptr)
     arena->internal_alloc_ptr += ALIGNUP_PAGE(sizeof(int_alloc_t));
 
@@ -205,6 +231,10 @@ chunk_t *arena_allocate_chunk(arena_t *arena) {
     arena->chunk_ptr =
         arena_morecore(arena, &arena->chunk_alloc_ptr, reset_chunk_ptr_start,
                        map_len, &arena->brk);
+    // If this is true, update chunk_alloc_ptr to avoid clashing into existing
+    // mapping
+    if (arena->chunk_ptr == arena->chunk_alloc_ptr)
+      arena->chunk_alloc_ptr += map_len;
     arena->chunks_left = CHUNKS_PER_MAPPING;
   }
 
