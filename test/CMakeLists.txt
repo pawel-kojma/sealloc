@@ -61,17 +61,17 @@ list(APPEND test_srcs
 
 
 list(APPEND tests_sec
-            arbitrary_free_near             
-            double_free_close               
-            double_free_far                 
-            heap_spray_prevention           
+            arbitrary_free
+            double_free_simple
+            double_free_hard                 
+            overflow_with_free_prevention
             overflow_simple_prevention      
             overflow_hard_prevention      
             overflow_simple_detection        
             overflow_hard_detection        
             randomized_heap_layout
-            uaf_close                       
-            uaf_many_no_duplicates
+            memory_reuse_simple
+            memory_reuse_hard
 )
 
 include(GoogleTest)
