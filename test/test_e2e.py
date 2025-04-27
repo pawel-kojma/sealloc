@@ -42,7 +42,7 @@ def test_real_programs(prog, args, output_dir_e2e, progs_dir, lib_path):
 
 @pytest.mark.real_programs
 def test_kissat(output_dir_e2e, progs_dir, lib_path):
-    inp = Path("./test/assets/cnf.out").read_bytes()
+    inp = Path("./test/assets/kissat_cnf.out").read_bytes()
     res = subprocess.run(
         [str(progs_dir / "kissat")],
         env={"SEALLOC_SEED": "1234", "LD_PRELOAD": str(lib_path.resolve())},
