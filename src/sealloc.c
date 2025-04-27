@@ -275,6 +275,16 @@ void *sealloc_calloc(arena_t *arena, size_t nmemb, size_t size) {
   if (nmemb == 0 || size == 0) return NULL;
   void *ptr = sealloc_malloc(arena, nmemb * size);
   if (ptr == NULL) return NULL;
+
+// For some unknown reason, memset fails if memory tags are present
+// The loop below works
+#if __aarch64__ && __ARM_FEATURE_MEMORY_TAGGING
+  char *p = (char *)ptr;
+  for (size_t i = 0; i < nmemb * size; i++) {
+    p[i] = '\0';
+  }
+#else
   memset(ptr, 0, nmemb * size);
+#endif
   return ptr;
 }
