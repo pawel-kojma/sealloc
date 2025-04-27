@@ -60,19 +60,18 @@ list(APPEND test_srcs
     test_ia test_run test_container_ll test_bin test_chunk test_arena test_size_class)
 
 
-list(APPEND tests_e2e
-            arbitrary_free_near             
-            double_free_close               
-            double_free_far                 
-            heap_spray_prevention           
-            overflow_bigger_alloc_prevention
-            overflow_large_detection        
-            overflow_medium_detection       
+list(APPEND tests_sec
+            arbitrary_free
+            double_free_simple
+            double_free_hard                 
+            overflow_with_free_prevention
             overflow_simple_prevention      
-            overflow_small_detection        
-            randomized_allocations          
-            uaf_close                       
-            uaf_many_no_duplicates
+            overflow_hard_prevention      
+            overflow_simple_detection        
+            overflow_hard_detection        
+            randomized_heap_layout
+            memory_reuse_simple
+            memory_reuse_hard
 )
 
 include(GoogleTest)
@@ -91,8 +90,20 @@ foreach(test_integration ${tests_integration})
     gtest_discover_tests(${test_integration})
 endforeach()
 
-foreach(test_e2e ${tests_e2e})
-    add_executable(${test_e2e} "./test_e2e/${test_e2e}.c")
-    set_target_properties(${test_e2e} PROPERTIES OUTPUT_NAME "e2e_${test_e2e}")
-    target_link_libraries(${test_e2e} test_cflags)
+foreach(test_sec ${tests_sec})
+    add_executable(${test_sec}_small "./test_security/${test_sec}.c")
+    set_target_properties(${test_sec}_small PROPERTIES OUTPUT_NAME "sec_${test_sec}_small")
+    target_link_libraries(${test_sec}_small test_cflags)
+    target_compile_options(${test_sec}_small PRIVATE $<${gcc_like_c}:-fno-inline -Wstringop-overflow=0 -Wno-free-nonheap-object>)
+    target_compile_definitions(${test_sec}_small PRIVATE ALLOC_SIZE=16) 
+    add_executable(${test_sec}_medium "./test_security/${test_sec}.c")
+    set_target_properties(${test_sec}_medium PROPERTIES OUTPUT_NAME "sec_${test_sec}_medium")
+    target_link_libraries(${test_sec}_medium test_cflags)
+    target_compile_options(${test_sec}_medium PRIVATE $<${gcc_like_c}:-fno-inline -Wstringop-overflow=0 -Wno-free-nonheap-object>)
+    target_compile_definitions(${test_sec}_medium PRIVATE ALLOC_SIZE=2048) 
+    add_executable(${test_sec}_large "./test_security/${test_sec}.c")
+    set_target_properties(${test_sec}_large PROPERTIES OUTPUT_NAME "sec_${test_sec}_large")
+    target_link_libraries(${test_sec}_large test_cflags)
+    target_compile_options(${test_sec}_large PRIVATE $<${gcc_like_c}:-fno-inline -Wstringop-overflow=0 -Wno-free-nonheap-object>)
+    target_compile_definitions(${test_sec}_large PRIVATE ALLOC_SIZE=32768) 
 endforeach()

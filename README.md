@@ -34,12 +34,17 @@ To run unit tests, build the project with `-DTests=ON` and enter following comma
 $ ctest --test-dir ./build/test/
 ```
 
-To run E2E tests, you have to run:
+To run E2E tests, enter following commands from top directory:
 ```
 $ python -m venv venv
 $ . venv/bin/activate
 $ pip install pytest
-$ pytest ./test/test_e2e.py --bin-dir ./build/test/ --lib-path ./build/src/libsealloc.so --progs-dir <programs_dir>
+$ pytest -m real_programs ./test/ --lib-path ./build/src/libsealloc.so --progs-dir <programs_dir>
+```
+
+To run security tests, enter following commands from top directory:
+```
+$ pytest -m security ./test/ --lib-path=./build/src/libsealloc.so
 ```
 
 To generate performance reports you need:
