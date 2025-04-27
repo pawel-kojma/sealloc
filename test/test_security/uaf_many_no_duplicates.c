@@ -13,6 +13,7 @@ int cmp(const void *a, const void *b) {
     return -1;
   return 0;
 }
+
 int main(void) {
   for (int i = 0; i < MAX_CHUNKS; i++) {
     chunks[i] = malloc(16);

@@ -2,8 +2,8 @@
 #include <string.h>
 
 #define COOKIE 0xf00dc4fe
-#define CHUNKS 100000
-#define CHUNK_SIZE 48
+#define CHUNKS 100
+#define CHUNK_SIZE 32
 
 struct asd {
   unsigned a;
@@ -29,7 +29,7 @@ int main(void) {
 
   // Try to overflow the data
   for (int i = 0; i < CHUNKS; i += 2) {
-    memset(spray_chunks[i], 0, 2*CHUNK_SIZE);
+    memset(spray_chunks[i], 0, 4*CHUNK_SIZE);
   }
 
   // If data is still intact no impactful overflow happened

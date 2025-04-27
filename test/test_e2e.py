@@ -10,7 +10,7 @@ MIN_TRY_PASS_PERCENTAGE = 50
 
 
 def run_bin(program, lib_path, seed=None):
-    env = {"LD_PRELOAD": str(lib_path.resolve())}
+    env = {"LD_PRELOAD": str(lib_path.resolve())} if lib_path else {}
     if seed:
         env["SEALLOC_SEED"] = seed
     return subprocess.run([str(program)], env=env)
