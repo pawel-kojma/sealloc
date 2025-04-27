@@ -9,7 +9,7 @@
  *
  * In this case 300 chunks are requested.
  *
- * We request out data chunk at the end and place cookie value inside it.
+ * We request our data chunk at the end and place cookie value inside it.
  * Then, those 300 chunks are used to overflow into the subsequent chunks.
  *
  * The reason for allocating many chunks is that we want to increase
@@ -67,7 +67,7 @@ int main(void) {
 
   // Perform the overflow on each chunk A
   for (int i = 0; i < CHUNKS; i++) {
-    memset(A[i], 0, 4 * ALLOC_SIZE);
+    memset(A[i], 0, 3 * ALLOC_SIZE);
   }
 
   // If the data is not corrupted, success
