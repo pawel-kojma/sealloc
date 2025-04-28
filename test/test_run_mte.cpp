@@ -81,7 +81,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(SMALL_SIZE_MIN_REGION, 32, 48, 64, 80, 96, 112, 128, 144,
                       160, 176, 192, 208, 224, 240, 256, 272, 288, 304, 320,
                       336, 352, 368, 384, 400, 416, 432, 448, 464, 480, 496,
-                      SMALL_SIZE_MAX_REGION, MEDIUM_SIZE_MIN_REGION, 2048,
+                      SMALL_SIZE_MAX_REGION, MEDIUM_SIZE_MIN_REGION, 2048, 4096,
                       MEDIUM_SIZE_MAX_REGION));
 
 TEST_F(RunUtilsMTEDeathSmall, DiesOnOverflow) {

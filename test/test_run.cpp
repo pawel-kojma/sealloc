@@ -53,6 +53,7 @@ class RunUtilsTestSmall : public ::testing::Test {
     bin->run_size_pages = RUN_SIZE_SMALL_PAGES;
     bin->reg_mask_size_bits =
         ((bin->run_size_pages * PAGE_SIZE) / bin->reg_size) * 2;
+    heap = malloc(bin->run_size_pages * PAGE_SIZE);
     run = (run_t *)malloc(sizeof(run_t) +
                           BITS2BYTES_CEIL(bin->reg_mask_size_bits));
   }
@@ -152,6 +153,7 @@ class RunUtilsTestMedium : public ::testing::Test {
     bin->run_size_pages = RUN_SIZE_MEDIUM_PAGES;
     bin->reg_mask_size_bits =
         ((bin->run_size_pages * PAGE_SIZE) / bin->reg_size) * 2;
+    heap = malloc(bin->run_size_pages * PAGE_SIZE);
     run = (run_t *)malloc(sizeof(run_t) +
                           BITS2BYTES_CEIL(bin->reg_mask_size_bits));
   }

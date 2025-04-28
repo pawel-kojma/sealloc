@@ -18,3 +18,7 @@
 #define MEMORY_GRANULE_SIZE 16
 #define MEMORY_2_GRANULE_SIZE 32
 
+/*!
+ * @brief Return ptr with cleared tag
+ */
+#define PTR_CLEAR_TAG(ptr) ((void *)((uintptr_t)(ptr) & ((1ULL << TAG_OFFSET_BITS) - 1)))

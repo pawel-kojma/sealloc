@@ -12,6 +12,25 @@ extern "C" {
 #include <sealloc/utils.h>
 }
 
+#if __aarch64__
+#include <sealloc/arch/aarch64.h>
+bool cmp(void *a, void *b) {
+  return (uintptr_t)PTR_CLEAR_TAG(a) < (uintptr_t)PTR_CLEAR_TAG(b);
+}
+bool is_inside_chunk(void *ptr, void *chunk_ptr_base) {
+  return (uintptr_t)PTR_CLEAR_TAG(ptr) >=
+             (uintptr_t)PTR_CLEAR_TAG(chunk_ptr_base) &&
+         (uintptr_t)PTR_CLEAR_TAG(ptr) <
+             (uintptr_t)PTR_CLEAR_TAG(chunk_ptr_base) + CHUNK_SIZE_BYTES;
+}
+#else
+bool cmp(void *a, void *b) { return (uintptr_t)a < (uintptr_t)b; }
+bool is_inside_chunk(void *ptr, void *chunk_ptr_base) {
+  return (uintptr_t)ptr >= (uintptr_t)chunk_ptr_base &&
+         (uintptr_t)ptr < (uintptr_t)chunk_ptr_base + CHUNK_SIZE_BYTES;
+}
+#endif
+
 TEST(MallocApiTest, HugeInChunkHandlingUnmappedNode) {
   std::vector<void *> large;
   arena_t arena;
@@ -23,15 +42,14 @@ TEST(MallocApiTest, HugeInChunkHandlingUnmappedNode) {
   for (int i = 0; i < 4 * (CHUNK_SIZE_BYTES / LARGE_SIZE_MAX_REGION); i++) {
     large.push_back(sealloc_malloc(&arena, LARGE_SIZE_MAX_REGION));
   }
-  std::sort(large.begin(), large.end());
+  std::sort(large.begin(), large.end(), cmp);
   for (int i = 0; i < 8; i++) {
     // Enough to unmap memory
     sealloc_free(&arena, large[i]);
   }
   arena.huge_alloc_ptr = (uintptr_t)chunk_ptr;
   void *huge = sealloc_malloc(&arena, 2 * LARGE_SIZE_MAX_REGION);
-  EXPECT_TRUE((uintptr_t)huge >= (uintptr_t)chunk_ptr &&
-              (uintptr_t)huge < (uintptr_t)chunk_ptr + CHUNK_SIZE_BYTES);
+  EXPECT_TRUE(is_inside_chunk(huge, chunk_ptr));
   chunk_t *chunk;
   bin_t *bin;
   run_t *run;
@@ -51,7 +69,7 @@ TEST(MallocApiTest, InvalidFreeHandling) {
   for (int i = 0; i < 4 * (CHUNK_SIZE_BYTES / LARGE_SIZE_MAX_REGION); i++) {
     large.push_back(sealloc_malloc(&arena, LARGE_SIZE_MAX_REGION));
   }
-  std::sort(large.begin(), large.end());
+  std::sort(large.begin(), large.end(), cmp);
   for (int i = 0; i < 8; i++) {
     // Enough to unmap memory
     sealloc_free(&arena, large[i]);
@@ -79,15 +97,14 @@ TEST(MallocApiTest, HugeInChunkHandlingWithDepletedNodes) {
   for (int i = 0; i < 20 * (CHUNK_SIZE_BYTES / second_smallest_large); i++) {
     large.push_back(sealloc_malloc(&arena, second_smallest_large));
   }
-  std::sort(large.begin(), large.end());
+  std::sort(large.begin(), large.end(), cmp);
   for (int i = 0; i < 64; i++) {
     // Enough to unmap memory
     sealloc_free(&arena, large[i]);
   }
   arena.huge_alloc_ptr = (uintptr_t)chunk_ptr;
   void *huge = sealloc_malloc(&arena, ALIGNUP_PAGE(LARGE_SIZE_MAX_REGION + 1));
-  EXPECT_TRUE((uintptr_t)huge >= (uintptr_t)chunk_ptr &&
-              (uintptr_t)huge < (uintptr_t)chunk_ptr + CHUNK_SIZE_BYTES);
+  EXPECT_TRUE(is_inside_chunk(huge, chunk_ptr));
   chunk_t *chunk;
   bin_t *bin;
   run_t *run;
@@ -109,7 +126,7 @@ TEST(MallocApiTest, InvalidFreeHandlingWithDepletedNodes) {
   for (int i = 0; i < 20 * (CHUNK_SIZE_BYTES / second_smallest_large); i++) {
     large.push_back(sealloc_malloc(&arena, second_smallest_large));
   }
-  std::sort(large.begin(), large.end());
+  std::sort(large.begin(), large.end(), cmp);
   for (int i = 0; i < 64; i++) {
     // Enough to unmap memory
     sealloc_free(&arena, large[i]);

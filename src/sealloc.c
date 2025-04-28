@@ -198,7 +198,7 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
   void *tagged_ptr = old_ptr;
   if (is_mte_enabled) {
     // Clear tag bits, so that we can do pointer arithmetics
-    old_ptr = (void *)((uintptr_t)old_ptr & ((1ULL << TAG_OFFSET_BITS) - 1));
+    old_ptr = PTR_CLEAR_TAG(old_ptr); 
   }
 #endif
   meta = locate_metadata_for_ptr(arena, old_ptr, &chunk, &run_old, &bin_old,
@@ -219,7 +219,11 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
   se_debug("Reallocating region of small/medium/large class");
   if (IS_SIZE_HUGE(new_size)) {
     huge = arena_allocate_huge_mapping(arena, ALIGNUP_PAGE(new_size));
+#if __aarch64__ && __ARM_FEATURE_MEMORY_TAGGING
+    memcpy(huge->entry.key, tagged_ptr, bin_old->reg_size);
+#else
     memcpy(huge->entry.key, old_ptr, bin_old->reg_size);
+#endif
     sealloc_free_with_metadata(arena, chunk, bin_old, run_old, old_ptr);
     return huge->entry.key;
   }

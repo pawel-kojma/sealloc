@@ -14,6 +14,7 @@ class MallocApiTest : public ::testing::Test {
   arena_t arena;
 
   void SetUp() override { arena_init(&arena); }
+  void TearDown() override { arena.is_initialized = 0;}
 };
 
 TEST_F(MallocApiTest, SmallToHuge) {
