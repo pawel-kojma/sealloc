@@ -9,8 +9,40 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/auxv.h>
 #include <sys/mman.h>
+#include <sys/prctl.h>
 #include <unistd.h>
+
+#ifdef __aarch64__
+
+#include "sealloc/arch/aarch64.h"
+
+int is_mte_enabled = 0;
+
+static int additional_prot_flags = 0;
+
+__attribute__((constructor)) void init_aarch64(void) {
+  unsigned long hwcap2 = getauxval(AT_HWCAP2);
+  if (hwcap2 & HWCAP2_MTE) {
+    if (prctl(PR_SET_TAGGED_ADDR_CTRL,
+              PR_TAGGED_ADDR_ENABLE | PR_MTE_TCF_SYNC |
+                  (PLATFORM_AARCH64_TAGS << PR_MTE_TAG_SHIFT),
+              0, 0, 0)) {
+      se_debug("MTE supported but prctl() failed");
+    } else {
+      se_debug("MTE support activated");
+      additional_prot_flags = PROT_MTE;
+      is_mte_enabled = 1;
+    }
+  } else {
+    se_debug("MTE is not supported");
+  }
+}
+
+#elif
+static int additional_prot_flags = 0;
+#endif
 
 static platform_status_code_t get_error_from_errno(void) {
   switch (errno) {
@@ -43,7 +75,7 @@ const char *platform_strerror(platform_status_code_t code) {
 
 platform_status_code_t platform_map(void *hint, size_t len, void **result) {
   assert(len > 0);
-  void *map = mmap(hint, len, PROT_READ | PROT_WRITE,
+  void *map = mmap(hint, len, PROT_READ | PROT_WRITE | additional_prot_flags,
                    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (map == MAP_FAILED) return get_error_from_errno();
   *result = map;
@@ -52,8 +84,8 @@ platform_status_code_t platform_map(void *hint, size_t len, void **result) {
 }
 
 platform_status_code_t platform_get_program_break(void **result) {
-  se_debug("Getting program break");
   *result = sbrk(0);
+  se_debug("Getting program break : %p", *result);
   if (*result == (void *)-1) {
     return get_error_from_errno();
   }
@@ -71,7 +103,8 @@ platform_status_code_t platform_map_probe(volatile uintptr_t *probe, uintptr_t c
     return PLATFORM_STATUS_CEILING_HIT;
   }
   while (map == NULL) {
-    map = mmap((void *)new_probe, len, PROT_READ | PROT_WRITE,
+    map = mmap((void *)new_probe, len,
+               PROT_READ | PROT_WRITE | additional_prot_flags,
                MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
     se_debug("Mapping (probe : %p, len : %zu, result : %p)", (void *)new_probe,
              len, map);

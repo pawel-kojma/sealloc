@@ -81,6 +81,7 @@ bool is_zero(void *a, size_t b) {
   uint8_t *ap = (uint8_t *)a;
   for (int i = 0; i < b; i++) {
     if (*ap != 0) return false;
+    ap++;
   }
   return true;
 }

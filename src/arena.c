@@ -38,6 +38,7 @@ static void reset_chunk_ptr_start(arena_t *arena) {
   se_debug("Resetting chunk_alloc_ptr (current : %p)",
            (void *)arena->chunk_alloc_ptr);
   arena->chunk_alloc_ptr = ALIGNUP_PAGE(splitmix32());
+  se_debug("Setting chunk_alloc_ptr : %p",arena->chunk_alloc_ptr);
   if (arena->brk <= MASK_44_BITS) {
     arena->brk = ALIGNUP_PAGE(splitmix64() & MASK_45_BITS);
   }

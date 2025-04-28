@@ -11,6 +11,7 @@ option(Log "Enable logging" "OFF")
 option(Tests "Build tests (ON/OFF)" "OFF")
 option(Assert "Build with assertions (ON/OFF)" "OFF")
 option(Statistics "Build with statistics (ON/OFF)" "OFF")
+option(Memtags "Build on ARM64 v8.5 MTE (ON/OFF)" "OFF")
 
 # Build sources
 add_subdirectory(./src)

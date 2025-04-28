@@ -27,6 +27,7 @@ target_include_directories(sealloc_internal PUBLIC "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(sealloc_internal test_cflags)
 target_compile_options(sealloc_internal PRIVATE
     $<${gcc_like_c}:-Wall -Werror -Wextra -pedantic -Wformat=0>
+    $<$<AND:$<BOOL:${gcc_like_c}>,$<BOOL:${Memtags}>>:-march=armv8.5-a+memtag>
 )
 target_compile_definitions(sealloc_internal PRIVATE 
     "$<$<BOOL:${Log}>:LOGGING>"
@@ -59,6 +60,9 @@ list(APPEND tests_integration
 list(APPEND test_srcs
     test_ia test_run test_container_ll test_bin test_chunk test_arena test_size_class)
 
+if(Memtags)
+    list(APPEND test_srcs test_run_mte)
+endif()
 
 list(APPEND tests_sec
             arbitrary_free
@@ -80,6 +84,9 @@ foreach(test_src ${test_srcs})
     add_executable(${test_src} "${test_src}.cpp")
     set_target_properties(${test_src} PROPERTIES OUTPUT_NAME "ut_${test_src}")
     target_link_libraries(${test_src} ${test_libs})
+    target_compile_options(${test_src} PRIVATE 
+        -march=armv8.5-a+memtag
+    )
     gtest_discover_tests(${test_src})
 endforeach()
 

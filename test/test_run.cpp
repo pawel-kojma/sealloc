@@ -53,13 +53,13 @@ class RunUtilsTestSmall : public ::testing::Test {
     bin->run_size_pages = RUN_SIZE_SMALL_PAGES;
     bin->reg_mask_size_bits =
         ((bin->run_size_pages * PAGE_SIZE) / bin->reg_size) * 2;
+    heap = malloc(bin->run_size_pages * PAGE_SIZE);
     run = (run_t *)malloc(sizeof(run_t) +
                           BITS2BYTES_CEIL(bin->reg_mask_size_bits));
   }
 };
 
 TEST_F(RunUtilsTestSmall, RunInit) {
-  heap = malloc(1);
   run_init(run, bin, heap);
   EXPECT_EQ(run->navail, 1024);
   EXPECT_EQ(run->entry.key, heap);
@@ -72,7 +72,6 @@ TEST_F(RunUtilsTestSmall, RunInit) {
 }
 
 TEST_F(RunUtilsTestSmall, RunAllocate) {
-  heap = malloc(1);
   run_init(run, bin, heap);
   int elems = run->navail;
   void *chunks[elems];
@@ -86,7 +85,6 @@ TEST_F(RunUtilsTestSmall, RunAllocate) {
 }
 
 TEST_F(RunUtilsTestSmall, RunDeallocate) {
-  heap = malloc(bin->run_size_pages * PAGE_SIZE);
   run_init(run, bin, heap);
   int elems = run->navail;
   void *chunks[elems];
@@ -155,13 +153,13 @@ class RunUtilsTestMedium : public ::testing::Test {
     bin->run_size_pages = RUN_SIZE_MEDIUM_PAGES;
     bin->reg_mask_size_bits =
         ((bin->run_size_pages * PAGE_SIZE) / bin->reg_size) * 2;
+    heap = malloc(bin->run_size_pages * PAGE_SIZE);
     run = (run_t *)malloc(sizeof(run_t) +
                           BITS2BYTES_CEIL(bin->reg_mask_size_bits));
   }
 };
 
 TEST_F(RunUtilsTestMedium, RunInit) {
-  heap = malloc(1);
   run_init(run, bin, heap);
   EXPECT_EQ(run->navail, 16);
   EXPECT_EQ(run->entry.key, heap);
@@ -174,7 +172,6 @@ TEST_F(RunUtilsTestMedium, RunInit) {
 }
 
 TEST_F(RunUtilsTestMedium, RunAllocate) {
-  heap = malloc(1);
   run_init(run, bin, heap);
   int elems = run->navail;
   void *chunks[elems];
@@ -188,7 +185,6 @@ TEST_F(RunUtilsTestMedium, RunAllocate) {
 }
 
 TEST_F(RunUtilsTestMedium, RunDeallocate) {
-  heap = malloc(bin->run_size_pages * PAGE_SIZE);
   run_init(run, bin, heap);
   int elems = run->navail;
   void *chunks[elems];
@@ -257,13 +253,13 @@ class RunUtilsTestLarge : public ::testing::Test {
     bin->reg_size = LARGE_SIZE_MIN_REGION;
     bin->run_size_pages = 4;
     bin->reg_mask_size_bits = 2;
+    heap = malloc(bin->run_size_pages * PAGE_SIZE);
     run = (run_t *)malloc(sizeof(run_t) +
                           BITS2BYTES_CEIL(bin->reg_mask_size_bits));
   }
 };
 
 TEST_F(RunUtilsTestLarge, RunInit) {
-  heap = malloc(1);
   run_init(run, bin, heap);
   EXPECT_EQ(run->navail, 1);
   EXPECT_EQ(run->entry.key, heap);
@@ -275,7 +271,6 @@ TEST_F(RunUtilsTestLarge, RunInit) {
 }
 
 TEST_F(RunUtilsTestLarge, RunAllocate) {
-  heap = malloc(1);
   run_init(run, bin, heap);
   int elems = run->navail;
   void *chunks[elems];
@@ -287,7 +282,6 @@ TEST_F(RunUtilsTestLarge, RunAllocate) {
 }
 
 TEST_F(RunUtilsTestLarge, RunDeallocate) {
-  heap = malloc(bin->run_size_pages * PAGE_SIZE);
   run_init(run, bin, heap);
   int elems = run->navail;
   void *chunks[elems];

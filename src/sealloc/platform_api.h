@@ -19,6 +19,10 @@ typedef enum status_code {
   PLATFORM_DIFFERENT_ADDRESS
 } platform_status_code_t;
 
+#ifdef __aarch64__
+extern int is_mte_enabled;
+#endif
+
 /*!
  * @brief Converts code to string which describes error
  *

@@ -5,6 +5,7 @@
 #include "sealloc/bin.h"
 #include "sealloc/chunk.h"
 #include "sealloc/logging.h"
+#include "sealloc/platform_api.h"
 #include "sealloc/run.h"
 #include "sealloc/size_class.h"
 #include "sealloc/utils.h"
@@ -142,6 +143,13 @@ void sealloc_free(arena_t *arena, void *ptr) {
   huge_chunk_t *huge;
   metadata_t meta;
   if (ptr == NULL) return;
+#if __aarch64__ && __ARM_FEATURE_MEMORY_TAGGING
+#include "sealloc/arch/aarch64.h"
+  if (is_mte_enabled) {
+    // Clear tag bits, so that we can do pointer arithmetics
+    ptr = (void *)((uintptr_t)ptr & ((1ULL << TAG_OFFSET_BITS) - 1));
+  }
+#endif
   meta = locate_metadata_for_ptr(arena, ptr, &chunk, &run, &bin, &huge);
   if (meta == METADATA_INVALID) {
     se_debug("Invalid pointer: %p", ptr);
@@ -185,6 +193,14 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
     se_debug("Pointer is NULL, fallback to malloc");
     return sealloc_malloc(arena, new_size);
   }
+#if __aarch64__ && __ARM_FEATURE_MEMORY_TAGGING
+#include "sealloc/arch/aarch64.h"
+  void *tagged_ptr = old_ptr;
+  if (is_mte_enabled) {
+    // Clear tag bits, so that we can do pointer arithmetics
+    old_ptr = PTR_CLEAR_TAG(old_ptr); 
+  }
+#endif
   meta = locate_metadata_for_ptr(arena, old_ptr, &chunk, &run_old, &bin_old,
                                  &huge);
   if (meta == METADATA_INVALID) {
@@ -203,7 +219,11 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
   se_debug("Reallocating region of small/medium/large class");
   if (IS_SIZE_HUGE(new_size)) {
     huge = arena_allocate_huge_mapping(arena, ALIGNUP_PAGE(new_size));
+#if __aarch64__ && __ARM_FEATURE_MEMORY_TAGGING
+    memcpy(huge->entry.key, tagged_ptr, bin_old->reg_size);
+#else
     memcpy(huge->entry.key, old_ptr, bin_old->reg_size);
+#endif
     sealloc_free_with_metadata(arena, chunk, bin_old, run_old, old_ptr);
     return huge->entry.key;
   }
@@ -223,7 +243,11 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
   }
   if (bin_new->reg_size == bin_old->reg_size) {
     se_debug("New allocation is still in the same class");
+#if __aarch64__ && __ARM_FEATURE_MEMORY_TAGGING
+    return tagged_ptr;
+#else
     return old_ptr;
+#endif
   }
 
   // Allocate new region
@@ -234,11 +258,19 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
   }
 
   // Copy data from old to new
+#if __aarch64__ && __ARM_FEATURE_MEMORY_TAGGING
+  if (bin_new->reg_size > bin_old->reg_size) {
+    memcpy(new_ptr, tagged_ptr, bin_old->reg_size);
+  } else { /* bin_new->reg_size < bin_old->reg_size */
+    memcpy(new_ptr, tagged_ptr, bin_new->reg_size);
+  }
+#else
   if (bin_new->reg_size > bin_old->reg_size) {
     memcpy(new_ptr, old_ptr, bin_old->reg_size);
   } else { /* bin_new->reg_size < bin_old->reg_size */
     memcpy(new_ptr, old_ptr, bin_new->reg_size);
   }
+#endif
   sealloc_free_with_metadata(arena, chunk, bin_old, run_old, old_ptr);
   return new_ptr;
 }
@@ -246,6 +278,10 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
 void *sealloc_calloc(arena_t *arena, size_t nmemb, size_t size) {
   if (nmemb == 0 || size == 0) return NULL;
   void *ptr = sealloc_malloc(arena, nmemb * size);
+  if (ptr == NULL) return NULL;
+
+  // For some unknown reason, memset fails if memory tags are present
+  // UPDATE: Tests are working when ran with updated qemu-aarch64 (7.1 -> 9.2.3)
   memset(ptr, 0, nmemb * size);
   return ptr;
 }
