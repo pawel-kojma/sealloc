@@ -22,7 +22,8 @@ class TimeStats:
     def __init__(self, path):
         g = filter(
             lambda x: len(x) == 2,
-            [line.strip().split(": ") for line in path.read_text().splitlines()],
+            [line.strip().split(": ")
+             for line in path.read_text().splitlines()],
         )
         self.data_dict = dict(g)
         dt = datetime.strptime(self.data_dict[self.TIME], "%M:%S.%f")
@@ -61,18 +62,21 @@ def get_strace_stats(strace_stats, syscall):
 
 def create_plot(data_dirs, allocator_names, program_name):
     time_stats = [TimeStats(dir / f"time.{program_name}") for dir in data_dirs]
-    strace_stats = [StraceStats(dir / f"strace.{program_name}") for dir in data_dirs]
+    strace_stats = [StraceStats(
+        dir / f"strace.{program_name}") for dir in data_dirs]
     fig, (ax_time, ax_rss, ax_syscalls) = plt.subplots(
         3, 1, figsize=(7, 15), layout="constrained"
     )
-    fig.suptitle(f"Porównanie alokatorów dla programu: {program_name}", fontsize=16)
+    fig.suptitle(
+        f"Porównanie alokatorów dla programu: {program_name}", fontsize=16)
     rects = ax_time.bar(
         allocator_names, [t.elapsed_time for t in time_stats], width=0.1
     )
     ax_time.bar_label(rects, padding=3)
     ax_time.set_ylabel("Czas (s)")
     ax_time.set_title("Czas wykonania")
-    rects = ax_rss.bar(allocator_names, [t.max_rss for t in time_stats], width=0.1)
+    rects = ax_rss.bar(allocator_names, [
+                       t.max_rss for t in time_stats], width=0.1)
     ax_rss.bar_label(rects, padding=3)
     ax_rss.set_ylabel("Max. zbiór rezydentny (Kb)")
     ax_rss.set_title("Maksymalne zużycie pamięci")
@@ -86,22 +90,18 @@ def create_plot(data_dirs, allocator_names, program_name):
     idx = 0
     width = 0.25
     for scall_name, measurements in syscall_stats.items():
-        call_data, errors_calls = measurements
-        success_calls = call_data - errors_calls
+        call_data, _ = measurements
         bottom = np.zeros(len(allocator_names))
         offset = width * idx
-        ax_syscalls.bar(
-            x + offset, success_calls, width=width, label=scall_name, bottom=bottom
-        )
-        bottom += success_calls
         rects = ax_syscalls.bar(
-            x + offset, errors_calls, width=width, label=scall_name, bottom=bottom
+            x + offset, call_data, width=width, label=scall_name, bottom=bottom
         )
         ax_syscalls.bar_label(rects, padding=3)
         idx += 1
     ax_syscalls.set_ylabel("Ilość wywołań")
     ax_syscalls.set_xticks(x + width, allocator_names)
     ax_syscalls.set_title("Ilość wykonanych wywołań systemowych")
+    ax_syscalls.legend(loc='upper right')
     return fig
 
 
@@ -116,7 +116,8 @@ def create_plot(data_dirs, allocator_names, program_name):
 @click.argument("test_dirs", nargs=-1, type=click.Path(file_okay=False, path_type=Path))
 def main(test_dirs: list[Path], output_dir: Path):
     print("Detected dirs:\n" + "\n".join(map(str, test_dirs)))
-    allocator_names = [test_dir.name.replace("test_out_", "") for test_dir in test_dirs]
+    allocator_names = [test_dir.name.replace(
+        "test_out_", "") for test_dir in test_dirs]
     test_dirs = [dir / "performance" for dir in test_dirs]
     h = flatten(map(lambda path: path.iterdir(), test_dirs))
     all_programs = set(path.name for path in h)
