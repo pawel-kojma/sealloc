@@ -1,4 +1,4 @@
-# Security enchanced allocator
+# Security enhanced allocator
 
 Prototype `malloc(3)` implementation which aims to improve security.
 Key features are:
