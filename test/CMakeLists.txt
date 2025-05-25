@@ -3,7 +3,7 @@ enable_testing()
 set(gcc_like_c "$<COMPILE_LANG_AND_ID:C,ARMClang,AppleClang,Clang,GNU,LCC>")
 add_library(test_cflags INTERFACE)
 add_library(test_cxxflags INTERFACE)
-target_compile_features(test_cxxflags INTERFACE cxx_std_20)
+target_compile_features(test_cxxflags INTERFACE cxx_std_17)
 target_compile_options(test_cflags INTERFACE $<${gcc_like_c}:-O0 -ggdb3>)
 
 list(APPEND sealloc_internal_srcs
@@ -27,8 +27,12 @@ target_include_directories(sealloc_internal PUBLIC "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(sealloc_internal test_cflags)
 target_compile_options(sealloc_internal PRIVATE
     $<${gcc_like_c}:-Wall -Werror -Wextra -pedantic -Wformat=0>
-    $<$<AND:$<BOOL:${gcc_like_c}>,$<BOOL:${Memtags}>>:-march=armv8.5-a+memtag>
 )
+
+if(Memtags)
+    target_compile_options(sealloc_internal PRIVATE -march=armv8.5-a+memtag)
+endif()
+
 target_compile_definitions(sealloc_internal PRIVATE 
     "$<$<BOOL:${Log}>:LOGGING>"
     DEBUG
@@ -84,9 +88,11 @@ foreach(test_src ${test_srcs})
     add_executable(${test_src} "${test_src}.cpp")
     set_target_properties(${test_src} PROPERTIES OUTPUT_NAME "ut_${test_src}")
     target_link_libraries(${test_src} ${test_libs})
-    target_compile_options(${test_src} PRIVATE 
-        -march=armv8.5-a+memtag
-    )
+    if(Memtags)
+        target_compile_options(${test_src} PRIVATE 
+            -march=armv8.5-a+memtag
+        )
+    endif()
     gtest_discover_tests(${test_src})
 endforeach()
 

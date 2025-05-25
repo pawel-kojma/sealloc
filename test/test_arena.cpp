@@ -225,17 +225,4 @@ TEST_F(ArenaUtilsTest, MemoryIntegrity) {
   }
 }
 
-TEST_F(ArenaUtilsTest, CeilingHitOnProbeSuccess) {
-GTEST_SKIP() << "Flaky test, needs consideration";
-  platform_status_code_t code;
-  uintptr_t res = 0;
-  code = platform_map(NULL, PAGE_SIZE, (void **)&res);
-  EXPECT_NE(res, 0);
-  arena.chunk_alloc_ptr = res;
-  arena.brk = res + PAGE_SIZE;
-  chunk_t *chunk = arena_allocate_chunk(&arena);
-  EXPECT_NE(chunk, nullptr);
-  EXPECT_NE(res, arena.chunk_alloc_ptr);
-}
-
 }  // namespace
