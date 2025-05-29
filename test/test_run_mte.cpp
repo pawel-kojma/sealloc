@@ -85,7 +85,6 @@ INSTANTIATE_TEST_SUITE_P(
                       MEDIUM_SIZE_MAX_REGION));
 
 TEST_F(RunUtilsMTEDeathSmall, DiesOnOverflow) {
-  unsigned elems = run->navail;
   std::vector<void *> chunks = get_chunks(run, bin);
   std::memset(chunks[0], 0x42, bin->reg_size);
   char *ptr = static_cast<char *>(chunks[0]);
@@ -93,7 +92,6 @@ TEST_F(RunUtilsMTEDeathSmall, DiesOnOverflow) {
 }
 
 TEST_F(RunUtilsMTEDeathSmall, DiesOnNonLinearOverflow) {
-  unsigned elems = run->navail;
   std::vector<void *> chunks = get_chunks(run, bin);
   std::memset(chunks[0], 0x42, bin->reg_size);
   char *ptr = static_cast<char *>(chunks[0]);
@@ -101,7 +99,6 @@ TEST_F(RunUtilsMTEDeathSmall, DiesOnNonLinearOverflow) {
 }
 
 TEST_F(RunUtilsMTEDeathSmall, DiesOnUnderflow) {
-  unsigned elems = run->navail;
   std::vector<void *> chunks = get_chunks(run, bin);
   std::memset(chunks[1], 0x42, bin->reg_size);
   char *ptr = static_cast<char *>(chunks[1]);
@@ -186,7 +183,8 @@ TEST_F(RunUtilsMTEDeathLarge, DiesOnAccessWithDifferentTag) {
   uint64_t excludes = 1;
   __asm__("gmi %0, %1, %2" : "=r"(excludes) : "r"(tagged_ptr), "r"(excludes));
   __asm__("irg %0, %1, %2" : "=r"(res) : "r"(tagged_ptr), "r"(excludes));
-  ASSERT_DEATH({ reinterpret_cast<char *>(res)[0] = 'a'; }, ".*") << "Exclude mask: " << std::bitset<16>(excludes) << std::hex
-            << ", original ptr: " << tagged_ptr << ", res: " << res
-            << std::endl;
+  ASSERT_DEATH(
+      { reinterpret_cast<char *>(res)[0] = 'a'; }, ".*")
+      << "Exclude mask: " << std::bitset<16>(excludes) << std::hex
+      << ", original ptr: " << tagged_ptr << ", res: " << res << std::endl;
 }
