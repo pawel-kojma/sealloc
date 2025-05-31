@@ -40,7 +40,7 @@ __attribute__((constructor)) void init_aarch64(void) {
   }
 }
 
-#elif
+#else
 static int additional_prot_flags = 0;
 #endif
 

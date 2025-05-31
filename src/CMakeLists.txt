@@ -4,10 +4,10 @@ set(msvc_like_c "$<COMPILE_LANG_AND_ID:C,MSVC>")
 
 add_library(sealloc)
 
-if(BuildType MATCHES "Release")
+if(${CMAKE_BUILD_TYPE} MATCHES "Release")
     target_compile_options(sealloc PRIVATE $<${gcc_like_c}:-O3>)
     set(Debug OFF)
-elseif(BuildType MATCHES "Debug")
+elseif(${CMAKE_BUILD_TYPE} MATCHES "Debug")
     target_compile_options(sealloc PRIVATE $<${gcc_like_c}:-O0 -ggdb3>)
     set(Debug ON)
 endif()
@@ -24,7 +24,7 @@ if(Statistics)
     target_compile_definitions(sealloc PRIVATE STATISTICS)
 endif()
 
-cmake_print_variables(CMAKE_BUILD_TYPE Log BuildType Tests Debug Assert Memtags Statistics)
+cmake_print_variables(CMAKE_BUILD_TYPE BUILD_SHARED_LIBS Log Tests Debug Assert Memtags Statistics)
 
 target_sources(sealloc
     PRIVATE malloc_api.c sealloc.c platform.c chunk.c bin.c internal_allocator.c random.c run.c container_ll.c arena.c size_class.c logging.c

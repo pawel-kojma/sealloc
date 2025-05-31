@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cstring>
+#include <algorithm>
 
 extern "C" {
 #include <sealloc/chunk.h>
