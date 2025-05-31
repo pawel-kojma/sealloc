@@ -80,6 +80,8 @@ list(APPEND tests_sec
             randomized_heap_layout
             memory_reuse_simple
             memory_reuse_hard
+            realloc_memory_reuse
+            realloc_freed_region
 )
 
 include(GoogleTest)

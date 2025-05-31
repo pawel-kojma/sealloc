@@ -120,7 +120,7 @@ static void sealloc_free_with_metadata(arena_t *arena, chunk_t *chunk,
                                        bin_t *bin, run_t *run, void *ptr) {
   if (!run_deallocate(run, bin, ptr)) {
     se_debug("Invalid pointer: %p", ptr);
-    se_log("Invalid call to free()");
+    se_log("Invalid call to free()\n");
     abort();
   }
 
@@ -153,7 +153,7 @@ void sealloc_free(arena_t *arena, void *ptr) {
   meta = locate_metadata_for_ptr(arena, ptr, &chunk, &run, &bin, &huge);
   if (meta == METADATA_INVALID) {
     se_debug("Invalid pointer: %p", ptr);
-    se_log("Invalid call to free()");
+    se_log("Invalid call to free()\n");
     abort();
   }
   if (meta == METADATA_HUGE) {
@@ -205,7 +205,7 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
                                  &huge);
   if (meta == METADATA_INVALID) {
     se_debug("Invalid pointer: %p", old_ptr);
-    se_log("Invalid call to realloc()");
+    se_log("Invalid call to realloc()\n");
     abort();
   }
   if (meta == METADATA_HUGE) {
@@ -213,7 +213,7 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
   }
 
   if (run_validate_ptr(run_old, bin_old, old_ptr) == SIZE_MAX) {
-    se_log("Invalid call to realloc()");
+    se_log("Invalid call to realloc()\n");
     abort();
   }
   se_debug("Reallocating region of small/medium/large class");
@@ -240,14 +240,6 @@ void *sealloc_realloc(arena_t *arena, void *old_ptr, size_t new_size) {
   // initialize bin with enugh runs, needed only once
   if (bin_new->avail_regs == 0) {
     if (!arena_supply_runs(arena, bin_new)) return NULL;
-  }
-  if (bin_new->reg_size == bin_old->reg_size) {
-    se_debug("New allocation is still in the same class");
-#if __aarch64__ && __ARM_FEATURE_MEMORY_TAGGING
-    return tagged_ptr;
-#else
-    return old_ptr;
-#endif
   }
 
   // Allocate new region

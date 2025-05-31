@@ -21,7 +21,7 @@ TEST_F(MallocApiTest, ReallocSmallSameSize) {
   ASSERT_NE(reg, nullptr);
   reg_realloc = sealloc_realloc(&arena, reg, 29);
   EXPECT_NE(reg_realloc, nullptr);
-  EXPECT_EQ(reg_realloc, reg);
+  EXPECT_NE(reg_realloc, reg);
 }
 
 TEST_F(MallocApiTest, ReallocSmallExpanded) {
@@ -47,7 +47,7 @@ TEST_F(MallocApiTest, ReallocMediumSameSize) {
   ASSERT_NE(reg, nullptr);
   reg_realloc = sealloc_realloc(&arena, reg, size);
   EXPECT_NE(reg_realloc, nullptr);
-  EXPECT_EQ(reg_realloc, reg);
+  EXPECT_NE(reg_realloc, reg);
 }
 
 TEST_F(MallocApiTest, ReallocMediumExpanded) {
@@ -74,7 +74,7 @@ TEST_F(MallocApiTest, ReallocLargeSameSize) {
   ASSERT_NE(reg, nullptr);
   reg_realloc = sealloc_realloc(&arena, reg, size);
   EXPECT_NE(reg_realloc, nullptr);
-  EXPECT_EQ(reg_realloc, reg);
+  EXPECT_NE(reg_realloc, reg);
 }
 
 TEST_F(MallocApiTest, ReallocLargeExpanded) {

@@ -133,7 +133,7 @@ TEST_F(ArenaUtilsTest, ArenaReallocateHugeChunkSameSize) {
   huge_chunk1 = arena_allocate_huge_mapping(&arena, huge_chunk_size);
   key = huge_chunk1->entry.key;
   arena_reallocate_huge_mapping(&arena, huge_chunk1, huge_chunk_size);
-  EXPECT_EQ(huge_chunk1->entry.key, key);
+  EXPECT_NE(huge_chunk1->entry.key, key);
 }
 
 TEST_F(ArenaUtilsTest, ArenaReallocateHugeChunkExpand) {
