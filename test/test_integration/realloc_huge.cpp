@@ -62,7 +62,7 @@ TEST_F(MallocApiTest, ReallocHugeSameSize) {
   ASSERT_NE(reg, nullptr);
   reg_realloc = sealloc_realloc(&arena, reg, huge_size - 1);
   EXPECT_NE(reg_realloc, nullptr);
-  EXPECT_EQ(reg_realloc, reg);
+  EXPECT_NE(reg_realloc, reg);
 }
 
 }  // namespace

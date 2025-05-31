@@ -381,9 +381,6 @@ void arena_reallocate_huge_mapping(arena_t *arena, huge_chunk_t *huge,
   assert(arena->is_initialized == 1);
   assert(IS_SIZE_HUGE(new_size));
 
-  // If aligned size is the same, then do nothing
-  if (new_size == huge->len) return;
-
   platform_status_code_t code;
   uintptr_t map;
   uintptr_t ceil_addr = MAX_USERSPACE_ADDR64;
