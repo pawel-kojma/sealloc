@@ -46,9 +46,8 @@ typedef struct huge_chunk huge_chunk_t;
  * @brief Holds state of arena
  *
  * Chunks and internal allocator structures are allocated incrementally.
- * Chunks start at random offset from the program break, intial address for
- * internal allocator is chosen randomly. All huge allocation address hints are
- * chosen randomly.
+ * Chunks start at random offset below the program break. Intial address for
+ * internal allocator metadata and huge allocations are chosen randomly above program break. 
  */
 struct arena_state {
   int is_initialized; /*!< Holds 1 if arena was initialized, 0 otherwise. */
