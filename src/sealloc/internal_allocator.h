@@ -2,7 +2,7 @@
  * @file internal_allocator.h
  * @brief Internal allocator used for storing metadata.
  *
- * Least size chunk is 16 bytes
+ * Least size chunk is 32 bytes
  * Entire buffer to partition is 8MB
  */
 
@@ -15,7 +15,7 @@
 #include "container_ll.h"
 
 #define INTERNAL_ALLOC_CHUNK_SIZE_BYTES 8388608  // 2^23 B = 8MB
-#define INTERNAL_ALLOC_LEAST_REGION_SIZE_BYTES 16
+#define INTERNAL_ALLOC_LEAST_REGION_SIZE_BYTES 32
 #define INTERNAL_ALLOC_NO_NODES_LAST_LAYER \
   (INTERNAL_ALLOC_CHUNK_SIZE_BYTES / INTERNAL_ALLOC_LEAST_REGION_SIZE_BYTES)
 #define INTERNAL_ALLOC_NO_NODES         \

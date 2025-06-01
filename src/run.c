@@ -138,7 +138,7 @@ void run_init(run_t *run, bin_t *bin, void *heap) {
 // Allocate region from run
 void *run_allocate(run_t *run, bin_t *bin) {
   // Check if we still have regions to give
-  if (run->navail == 0) return NULL;
+  assert(run->navail > 0);
 
   uintptr_t heap = (uintptr_t)run->entry.key;
   unsigned elems = (unsigned)(bin->reg_mask_size_bits / 2);
@@ -148,19 +148,12 @@ void *run_allocate(run_t *run, bin_t *bin) {
   run->current_idx = (run->gen + run->current_idx) % elems;
 
   // Sanity check
-  bstate_t state;
-  if ((state = get_bitmap_item(run->reg_bitmap, run->current_idx)) !=
-      STATE_FREE) {
-    se_error(
-        "Region is not free, Region(heap=%p, nfree=%u, gen=%u, "
-        "current_idx=%u), state=%u",
-        run->entry.key, run->navail, run->gen, run->current_idx, state);
-  }
+  assert(get_bitmap_item(run->reg_bitmap, run->current_idx) == STATE_FREE);
 
   // Mark region as allocated
   set_bitmap_item(run->reg_bitmap, run->current_idx, STATE_ALLOC);
 
-  // Decrese amount of free regions
+  // Decrease amount of free regions
   run->navail--;
   se_debug("Allocating region at current_idx %u, next is %u", run->current_idx,
            (run->gen + run->current_idx) % elems);
@@ -210,7 +203,6 @@ size_t run_validate_ptr(run_t *run, bin_t *bin, void *ptr) {
 
   // Check for double free
   if (get_bitmap_item(run->reg_bitmap, bitmap_idx) != STATE_ALLOC) {
-    // se_error("Provided ptr not freeable (ptr=%p)", ptr);
     return SIZE_MAX;
   }
 

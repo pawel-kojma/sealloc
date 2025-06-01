@@ -21,9 +21,9 @@ typedef struct run_state run_t;
 
 /*!
  * Number of minimum regions that must be available for allocation in the runs
- * of some bin
+ * of some bin.
  */
-#define BIN_MINIMUM_REGIONS 32
+#define BIN_MINIMUM_REGIONS 256
 
 /*!
  * @brief Holds metadata of a bin.

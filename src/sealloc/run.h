@@ -61,6 +61,7 @@ typedef struct run_state {
  * @param[in,out] bin Pointer to the allocated bin structure.
  * @return Pointer to region. 
  * @pre run is initialized
+ * @pre run has nonzero regions left
  * @pre bin is initialized
  */
 void *run_allocate(run_t *run, bin_t *bin);
