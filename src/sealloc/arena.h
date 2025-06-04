@@ -54,8 +54,6 @@ struct arena_state {
   uint32_t secret;    /*!< 32-bit PRNG seed used to randomize allocation of
                          structures or user allocations. */
   uintptr_t brk;      /*!< Initial program break */
-  unsigned
-      chunks_left; /*!< Indicate how many chunks are left in current mapping */
   ll_head_t chunk_list;      /*!< Head to list of linkage entries within chunk_t
                                 structures. */
   ll_head_t huge_alloc_list; /*!< Head to list of linkage entries within
@@ -64,8 +62,6 @@ struct arena_state {
                                internal allocator nodes. */
   uintptr_t chunk_alloc_ptr;     /*!< A pointer where arena will start probing
                                     system for more memory for chunks. */
-  uintptr_t chunk_ptr;      /*!< If chunks_left > 0, this points to next chunk
-                               allocation point */
   uintptr_t huge_alloc_ptr; /*!< A pointer where arena will start probing
                                 system for more memory for huge mappings. */
   uintptr_t

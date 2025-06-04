@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 
 #include "sealloc/chunk.h"
 #include "sealloc/container_ll.h"
@@ -38,7 +39,7 @@ static void reset_chunk_ptr_start(arena_t *arena) {
   se_debug("Resetting chunk_alloc_ptr (current : %p)",
            (void *)arena->chunk_alloc_ptr);
   arena->chunk_alloc_ptr = ALIGNUP_PAGE(splitmix32());
-  se_debug("Setting chunk_alloc_ptr : %p",arena->chunk_alloc_ptr);
+  se_debug("Setting chunk_alloc_ptr : %p", arena->chunk_alloc_ptr);
   if (arena->brk <= MASK_44_BITS) {
     arena->brk = ALIGNUP_PAGE(splitmix64() & MASK_45_BITS);
   }
@@ -132,8 +133,6 @@ void arena_init(arena_t *arena) {
    * program break */
   reset_ia_ptr_start(arena);
   reset_huge_alloc_ptr_start(arena);
-  arena->chunk_ptr = 0;
-  arena->chunks_left = 0;
   memset(arena->bins, 0, sizeof(bin_t) * ARENA_NO_BINS);
 }
 
@@ -156,7 +155,8 @@ void *arena_internal_alloc(arena_t *arena, size_t size) {
       arena, &arena->internal_alloc_ptr, reset_ia_ptr_start,
       ALIGNUP_PAGE(sizeof(int_alloc_t)), &ceil_addr);
 
-  // If this is true, update pointer for next mapping to avoid clashing with current one
+  // If this is true, update pointer for next mapping to avoid clashing with
+  // current one
   if ((uintptr_t)map == arena->internal_alloc_ptr)
     arena->internal_alloc_ptr += ALIGNUP_PAGE(sizeof(int_alloc_t));
 
@@ -225,31 +225,17 @@ chunk_t *arena_allocate_chunk(arena_t *arena) {
   assert(arena->is_initialized == 1);
 
   chunk_t *chunk_meta = arena_internal_alloc(arena, sizeof(chunk_t));
-  platform_status_code_t code;
-  size_t map_len = CHUNKS_PER_MAPPING * (CHUNK_SIZE_BYTES + PAGE_SIZE);
-  // get more memory if needed
-  if (arena->chunks_left == 0) {
-    arena->chunk_ptr =
-        arena_morecore(arena, &arena->chunk_alloc_ptr, reset_chunk_ptr_start,
-                       map_len, &arena->brk);
-    // If this is true, update chunk_alloc_ptr to avoid clashing into existing
-    // mapping
-    if (arena->chunk_ptr == arena->chunk_alloc_ptr)
-      arena->chunk_alloc_ptr += map_len;
-    arena->chunks_left = CHUNKS_PER_MAPPING;
-  }
+  size_t map_len = CHUNK_SIZE_BYTES;
 
-  // Guard one page after the end of chunk
-  code =
-      platform_guard((void *)(arena->chunk_ptr + CHUNK_SIZE_BYTES), PAGE_SIZE);
-  if (code != PLATFORM_STATUS_OK) {
-    se_error("Failed to allocate mapping (size : %u): %s", PAGE_SIZE,
-             platform_strerror(code));
-  }
-  chunk_init(chunk_meta, (void *)arena->chunk_ptr);
+  uintptr_t ptr = arena_morecore(arena, &arena->chunk_alloc_ptr,
+                                 reset_chunk_ptr_start, map_len, &arena->brk);
+  // If this is true, update chunk_alloc_ptr to avoid clashing into existing
+  // mapping
+  if (ptr == arena->chunk_alloc_ptr)
+    arena->chunk_alloc_ptr += map_len + PAGE_SIZE;
+
+  chunk_init(chunk_meta, (void *)ptr);
   ll_add(&arena->chunk_list, &chunk_meta->entry);
-  arena->chunk_ptr += (CHUNK_SIZE_BYTES + PAGE_SIZE);
-  arena->chunks_left--;
   return chunk_meta;
 }
 
@@ -257,15 +243,7 @@ void arena_deallocate_chunk(arena_t *arena, chunk_t *chunk) {
   assert(arena->is_initialized == 1);
   assert(chunk_is_unmapped(chunk));
   se_debug("Deallocating chunk");
-  platform_status_code_t code;
 
-  // Unmap guard page
-  if ((code = platform_unmap(
-           (void *)((uintptr_t)chunk->entry.key + CHUNK_SIZE_BYTES),
-           PAGE_SIZE)) != PLATFORM_STATUS_OK) {
-    se_error("Failed to unmap mapping (size : %u): %s", PAGE_SIZE,
-             platform_strerror(code));
-  }
   // Delete from chunk list
   ll_del(&arena->chunk_list, &chunk->entry);
 

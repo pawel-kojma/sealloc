@@ -49,7 +49,6 @@ TEST_F(ArenaUtilsTest, ArenaInit) {
   EXPECT_TRUE(arena.chunk_alloc_ptr < arena.brk);
   EXPECT_TRUE(arena.huge_alloc_ptr > arena.brk);
   EXPECT_TRUE(arena.internal_alloc_ptr > arena.brk);
-  EXPECT_EQ(arena.chunks_left, 0);
   for (int i = 0; i < ARENA_NO_BINS; i++) {
     EXPECT_EQ(arena.bins[i].reg_size, 0);
   }
