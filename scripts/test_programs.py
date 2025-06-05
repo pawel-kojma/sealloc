@@ -23,10 +23,10 @@ def run_tests(prog_path, n, out, cmd_args, input_file=None, rc=0):
         full_cmd = ["/usr/bin/time", "-v", f"--output={str(outfile)}"] + cmd
         if not input_file:
             process = subprocess.run(
-                full_cmd, env={"SEALLOC_SEED": "1234"}, capture_output=True)
+                full_cmd, capture_output=True)
         else:
             process = subprocess.run(
-                full_cmd, capture_output=True, env={"SEALLOC_SEED": "1234"}, input=input_file.read_bytes()
+                full_cmd, capture_output=True, input=input_file.read_bytes()
             )
         if process.returncode != rc:
             print(f"program {prog_path.name} failed at iteration {

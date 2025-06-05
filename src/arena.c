@@ -103,14 +103,12 @@ void arena_init(arena_t *arena) {
     arena->stats_fd = fd;
   }
 #endif
-#ifdef DEBUG
   char *user_rand = getenv("SEALLOC_SEED");
   if (user_rand != NULL) {
     arena->secret = str2u32(user_rand);
-    se_log("Using user passed secret: %u\n", arena->secret);
-  } else
-#endif
-      if ((code = platform_get_random(&arena->secret)) != PLATFORM_STATUS_OK) {
+    se_debug("Using user passed secret: %u\n", arena->secret);
+  } else if ((code = platform_get_random(&arena->secret)) !=
+             PLATFORM_STATUS_OK) {
     se_error("Failed to get random value: %s", platform_strerror(code));
   }
 #ifdef DEBUG
@@ -119,6 +117,7 @@ void arena_init(arena_t *arena) {
   if ((code = platform_get_program_break(&ptr)) != PLATFORM_STATUS_OK) {
     se_error("Failed to get program break: %s", platform_strerror(code));
   }
+  arena->secret = 0;
   arena->brk = (uintptr_t)ptr;
   init_splitmix32(arena->secret);
   init_splitmix64(arena->secret);
@@ -144,7 +143,8 @@ void *arena_internal_alloc(arena_t *arena, size_t size) {
        root = root->link.fd) {
     se_debug("Trying to allocate with root = %p", (void *)root);
     alloc = internal_alloc(CONTAINER_OF(root, int_alloc_t, entry), size);
-    if (alloc != NULL) return alloc;
+    if (alloc != NULL)
+      return alloc;
   }
 
   // No mapping can satisfy the request, try to get more memory
@@ -285,7 +285,8 @@ bool arena_supply_runs(arena_t *arena, bin_t *bin) {
            runs_to_allocate * (bin->reg_mask_size_bits / 2));
   for (unsigned i = 0; i < runs_to_allocate; i++) {
     run = arena_allocate_run(arena, bin);
-    if (run == NULL) return false;
+    if (run == NULL)
+      return false;
     bin_add_run(bin, run);
     se_debug("Added run %p to bin %p", run, bin);
   }
@@ -326,7 +327,8 @@ huge_chunk_t *arena_find_huge_mapping(const arena_t *arena,
                                       const void *huge_map) {
   assert(arena->is_initialized == 1);
   ll_entry_t *entry = ll_find(&arena->huge_alloc_list, huge_map);
-  if (entry == NULL) return NULL;
+  if (entry == NULL)
+    return NULL;
   huge_chunk_t *huge = CONTAINER_OF(entry, huge_chunk_t, entry);
   assert(huge->entry.key == huge_map);
   return huge;
@@ -347,7 +349,8 @@ huge_chunk_t *arena_allocate_huge_mapping(arena_t *arena, size_t len) {
                        reset_huge_alloc_ptr_start, len, &ceil_addr);
   huge->entry.key = (void *)map;
   // Leave one page space in between to avoid overflows
-  if (map == arena->huge_alloc_ptr) arena->huge_alloc_ptr += len + PAGE_SIZE;
+  if (map == arena->huge_alloc_ptr)
+    arena->huge_alloc_ptr += len + PAGE_SIZE;
   ll_add(&arena->huge_alloc_list, &huge->entry);
   return huge;
 }

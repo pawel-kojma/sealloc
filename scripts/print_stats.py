@@ -55,7 +55,7 @@ def make_plot(dirs):
             max_rss = np.array([st.max_rss for st in time_stats])
             plot_data[allocators.index(allocator_name)] = elapsed_time
         axs.boxplot(plot_data, tick_labels=allocators)
-    plt.show()
+    plt.savefig('plot.png')
 
 
 @click.command()
@@ -70,11 +70,17 @@ def main(dirs, plot):
             time_stats = [TimeStats(path) for path in dir.iterdir()]
             elapsed_time = np.array([st.elapsed_time for st in time_stats])
             max_rss = np.array([st.max_rss for st in time_stats])
+            mean_time = np.mean(elapsed_time)
+            std_time = np.std(elapsed_time)
+            mean_rss = np.mean(max_rss)
+            std_rss = np.std(max_rss)
             print(f'Stats for {dir.name}')
-            print(f'Mean time: {np.mean(elapsed_time):.3f}s')
-            print(f'Std time: {np.std(elapsed_time):.3f}s')
-            print(f'Mean mem: {convert_mb(np.mean(max_rss)):.3f} MB')
-            print(f'Std mem: {convert_mb(np.std(max_rss)):.3f} MB')
+            print(f'Mean time: {mean_time:.3f}s')
+            print(f'Std time: {std_time:.3f}s ({
+                  (std_time/mean_time)*100:.3f}%)')
+            print(f'Mean mem: {convert_mb(mean_rss):.3f} MB')
+            print(f'Std mem: {convert_mb(std_rss)
+                  :.3f} MB ({(std_rss/mean_rss)*100:.3f}%)')
             print()
 
 
