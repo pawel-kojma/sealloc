@@ -11,7 +11,7 @@
  * 1. Allocate NALLOCS chunks.
  * 2. Check if the returned addresses are sorted.
  * 3. Check if space gap between each allocation is constant.
- * 4. Tests succeds when (2) or (3) is not satisfied.
+ * 4. Tests succeeds when (2) or (3) is not satisfied.
  */
 
 #define NALLOCS 100
