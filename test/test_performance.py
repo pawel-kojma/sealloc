@@ -224,3 +224,41 @@ def test_performance_on_ghostscript(
         test_cmd,
         input_file=input_file,
     )
+
+@pytest.mark.performance
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        ["/usr/bin/time", "-v", "--output=time.cc1"],
+        ["/usr/bin/strace", "-c", "--output=strace.cc1"],
+        [
+            "/usr/bin/valgrind-3.24.0-more_vg_n_segments",
+            "--tool=callgrind",
+            "--callgrind-out-file=callgrind.cc1",
+        ],
+        [
+            "/usr/bin/valgrind-3.24.0-more_vg_n_segments",
+            "--tool=massif",
+            "--massif-out-file=massif.cc1",
+            "--pages-as-heap=yes",
+        ],
+    ],
+)
+def test_performance_on_ghostscript(
+    cmd, output_dir_performance, tmp_path, lib_path, progs_dir
+):
+    input_file = Path("./test/assets/lua/onelua.c")
+    test_cmd = cmd + [
+        str(tmp_path / "cc1"),
+        # FILL ME
+        input_file.name,
+    ]
+    run_test(
+        tmp_path,
+        output_dir_performance,
+        progs_dir,
+        lib_path,
+        "cc1",
+        test_cmd,
+        input_file=input_file,
+    )
