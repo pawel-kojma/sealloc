@@ -11,8 +11,10 @@ def prepare_env(dir: Path, prog: Path, library: Path):
     shutil.copyfile(prog, patched_prog, follow_symlinks=True)
     shutil.copystat(prog, patched_prog, follow_symlinks=True)
     if library:
-        subprocess.run(["patchelf", "--add-needed", library.name, str(patched_prog)])
-        subprocess.run(["patchelf", "--add-rpath", library.parent, str(patched_prog)])
+        subprocess.run(["patchelf", "--add-needed",
+                       library.name, str(patched_prog)])
+        subprocess.run(["patchelf", "--add-rpath",
+                       library.parent, str(patched_prog)])
 
 
 def run_test(
@@ -183,7 +185,8 @@ def test_performance_on_cfrac(
         str(tmp_path / "cfrac"),
         "3707030275882252342412325295197136712092001",
     ]
-    run_test(tmp_path, output_dir_performance, progs_dir, lib_path, "cfrac", test_cmd)
+    run_test(tmp_path, output_dir_performance,
+             progs_dir, lib_path, "cfrac", test_cmd)
 
 
 @pytest.mark.performance
@@ -225,6 +228,7 @@ def test_performance_on_ghostscript(
         input_file=input_file,
     )
 
+
 @pytest.mark.performance
 @pytest.mark.parametrize(
     "cmd",
@@ -232,26 +236,29 @@ def test_performance_on_ghostscript(
         ["/usr/bin/time", "-v", "--output=time.cc1"],
         ["/usr/bin/strace", "-c", "--output=strace.cc1"],
         [
-            "/usr/bin/valgrind-3.24.0-more_vg_n_segments",
+            "/usr/bin/valgrind",
             "--tool=callgrind",
             "--callgrind-out-file=callgrind.cc1",
         ],
         [
-            "/usr/bin/valgrind-3.24.0-more_vg_n_segments",
+            "/usr/bin/valgrind",
             "--tool=massif",
             "--massif-out-file=massif.cc1",
             "--pages-as-heap=yes",
         ],
     ],
 )
-def test_performance_on_ghostscript(
+def test_performance_on_cc1(
     cmd, output_dir_performance, tmp_path, lib_path, progs_dir
 ):
     input_file = Path("./test/assets/lua/onelua.c")
     test_cmd = cmd + [
         str(tmp_path / "cc1"),
-        # FILL ME
-        input_file.name,
+        "-I",
+        "/usr/include/x86_64-linux-gnu/",
+        "-O2",
+        "-std=c99",
+        str(input_file.resolve()),
     ]
     run_test(
         tmp_path,
@@ -260,5 +267,4 @@ def test_performance_on_ghostscript(
         lib_path,
         "cc1",
         test_cmd,
-        input_file=input_file,
     )
