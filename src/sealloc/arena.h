@@ -28,11 +28,6 @@ typedef struct chunk_state chunk_t;
   (NO_SMALL_SIZE_CLASSES + NO_MEDIUM_SIZE_CLASSES + NO_LARGE_SIZE_CLASSES)
 
 /*!
- * @brief Indicate how many chunks will be placed inside one mapping.
- */
-#define CHUNKS_PER_MAPPING 4
-
-/*!
  * @brief Holds metadata of huge allocations.
  */
 struct huge_chunk {
@@ -54,8 +49,6 @@ struct arena_state {
   uint32_t secret;    /*!< 32-bit PRNG seed used to randomize allocation of
                          structures or user allocations. */
   uintptr_t brk;      /*!< Initial program break */
-  unsigned
-      chunks_left; /*!< Indicate how many chunks are left in current mapping */
   ll_head_t chunk_list;      /*!< Head to list of linkage entries within chunk_t
                                 structures. */
   ll_head_t huge_alloc_list; /*!< Head to list of linkage entries within
@@ -64,8 +57,6 @@ struct arena_state {
                                internal allocator nodes. */
   uintptr_t chunk_alloc_ptr;     /*!< A pointer where arena will start probing
                                     system for more memory for chunks. */
-  uintptr_t chunk_ptr;      /*!< If chunks_left > 0, this points to next chunk
-                               allocation point */
   uintptr_t huge_alloc_ptr; /*!< A pointer where arena will start probing
                                 system for more memory for huge mappings. */
   uintptr_t
@@ -83,7 +74,7 @@ typedef struct arena_state arena_t;
  * @brief Initializes an uninitialized arena structure.
  *
  * @param[in,out] arena Pointer to the allocated arena structure.
- * @sideeffect Terminates if random value for seed couldn't be acquired.
+ * @warning Terminates if random value for seed couldn't be acquired.
  */
 void arena_init(arena_t *arena);
 
@@ -93,7 +84,7 @@ void arena_init(arena_t *arena);
  * @param[in,out] arena Pointer to the allocated arena structure.
  * @param[in] size metadata size
  * @pre arena is initialized
- * @sideeffect Terminates if could not allocate
+ * @warning Terminates if could not allocate
  */
 void *arena_internal_alloc(arena_t *arena, size_t size);
 
@@ -103,7 +94,7 @@ void *arena_internal_alloc(arena_t *arena, size_t size);
  * @param[in,out] arena Pointer to the allocated arena structure.
  * @param[in] ptr Pointer to the metadata being freed.
  * @pre arena is initialized
- * @sideeffect Terminates if could not allocate
+ * @warning Terminates if could not allocate
  */
 void arena_internal_free(arena_t *arena, void *ptr);
 
@@ -143,7 +134,7 @@ bool arena_supply_runs(arena_t *arena, bin_t *bin);
  * @param[in,out] arena Pointer to the allocated arena structure
  * @return NULL if EOM or pointer to initialized chunk metadata.
  * @pre arena is initialized
- * @sideeffect fails if chunk could not be allocated
+ * @warning fails if chunk could not be allocated
  */
 chunk_t *arena_allocate_chunk(arena_t *arena);
 
@@ -158,7 +149,7 @@ chunk_t *arena_allocate_chunk(arena_t *arena);
  * @param[in,out] chunk Pointer to the fully unmapped chunk metadata.
  * @pre arena is initialized
  * @pre chunk is fully unmapped
- * @sideeffect fails if guard page could not be unmapped
+ * @warning fails if guard page could not be unmapped
  */
 void arena_deallocate_chunk(arena_t *arena, chunk_t *chunk);
 
@@ -167,9 +158,6 @@ void arena_deallocate_chunk(arena_t *arena, chunk_t *chunk);
  *
  * Searches through chunks assigned to arena and returns one where ptr matches
  * chunk's mapping.
- *
- * It deallocates chunk metadata and a guard page after the chunk mapping.
- * It assumes that the chunk is fully unmapped.
  *
  * @param[in] arena Pointer to the allocated arena structure
  * @param[in] ptr Pointer to possibly a chunk in this arena
@@ -184,9 +172,6 @@ chunk_t *arena_get_chunk_from_ptr(const arena_t *arena, const void *ptr,
 
 /*!
  * @brief Returns bin for reg_size
- *
- * It deallocates chunk metadata and a guard page after the chunk mapping.
- * It assumes that the chunk is fully unmapped.
  *
  * @param[in, out] arena Pointer to the allocated arena structure
  * @param[in] reg_size Region size which identifies which bin to return
@@ -220,7 +205,7 @@ huge_chunk_t *arena_find_huge_mapping(const arena_t *arena,
  * @return Pointer to huge allocation mapping.
  * @pre len is page aligned
  * @pre arena is initialized
- * @sideeffect fails if mapping could not be allocated
+ * @warning fails if mapping could not be allocated
  */
 huge_chunk_t *arena_allocate_huge_mapping(arena_t *arena, size_t len);
 
@@ -231,7 +216,7 @@ huge_chunk_t *arena_allocate_huge_mapping(arena_t *arena, size_t len);
  * @param[in] huge Metadata of chunk being freed.
  * @pre len is page aligned
  * @pre arena is initialized
- * @sideeffect fails if mapping could not be deallocated
+ * @warning fails if mapping could not be deallocated
  */
 void arena_deallocate_huge_mapping(arena_t *arena, huge_chunk_t *huge);
 
@@ -243,7 +228,7 @@ void arena_deallocate_huge_mapping(arena_t *arena, huge_chunk_t *huge);
  * @param[in] new_size Size of reallocated mapping.
  * @pre len is page aligned
  * @pre arena is initialized
- * @sideeffect fails if mapping could not be deallocated
+ * @warning fails if mapping could not be deallocated
  */
 void arena_reallocate_huge_mapping(arena_t *arena, huge_chunk_t *huge,
                                    size_t new_size);

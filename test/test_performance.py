@@ -11,8 +11,10 @@ def prepare_env(dir: Path, prog: Path, library: Path):
     shutil.copyfile(prog, patched_prog, follow_symlinks=True)
     shutil.copystat(prog, patched_prog, follow_symlinks=True)
     if library:
-        subprocess.run(["patchelf", "--add-needed", library.name, str(patched_prog)])
-        subprocess.run(["patchelf", "--add-rpath", library.parent, str(patched_prog)])
+        subprocess.run(["patchelf", "--add-needed",
+                       library.name, str(patched_prog)])
+        subprocess.run(["patchelf", "--add-rpath",
+                       library.parent, str(patched_prog)])
 
 
 def run_test(
@@ -183,7 +185,8 @@ def test_performance_on_cfrac(
         str(tmp_path / "cfrac"),
         "3707030275882252342412325295197136712092001",
     ]
-    run_test(tmp_path, output_dir_performance, progs_dir, lib_path, "cfrac", test_cmd)
+    run_test(tmp_path, output_dir_performance,
+             progs_dir, lib_path, "cfrac", test_cmd)
 
 
 @pytest.mark.performance
@@ -230,42 +233,38 @@ def test_performance_on_ghostscript(
 @pytest.mark.parametrize(
     "cmd",
     [
-        ["/usr/bin/time", "-v", "--output=time.gcc"],
-        ["/usr/bin/strace", "-c", "--output=strace.gcc"],
+        ["/usr/bin/time", "-v", "--output=time.cc1"],
+        ["/usr/bin/strace", "-c", "--output=strace.cc1"],
         [
-            "/usr/bin/valgrind-3.24.0-more_vg_n_segments",
+            "/usr/bin/valgrind",
             "--tool=callgrind",
-            "--callgrind-out-file=callgrind.gcc",
+            "--callgrind-out-file=callgrind.cc1",
         ],
         [
-            "/usr/bin/valgrind-3.24.0-more_vg_n_segments",
+            "/usr/bin/valgrind",
             "--tool=massif",
-            "--massif-out-file=massif.gcc",
+            "--massif-out-file=massif.cc1",
             "--pages-as-heap=yes",
         ],
     ],
 )
-def test_performance_on_gcc(cmd, output_dir_performance, tmp_path, lib_path, progs_dir):
-    """GCC compiling lua interpreter source code."""
-    input_dir = Path("./test/assets/lua/")
-    work_dir = tmp_path
-    gcc_libs_dir = work_dir / "lib" / "gcc" / "x86_64-linux-gnu"
-    gcc_libs_dir.mkdir(parents=True, exist_ok=True)
-    gcc_bin_dir = work_dir / "bin"
-    gcc_bin_dir.mkdir(parents=True, exist_ok=True)
-    prepare_env(gcc_bin_dir, progs_dir / "gcc", lib_path)
-    lua_path = work_dir / "lua"
-    shutil.copytree(input_dir, lua_path)
-    shutil.copytree(Path("/usr/lib/gcc/x86_64-linux-gnu/12/"), gcc_libs_dir / "12")
-    res = subprocess.run(
-        cmd
-        + [str(gcc_bin_dir / "gcc"), "-S", "-O2", "-std=c99", "-o", "lua", "onelua.c"],
-        env={"SEALLOC_SEED": "1234"},
-        capture_output=True,
-        cwd=lua_path,
+def test_performance_on_cc1(
+    cmd, output_dir_performance, tmp_path, lib_path, progs_dir
+):
+    input_file = Path("./test/assets/lua/onelua.c")
+    test_cmd = cmd + [
+        str(tmp_path / "cc1"),
+        "-I",
+        "/usr/include/x86_64-linux-gnu/",
+        "-O2",
+        "-std=c99",
+        str(input_file.resolve()),
+    ]
+    run_test(
+        tmp_path,
+        output_dir_performance,
+        progs_dir,
+        lib_path,
+        "cc1",
+        test_cmd,
     )
-    report_file = next(lua_path.glob("*.gcc"), None)
-    if report_file:
-        (output_dir_performance / "gcc").mkdir(exist_ok=True)
-        shutil.copyfile(report_file, output_dir_performance / "gcc" / report_file.name)
-    assert res.returncode == 0

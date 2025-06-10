@@ -17,7 +17,8 @@ def main(progs_dir, allocator_path, out_dir):
     progs_dir = Path(progs_dir)
     out.mkdir(exist_ok=True)
     for prog in filter(lambda f: os.access(f, os.X_OK) and f.is_file(), progs_dir.iterdir()):
-        patched_prog = out / prog.name
+        (out / prog.name).mkdir(exist_ok=True)
+        patched_prog = out / prog.name / f"{prog.name}_{allocator.with_suffix('').name}"
         shutil.copyfile(prog, patched_prog, follow_symlinks=True)
         shutil.copystat(prog, patched_prog, follow_symlinks=True)
         subprocess.run(["patchelf", "--add-needed",

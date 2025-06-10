@@ -1,9 +1,6 @@
 /*!
  * @file chunk.h
  * @brief Chunk utils API for managing runs within them.
- *
- * On each run allocation, 2 guard pages are allocated right after the run to
- * prevent linear overflows between runs.
  */
 
 #ifndef SEALLOC_CHUNK_H_
@@ -40,13 +37,6 @@ typedef struct run_state run_t;
 #define CHUNK_BUDDY_TREE_DEPTH 11
 #define CHUNK_JUMP_NODE_SIZE_BYTES 4
 #define CHUNK_JUMP_TREE_SIZE_BYTES (CHUNK_JUMP_NODE_SIZE_BYTES * CHUNK_NO_NODES)
-/*!
- * @brief Arbitrary point where we unmap part of the chunk
- *
- * Right now we are unmapping at least 32 pages
- */
-#define CHUNK_UNMAP_THRESHOLD 0
-
 #define CHUNK_BUDDY_TREE_SIZE_BYTES \
   ((((CHUNK_BUDDY_TREE_SIZE_BITS) + 7) & ~7) / 8)
 
@@ -147,9 +137,6 @@ bool chunk_is_unmapped(chunk_t *chunk);
  * @pre chunk is initialized
  */
 bool chunk_is_full(chunk_t *chunk);
-
-// TODO: improve buddy tree so that we can implement that efficiently
-/* bool chunk_can_allocate_run(chunk_t *chunk, size_t run_size); */
 
 /*!
  * @brief Get run information based on ptr inside some run
