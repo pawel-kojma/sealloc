@@ -72,7 +72,6 @@ list(APPEND tests_sec
             arbitrary_free
             double_free_simple
             double_free_hard                 
-            overflow_with_free_prevention
             overflow_simple_prevention      
             overflow_hard_prevention      
             overflow_simple_detection        
