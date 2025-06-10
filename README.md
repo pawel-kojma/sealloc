@@ -54,17 +54,13 @@ $ pytest -rx -m security ./test/ --lib-path=./build/src/libsealloc.so
 ## Resources
 
 Final design was inspired by following resources and publications:
-1\. [Beichen Liu, Pierre Olivier, and Binoy Ravindran. 2019. SlimGuard: A Secure
+1. [Beichen Liu, Pierre Olivier, and Binoy Ravindran. 2019. SlimGuard: A Secure
 and Memory-Efficient Heap Allocator. In Middleware ’19: Middleware ’19: 20th
 International Middleware Conference, December 8–13, 2019, Davis, CA, USA.
 ACM, New York, NY, USA, 13 pages](https://doi.org/10.1145/3361525.3361532)
-
-2\. [Brian Wickman, Hong Hu, Insu Yun, Daehee Jang, JungWon Lim, Sanidhya
+2. [Brian Wickman, Hong Hu, Insu Yun, Daehee Jang, JungWon Lim, Sanidhya
 Kashyap, Taesoo Kim, Preventing Use-After-Free Attacks with Fast Forward
 Allocation.](https://www.usenix.org/system/files/sec21-wickman.pdf)
-
-3\. [Jason Evans, A Scalable Concurrent malloc(3) Implementation for FreeBSD.](https://people.freebsd.org/~jasone/jemalloc/bsdcan2006/jemalloc.pdf)
-
-4\. [ARM v8.5 ISA](http://kib.kiev.ua/x86docs/ARM/ARMARMv8/DDI0487F_a_armv8_arm.pdf)
-
-5\. [Linux userspace MTE support.](https://docs.kernel.org/arch/arm64/memory-tagging-extension.html)
+3. [Jason Evans, A Scalable Concurrent malloc(3) Implementation for FreeBSD.](https://people.freebsd.org/~jasone/jemalloc/bsdcan2006/jemalloc.pdf)
+4. [ARM v8.5 ISA](http://kib.kiev.ua/x86docs/ARM/ARMARMv8/DDI0487F_a_armv8_arm.pdf)
+5. [Linux userspace MTE support.](https://docs.kernel.org/arch/arm64/memory-tagging-extension.html)
