@@ -1,4 +1,4 @@
-#include <sealloc_api.h>
+#include <sealloc/sealloc_export.h>
 #include <stddef.h>
 
 #include "sealloc/arena.h"
@@ -12,7 +12,8 @@ static arena_t arena;
 #ifdef STATISTICS
 #include <unistd.h>
 __attribute__((destructor)) void close_stats_file(void) {
-  if (arena.is_initialized != 0 && arena.stats_fd >= 0) close(arena.stats_fd);
+  if (arena.is_initialized != 0 && arena.stats_fd >= 0)
+    close(arena.stats_fd);
 }
 
 void log_allocation(size_t size) {
@@ -26,11 +27,12 @@ void log_allocation(size_t size) {
   else {
     class = "H";
   }
-  if (arena.stats_fd >= 0) fse_log(arena.stats_fd, "%s %zu\n", class, size);
+  if (arena.stats_fd >= 0)
+    fse_log(arena.stats_fd, "%s %zu\n", class, size);
 }
 #endif
 
-void *malloc(size_t size) {
+SEALLOC_EXPORT void *malloc(size_t size) {
   if (arena.is_initialized == 0) {
     arena_init(&arena);
   }
@@ -45,8 +47,8 @@ void *malloc(size_t size) {
   return sealloc_malloc(&arena, size);
 #endif
 }
-void free(void *ptr) { sealloc_free(&arena, ptr); }
-void *calloc(size_t nmemb, size_t size) {
+SEALLOC_EXPORT void free(void *ptr) { sealloc_free(&arena, ptr); }
+SEALLOC_EXPORT void *calloc(size_t nmemb, size_t size) {
   if (arena.is_initialized == 0) {
     arena_init(&arena);
   }
@@ -63,7 +65,7 @@ void *calloc(size_t nmemb, size_t size) {
   return sealloc_calloc(&arena, nmemb, size);
 #endif
 }
-void *realloc(void *ptr, size_t size) {
+SEALLOC_EXPORT void *realloc(void *ptr, size_t size) {
   if (arena.is_initialized == 0) {
     arena_init(&arena);
   }

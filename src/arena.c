@@ -117,7 +117,6 @@ void arena_init(arena_t *arena) {
   if ((code = platform_get_program_break(&ptr)) != PLATFORM_STATUS_OK) {
     se_error("Failed to get program break: %s", platform_strerror(code));
   }
-  arena->secret = 0;
   arena->brk = (uintptr_t)ptr;
   init_splitmix32(arena->secret);
   init_splitmix64(arena->secret);
